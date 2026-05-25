@@ -1,12 +1,74 @@
-name: Release
+name: Main
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
 
 jobs:
+  check:
+    if: "!startsWith(github.event.head_commit.message, 'chore: Release')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - run: rustup component add rustfmt clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: mise run ci
+
+  bump:
+    needs: check
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.release.outputs.skip }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: jdx/mise-action@v2
+
+      - run: rustup component add rustfmt clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Set git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Release
+        id: release
+        run: |
+          LEVEL=$(convco version --bump --label)
+          if [ -z "$LEVEL" ]; then
+            echo "No bump needed. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Bump level: $LEVEL"
+          cargo release "$LEVEL" --no-publish --no-confirm --execute
+
+          TAG="v$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')"
+          echo "Tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: bump
+    if: needs.bump.outputs.skip != 'true'
     strategy:
       matrix:
         include:
@@ -23,6 +85,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump.outputs.tag }}
 
       - uses: jdx/mise-action@v2
 
@@ -44,13 +108,7 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          tar -czf cfgsync-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release cfgsync
-
-      - name: Package (macOS)
-        if: runner.os == 'macOS'
+      - name: Package
         run: |
           tar -czf cfgsync-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release cfgsync
 
@@ -62,14 +120,9 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: build
+    needs: [bump, build]
+    if: needs.bump.outputs.skip != 'true'
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
-
     steps:
       - uses: actions/download-artifact@v4
 
@@ -87,6 +140,7 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.bump.outputs.tag }}
           files: |
             cfgsync-*/*.tar.gz
             checksums.txt
