@@ -7,22 +7,15 @@ on:
 
 permissions:
   contents: write
-  id-token: write
-  attestations: write
 
 jobs:
   check:
-    if: "!startsWith(github.event.head_commit.message, 'chore: Release')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: jdx/mise-action@v2
-
       - run: rustup component add rustfmt clippy
-
       - uses: Swatinem/rust-cache@v2
-
       - run: mise run ci
 
   bump:
@@ -38,12 +31,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: jdx/mise-action@v2
-
       - run: rustup component add rustfmt clippy
-
       - uses: Swatinem/rust-cache@v2
 
-      - name: Set git identity
+      - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -66,82 +57,12 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
-  build:
+  call-release:
     needs: bump
     if: needs.bump.outputs.skip != 'true'
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.bump.outputs.tag }}
-
-      - uses: jdx/mise-action@v2
-
-      - run: rustup component add rustfmt clippy
-
-      - run: rustup target add ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-
-      - name: Install cross-compilation deps (Linux ARM64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-
-      - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Package
-        run: |
-          tar -czf cfgsync-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release cfgsync
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cfgsync-${{ matrix.target }}
-          path: cfgsync-${{ matrix.target }}.tar.gz
-          if-no-files-found: error
-
-  release:
-    needs: [bump, build]
-    if: needs.bump.outputs.skip != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-
-      - name: Generate checksums
-        run: |
-          shasum -a 256 cfgsync-*/*.tar.gz > checksums.txt
-
-      - name: Attest artifacts
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: |
-            cfgsync-*/*.tar.gz
-            checksums.txt
-
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.bump.outputs.tag }}
-          files: |
-            cfgsync-*/*.tar.gz
-            checksums.txt
-          generate_release_notes: true
+    uses: ./.github/workflows/_release.yml
+    with:
+      tag: ${{ needs.bump.outputs.tag }}
+    permissions:
+      id-token: write
+      attestations: write
