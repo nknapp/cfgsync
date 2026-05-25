@@ -64,5 +64,6 @@ jobs:
     with:
       tag: ${{ needs.bump.outputs.tag }}
     permissions:
+      contents: write
       id-token: write
       attestations: write
