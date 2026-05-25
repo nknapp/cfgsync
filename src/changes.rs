@@ -123,9 +123,6 @@ pub fn classify(config: &ResolvedConfig, state: &State) -> Result<Vec<Change>, S
             }
 
             (Some(_s), Some(_t), None) => {
-                if file_contents_equal(&abs_src, &abs_tgt) {
-                    continue;
-                }
                 changes.push(Change::Conflict {
                     rel_path: rel_path.to_string(),
                 });
@@ -183,19 +180,6 @@ fn scan_dir(dir: &Path, filters: &[ResolvedFilter]) -> Result<Vec<DiscoveredFile
         files.push(DiscoveredFile { rel_path, mtime });
     }
     Ok(files)
-}
-
-fn file_contents_equal(a: &Path, b: &Path) -> bool {
-    use std::io::Read;
-    let read_file = |p: &Path| -> Option<Vec<u8>> {
-        let mut f = std::fs::File::open(p).ok()?;
-        let mut buf = Vec::new();
-        f.read_to_end(&mut buf).ok()?;
-        Some(buf)
-    };
-    let ca = read_file(a);
-    let cb = read_file(b);
-    ca.is_some() && cb.is_some() && ca == cb
 }
 
 pub fn count_changes(changes: &[Change]) -> ChangeCounts {
