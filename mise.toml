@@ -1,8 +1,9 @@
 [tools]
 "rust" = { version = "1.95", profile = "default" }
-"github:rhysd/actionlint" = "1"
+"github:rhysd/actionlint" = "1.7.12"
+"github:koalaman/shellcheck" = "0.11.0"
 
-[tasks.fmt-lint-test-build]
+[tasks.format-and-test]
 run = [
     "cargo fmt",
     "cargo clippy -- -D warnings",

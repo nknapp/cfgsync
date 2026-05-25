@@ -19,9 +19,15 @@ Always run from the workspace root (`/home/nils/projects/sync`):
 | Format      | `cargo fmt`                       |
 | Lint        | `cargo clippy -- -D warnings`     |
 | CI (check)  | `mise run ci`                     |
-| Dev (all)   | `mise run fmt-lint-test-build`    |
+| Dev (all)   | `mise run format-and-test`    |
 
 Rust toolchain: `1.95` (managed by mise).
+
+After making any code changes, always run:
+
+```bash
+mise run format-and-test
+```
 
 ## Architecture
 
