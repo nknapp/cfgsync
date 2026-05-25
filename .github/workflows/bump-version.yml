@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: jdx/mise-action@v2
 
       - uses: Swatinem/rust-cache@v2
 
