@@ -42,4 +42,4 @@ jobs:
             exit 0
           fi
           echo "Bump level: $LEVEL"
-          cargo release "$LEVEL" --no-publish --execute
+          cargo release "$LEVEL" --no-publish --no-confirm --execute
