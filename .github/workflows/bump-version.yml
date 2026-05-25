@@ -40,6 +40,9 @@ jobs:
 
       - name: Release
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           LEVEL=$(convco version --bump --label)
           if [ -z "$LEVEL" ]; then
             echo "No bump needed. Skipping."
