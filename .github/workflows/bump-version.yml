@@ -17,6 +17,8 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
+      - run: rustup component add rustfmt clippy
+
       - uses: Swatinem/rust-cache@v2
 
       - run: mise run ci
@@ -31,6 +33,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: jdx/mise-action@v2
+
+      - run: rustup component add rustfmt clippy
 
       - uses: Swatinem/rust-cache@v2
 
