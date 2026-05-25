@@ -1,14 +1,12 @@
-[env]
-MISE_RUST_PROFILE = "default"
-
 [tools]
-rust = "1.95"
+"rust" = { version = "1.95", profile = "default" }
 "github:rhysd/actionlint" = "1"
 
 [tasks.fmt-lint-test-build]
 run = [
     "cargo fmt",
     "cargo clippy -- -D warnings",
+    "actionlint",
     "cargo test",
     "cargo build --release",
 ]
