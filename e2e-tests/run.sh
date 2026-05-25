@@ -48,7 +48,7 @@ FAIL=0
 
 for i in "${TESTS[@]}" ; do
   rm -rf "$i/actual"
-  cp -ar "$i/original" "$i/actual"
+  cp -a "$i/original" "$i/actual"
   pushd "$i" >/dev/null
   if output=$(bash test.sh 2>&1); then
     echo "✅ PASS $i"
