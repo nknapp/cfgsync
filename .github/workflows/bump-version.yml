@@ -17,6 +17,8 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
+      - uses: Swatinem/rust-cache@v2
+
       - run: mise run ci
 
   bump:
@@ -29,6 +31,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Install tools
         run: |
