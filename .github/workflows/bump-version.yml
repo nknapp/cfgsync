@@ -34,11 +34,6 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install tools
-        run: |
-          cargo install cargo-release
-          cargo install convco
-
       - name: Release
         run: |
           LEVEL=$(convco version --bump)
