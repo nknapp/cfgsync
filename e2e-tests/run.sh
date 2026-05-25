@@ -29,7 +29,7 @@ function find_cfg_sync() {
   PATH="./target/release/:./target/debug/:${PATH}" which cfgsync
 }
 
-export CFGSYNC="${CFGSYNC:-$(find_cfg_sync)}"
+export CFGSYNC="$(realpath "${CFGSYNC:-$(find_cfg_sync)}")"
 
 
 if [[ $# -gt 0 ]] ; then
