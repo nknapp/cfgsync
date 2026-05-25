@@ -96,7 +96,7 @@ source_mtime = 1716634200
 target_mtime = 1716634200
 ```
 
-- Location: `<config_path>.state` (same directory, `.state` extension)
+- Location: `<config_path>.cfgsync.state` (same directory, `.cfgsync.state` extension)
 - `source_mtime` / `target_mtime`: `0` if file did not exist on that side
 - First run (no file) → `State::empty()` (empty file list)
 - Corrupted state file → fatal error with suggestion to delete and re-sync

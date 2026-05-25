@@ -26,14 +26,11 @@ echo
 
 PASS=0
 FAIL=0
-CLEANUP=()
 
-cleanup() {
-    for d in "${CLEANUP[@]}"; do
-        rm -rf "$d"
-    done
-}
-trap cleanup EXIT
+WORK_BASE="$E2E_DIR/test-tmp"
+rm -rf "$WORK_BASE"
+mkdir -p "$WORK_BASE"
+echo "work dir: $WORK_BASE"
 
 for test_dir in "$E2E_DIR"/*/; do
     test_name="$(basename "$test_dir")"
@@ -41,9 +38,9 @@ for test_dir in "$E2E_DIR"/*/; do
         continue
     fi
 
-    work="$(mktemp -d)"
-    CLEANUP+=("$work")
-    cp -a "$test_dir"/* "$work/"
+    rm -rf "$WORK_BASE/$test_name"
+    cp -a "$test_dir" "$WORK_BASE/$test_name"
+    work="$WORK_BASE/$test_name"
 
     pushd "$work" > /dev/null
     if output=$(bash test.sh "$BINARY" 2>&1); then

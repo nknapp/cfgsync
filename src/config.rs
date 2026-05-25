@@ -67,7 +67,7 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
         ));
     }
 
-    let state_path = config_path.with_extension("state");
+    let state_path = config_path.with_extension("cfgsync.state");
 
     let filters: Vec<ResolvedFilter> = config
         .filter
@@ -152,7 +152,7 @@ glob = "*.conf"
         assert_eq!(resolved.source_dir, src_dir);
         assert_eq!(resolved.target_dir, tgt_dir);
         assert_eq!(resolved.filters.len(), 1);
-        assert_eq!(resolved.state_path, config_path.with_extension("state"));
+        assert_eq!(resolved.state_path, config_path.with_extension("cfgsync.state"));
     }
 
     #[test]

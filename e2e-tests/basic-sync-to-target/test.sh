@@ -24,7 +24,7 @@ if ! diff -q source/subdir/deep.txt target/subdir/deep.txt > /dev/null 2>&1; the
 fi
 
 # State file should exist
-if [ ! -f config.state ]; then
+if [ ! -f config.cfgsync.state ]; then
     echo "FAIL: state file not created"
     exit 1
 fi

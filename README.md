@@ -115,7 +115,7 @@ glob = "**/*"
 
 ## How it works
 
-`cfgsync` maintains a `.state` file (TOML, stored next to your config file) that records each file's mtime at the last successful sync. On each run it:
+`cfgsync` maintains a `.cfgsync.state` file (TOML, stored next to your config file) that records each file's mtime at the last successful sync. This file is a local runtime artifact — add `*.cfgsync.state` to your `.gitignore`. On each run it:
 
 1. Scans source and target directories for files matching any filter glob.
 2. Compares current mtimes against the recorded state.
