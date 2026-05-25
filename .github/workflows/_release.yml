@@ -36,6 +36,8 @@ jobs:
 
       - name: Build x86_64
         run: cargo build --release --target x86_64-unknown-linux-gnu
+      - name: E2E tests (x86_64)
+        run: ./e2e-tests/run.sh target/x86_64-unknown-linux-gnu/release/cfgsync
       - name: Build aarch64
         run: cargo build --release --target aarch64-unknown-linux-gnu
 
@@ -77,6 +79,8 @@ jobs:
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
+      - name: E2E tests
+        run: ./e2e-tests/run.sh target/${{ matrix.target }}/release/cfgsync
       - name: Package
         run: tar -czf cfgsync-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release cfgsync
 
