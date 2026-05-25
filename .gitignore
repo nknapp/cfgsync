@@ -1,3 +1,4 @@
 /target
 /e2e-tests/test-tmp
 *.cfgsync.state
+/.idea/

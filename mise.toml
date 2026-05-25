@@ -1,3 +1,6 @@
+[env]
+MISE_RUST_PROFILE = "default"
+
 [tools]
 rust = "1.95"
 "github:rhysd/actionlint" = "1"
