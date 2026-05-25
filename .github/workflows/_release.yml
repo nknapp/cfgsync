@@ -16,11 +16,11 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag }}
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v4
       - run: rustup component add rustfmt clippy
       - run: rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
 
@@ -63,11 +63,11 @@ jobs:
           - aarch64-apple-darwin
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag }}
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v4
       - run: rustup component add rustfmt clippy
       - run: rustup target add ${{ matrix.target }}
 
