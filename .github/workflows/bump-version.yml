@@ -36,9 +36,9 @@ jobs:
 
       - name: Release
         run: |
-          LEVEL=$(convco version --bump)
+          LEVEL=$(convco version --bump --label)
           if [ -z "$LEVEL" ]; then
-            echo "convco returned no level. Skipping."
+            echo "No bump needed. Skipping."
             exit 0
           fi
           echo "Bump level: $LEVEL"
