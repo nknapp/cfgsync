@@ -1,5 +1,5 @@
 [tools]
-"rust" = { version = "1.95", profile = "default" }
+"rust" = { version = "1.95", components = "rustfmt,clippy" }
 "github:rhysd/actionlint" = "1.7.12"
 "github:koalaman/shellcheck" = "0.11.0"
 "github:crate-ci/cargo-release" = "1.1.2"
