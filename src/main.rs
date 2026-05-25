@@ -1,6 +1,7 @@
 mod changes;
 mod config;
 mod diff;
+mod schema;
 mod state;
 mod status;
 mod sync;
@@ -40,6 +41,8 @@ enum Commands {
         /// Path to the configuration file
         config: PathBuf,
     },
+    /// Print configuration file schema and example
+    Schema,
 }
 
 fn main() {
@@ -53,6 +56,7 @@ fn main() {
         } => cmd_sync(&config, interactive, dry_run),
         Commands::Status { config } => cmd_status(&config),
         Commands::Diff { config } => cmd_diff(&config),
+        Commands::Schema => schema::print_schema(),
     }
 }
 

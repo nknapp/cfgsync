@@ -1,0 +1,46 @@
+# cfgsync configuration
+#
+# This file documents all available configuration keys.
+# Lines starting with # are comments / documentation.
+# Lines without # are example values showing the expected format.
+
+# --- Top-level keys ---
+
+# string, required — path to the source directory containing canonical config files.
+# Relative paths resolve against the directory that contains this config file.
+# Absolute paths are used as-is.
+source_dir = "./dotfiles"
+
+# string, required — path to the target directory where files are deployed.
+# Same resolution rules as source_dir.
+target_dir = "/etc"
+
+# --- Filter entries (at least one required) ---
+#
+# Each [[filter]] block specifies a glob pattern that selects which files to sync,
+# and optional ownership / permission metadata to enforce on the target side.
+
+# string, required — a glob pattern matching file paths relative to source_dir / target_dir.
+# Only files whose relative path matches at least one filter glob are synced.
+# Examples: "**/*.conf", "nginx/*", "*.service"
+
+# integer, optional — octal Unix permission mode applied to matching target files (e.g. 0o644).
+# Only enforced on the target side. Requires root to change ownership of files owned by others.
+
+# string, optional — "user:group" ownership applied to matching target files.
+# Only enforced when cfgsync runs as root. Format: "username:groupname" (e.g. "root:root").
+
+[[filter]]
+glob = "**/*.conf"
+permissions = 0o644
+owner = "root:root"
+
+[[filter]]
+glob = "**/*.service"
+permissions = 0o644
+owner = "root:root"
+
+# Catch-all filter — syncs everything not matched by a more specific filter above.
+# Does not enforce any permissions or ownership.
+[[filter]]
+glob = "**/*"
