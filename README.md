@@ -10,6 +10,12 @@ Bidirectional config file sync.
 cargo install cfgsync
 ```
 
+Or with [mise](https://mise.jdx.dev) (binary with verified provenance):
+
+```bash
+mise use github:<owner>/cfgsync
+```
+
 Or download a pre-built binary from the [releases page](https://github.com/nils/cfgsync/releases).
 
 ## Quick start

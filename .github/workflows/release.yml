@@ -61,6 +61,8 @@ jobs:
 
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - uses: actions/download-artifact@v4
@@ -68,6 +70,13 @@ jobs:
       - name: Generate checksums
         run: |
           shasum -a 256 cfgsync-*/*.tar.gz > checksums.txt
+
+      - name: Attest artifacts
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            cfgsync-*/*.tar.gz
+            checksums.txt
 
       - name: Create release
         uses: softprops/action-gh-release@v2

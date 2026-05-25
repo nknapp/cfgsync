@@ -152,7 +152,10 @@ glob = "*.conf"
         assert_eq!(resolved.source_dir, src_dir);
         assert_eq!(resolved.target_dir, tgt_dir);
         assert_eq!(resolved.filters.len(), 1);
-        assert_eq!(resolved.state_path, config_path.with_extension("cfgsync.state"));
+        assert_eq!(
+            resolved.state_path,
+            config_path.with_extension("cfgsync.state")
+        );
     }
 
     #[test]

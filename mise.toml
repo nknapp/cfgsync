@@ -1,5 +1,6 @@
 [tools]
 rust = "1.95"
+"github:rhysd/actionlint" = "1"
 
 [tasks.fmt-lint-test-build]
 run = [
@@ -13,6 +14,7 @@ run = [
 run = [
     "cargo fmt -- --check",
     "cargo clippy -- -D warnings",
+    "actionlint",
     "cargo test",
     "cargo build --release",
 ]
