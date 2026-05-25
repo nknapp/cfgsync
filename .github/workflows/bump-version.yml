@@ -1,0 +1,36 @@
+name: Bump version and tag
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore: Release') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install tools
+        run: |
+          cargo install cargo-release
+          cargo install convco
+
+      - name: Release
+        run: |
+          LEVEL=$(convco version --bump)
+          if [ -z "$LEVEL" ]; then
+            echo "convco returned no level. Skipping."
+            exit 0
+          fi
+          echo "Bump level: $LEVEL"
+          cargo release "$LEVEL" --no-publish --execute

@@ -54,6 +54,7 @@ Or download a pre-built binary from the [releases page](https://github.com/nils/
 cfgsync sync   <CONFIG>  [OPTIONS]
 cfgsync status <CONFIG>
 cfgsync diff   <CONFIG>
+cfgsync schema
 ```
 
 ### Subcommands
@@ -63,6 +64,7 @@ cfgsync diff   <CONFIG>
 | `sync`   | Perform bidirectional sync. With `-i`, resolve conflicts interactively. With `--dry-run`, preview without writing files. |
 | `status` | Print counts of pending changes (copy, delete, conflicts). |
 | `diff`   | Print unified diffs for all pending changes. |
+| `schema` | Print the config file schema as a commented TOML example. |
 
 `<CONFIG>` is a required path to a TOML configuration file.
 
