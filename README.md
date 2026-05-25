@@ -2,6 +2,8 @@
 
 Bidirectional config file sync.
 
+> **Warning:** This project was vibe coded and is not thoroughly tested. Use at your own risk.
+
 `cfgsync` keeps configuration files in sync between a source directory (e.g. a version-controlled dotfiles repo) and a target directory (e.g. system paths like `/etc`). It uses modification time (mtime) comparisons to detect changes, supports conflict detection with interactive resolution, and can enforce file permissions and ownership when run as root.
 
 ## Installation

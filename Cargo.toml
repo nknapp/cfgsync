@@ -2,6 +2,7 @@
 name = "cfgsync"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL-3.0-or-later"
 
 [dependencies]
 clap = { version = "4.6.1", features = ["derive"] }
