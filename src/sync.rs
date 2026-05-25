@@ -1,0 +1,667 @@
+use crate::changes::Change;
+use crate::config::ResolvedConfig;
+use crate::state::{FileEntry, State};
+use similar::TextDiff;
+use std::io::Read;
+use std::path::Path;
+
+struct SyncOutcome {
+    copied_to_target: usize,
+    copied_to_source: usize,
+    deleted_from_target: usize,
+    deleted_from_source: usize,
+    skipped_perms: usize,
+    conflicts_total: usize,
+    conflicts_skipped: usize,
+}
+
+pub fn run(
+    config: &ResolvedConfig,
+    state: &mut State,
+    changes: Vec<Change>,
+    interactive: bool,
+    dry_run: bool,
+) -> Result<(), String> {
+    let conflicts: Vec<&Change> = changes
+        .iter()
+        .filter(|c| matches!(c, Change::Conflict { .. }))
+        .collect();
+
+    let mut conflict_count = conflicts.len();
+
+    if !conflicts.is_empty() && !interactive {
+        eprintln!("Conflicts detected ({} files):", conflict_count);
+        for c in &conflicts {
+            if let Change::Conflict { rel_path } = c {
+                eprintln!("  {}", rel_path);
+            }
+        }
+        return Err(format!(
+            "Aborting due to {} conflict(s). Use -i/--interactive to resolve.",
+            conflict_count
+        ));
+    }
+
+    let mut outcome = SyncOutcome {
+        copied_to_target: 0,
+        copied_to_source: 0,
+        deleted_from_target: 0,
+        deleted_from_source: 0,
+        skipped_perms: 0,
+        conflicts_total: conflict_count,
+        conflicts_skipped: 0,
+    };
+
+    for change in &changes {
+        match change {
+            Change::CopyToTarget {
+                rel_path,
+                abs_src,
+                abs_tgt,
+            } if !interactive => {
+                if dry_run {
+                    println!("[dry-run] copy {} -> target", rel_path);
+                    outcome.copied_to_target += 1;
+                } else {
+                    match copy_file(abs_src, abs_tgt) {
+                        Ok(()) => {
+                            println!("copied {} -> target", rel_path);
+                            outcome.copied_to_target += 1;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Warning: skipping '{}' (cannot copy to target): {}",
+                                rel_path, e
+                            );
+                            outcome.skipped_perms += 1;
+                        }
+                    }
+                }
+            }
+
+            Change::CopyToSource {
+                rel_path,
+                abs_src,
+                abs_tgt,
+            } if !interactive => {
+                if dry_run {
+                    println!("[dry-run] copy {} -> source", rel_path);
+                    outcome.copied_to_source += 1;
+                } else {
+                    match copy_file(abs_tgt, abs_src) {
+                        Ok(()) => {
+                            println!("copied target -> {}", rel_path);
+                            outcome.copied_to_source += 1;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Warning: skipping '{}' (cannot copy to source): {}",
+                                rel_path, e
+                            );
+                            outcome.skipped_perms += 1;
+                        }
+                    }
+                }
+            }
+
+            Change::DeleteTarget { rel_path, abs_tgt } if !interactive => {
+                if dry_run {
+                    println!("[dry-run] delete target/{}", rel_path);
+                } else {
+                    match std::fs::remove_file(abs_tgt) {
+                        Ok(()) => {
+                            println!("deleted {}", rel_path);
+                            outcome.deleted_from_target += 1;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Warning: skipping '{}' (cannot delete from target): {}",
+                                rel_path, e
+                            );
+                            outcome.skipped_perms += 1;
+                        }
+                    }
+                }
+            }
+
+            Change::DeleteSource { rel_path, abs_src } if !interactive => {
+                if dry_run {
+                    println!("[dry-run] delete source/{}", rel_path);
+                } else {
+                    match std::fs::remove_file(abs_src) {
+                        Ok(()) => {
+                            println!("deleted source/{}", rel_path);
+                            outcome.deleted_from_source += 1;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Warning: skipping '{}' (cannot delete from source): {}",
+                                rel_path, e
+                            );
+                            outcome.skipped_perms += 1;
+                        }
+                    }
+                }
+            }
+
+            Change::Cleanup { .. } => {}
+
+            _ => {} // interactive conflicts handled below
+        }
+    }
+
+    // Handle interactive conflicts
+    if interactive {
+        for change in &changes {
+            match change {
+                Change::Conflict { rel_path } => {
+                    let abs_src = config.source_dir.join(rel_path);
+                    let abs_tgt = config.target_dir.join(rel_path);
+
+                    eprintln!("\n=== Conflict: {} ===", rel_path);
+                    eprint_diff(&abs_src, &abs_tgt);
+
+                    let choice = prompt_user(&abs_src, &abs_tgt)?;
+
+                    match choice.as_str() {
+                        "s" => {
+                            if dry_run {
+                                println!("[dry-run] would copy source -> target: {}", rel_path);
+                            } else {
+                                match copy_file(&abs_src, &abs_tgt) {
+                                    Ok(()) => {
+                                        println!("resolved: {} (kept source)", rel_path);
+                                        outcome.copied_to_target += 1;
+                                        outcome.conflicts_skipped += 1;
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Warning: skipping '{}': {}", rel_path, e);
+                                        outcome.skipped_perms += 1;
+                                        outcome.conflicts_skipped += 1;
+                                    }
+                                }
+                            }
+                        }
+                        "t" => {
+                            if dry_run {
+                                println!("[dry-run] would copy target -> source: {}", rel_path);
+                            } else {
+                                match copy_file(&abs_tgt, &abs_src) {
+                                    Ok(()) => {
+                                        println!("resolved: {} (kept target)", rel_path);
+                                        outcome.copied_to_source += 1;
+                                        outcome.conflicts_skipped += 1;
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Warning: skipping '{}': {}", rel_path, e);
+                                        outcome.skipped_perms += 1;
+                                        outcome.conflicts_skipped += 1;
+                                    }
+                                }
+                            }
+                        }
+                        "q" => {
+                            println!("Aborting sync ({} conflicts remaining).", conflict_count);
+                            return Err("Aborted by user.".to_string());
+                        }
+                        _ => {
+                            // "x" or anything else, skip this conflict
+                            println!("skipped conflict: {}", rel_path);
+                            outcome.conflicts_skipped += 1;
+                            conflict_count -= 1;
+                        }
+                    }
+                }
+
+                // Handle non-conflict changes during interactive mode
+                Change::CopyToTarget {
+                    rel_path,
+                    abs_src,
+                    abs_tgt,
+                } => {
+                    if dry_run {
+                        println!("[dry-run] copy {} -> target", rel_path);
+                    } else {
+                        match copy_file(abs_src, abs_tgt) {
+                            Ok(()) => {
+                                println!("copied {} -> target", rel_path);
+                                outcome.copied_to_target += 1;
+                            }
+                            Err(e) => {
+                                eprintln!(
+                                    "Warning: skipping '{}' (cannot copy to target): {}",
+                                    rel_path, e
+                                );
+                                outcome.skipped_perms += 1;
+                            }
+                        }
+                    }
+                }
+
+                Change::CopyToSource {
+                    rel_path,
+                    abs_src,
+                    abs_tgt,
+                } => {
+                    if dry_run {
+                        println!("[dry-run] copy {} -> source", rel_path);
+                    } else {
+                        match copy_file(abs_tgt, abs_src) {
+                            Ok(()) => {
+                                println!("copied target -> {}", rel_path);
+                                outcome.copied_to_source += 1;
+                            }
+                            Err(e) => {
+                                eprintln!(
+                                    "Warning: skipping '{}' (cannot copy to source): {}",
+                                    rel_path, e
+                                );
+                                outcome.skipped_perms += 1;
+                            }
+                        }
+                    }
+                }
+
+                Change::DeleteTarget { rel_path, abs_tgt } => {
+                    if dry_run {
+                        println!("[dry-run] delete target/{}", rel_path);
+                    } else {
+                        match std::fs::remove_file(abs_tgt) {
+                            Ok(()) => {
+                                println!("deleted {}", rel_path);
+                                outcome.deleted_from_target += 1;
+                            }
+                            Err(e) => {
+                                eprintln!(
+                                    "Warning: skipping '{}' (cannot delete from target): {}",
+                                    rel_path, e
+                                );
+                                outcome.skipped_perms += 1;
+                            }
+                        }
+                    }
+                }
+
+                Change::DeleteSource { rel_path, abs_src } => {
+                    if dry_run {
+                        println!("[dry-run] delete source/{}", rel_path);
+                    } else {
+                        match std::fs::remove_file(abs_src) {
+                            Ok(()) => {
+                                println!("deleted source/{}", rel_path);
+                                outcome.deleted_from_source += 1;
+                            }
+                            Err(e) => {
+                                eprintln!(
+                                    "Warning: skipping '{}' (cannot delete from source): {}",
+                                    rel_path, e
+                                );
+                                outcome.skipped_perms += 1;
+                            }
+                        }
+                    }
+                }
+
+                Change::Cleanup { .. } => {}
+            }
+        }
+    }
+
+    if !dry_run {
+        // Enforce permissions/owner on target files
+        if is_root() {
+            enforce_permissions_root(config, state)?;
+        } else {
+            check_permissions_nonroot(config, &mut outcome);
+        }
+
+        // Rebuild state from current filesystem
+        update_state(config, state);
+        state.save(&config.state_path)?;
+    }
+
+    // Print summary
+    println!();
+    println!("source -> target: {}", outcome.copied_to_target);
+    println!("target -> source: {}", outcome.copied_to_source);
+    println!("deleted target:   {}", outcome.deleted_from_target);
+    println!("deleted source:   {}", outcome.deleted_from_source);
+    if outcome.conflicts_total > 0 {
+        println!("conflicts:        {}", outcome.conflicts_total);
+        if outcome.conflicts_skipped > 0 {
+            println!("  resolved:       {}", outcome.conflicts_skipped);
+            println!(
+                "  skipped:        {}",
+                outcome.conflicts_total - outcome.conflicts_skipped
+            );
+        }
+    }
+    if outcome.skipped_perms > 0 {
+        println!("permission skips: {}", outcome.skipped_perms);
+    }
+
+    Ok(())
+}
+
+fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
+    if let Some(parent) = dst.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            format!(
+                "Cannot create parent directory '{}': {}",
+                parent.display(),
+                e
+            )
+        })?;
+    }
+
+    std::fs::copy(src, dst).map_err(|e| {
+        format!(
+            "Cannot copy '{}' to '{}': {}",
+            src.display(),
+            dst.display(),
+            e
+        )
+    })?;
+
+    let src_metadata = std::fs::metadata(src)
+        .map_err(|e| format!("Cannot read metadata of '{}': {}", src.display(), e))?;
+    let mtime = src_metadata
+        .modified()
+        .map_err(|e| format!("Cannot read mtime of '{}': {}", src.display(), e))?;
+
+    let dst_file = std::fs::File::open(dst)
+        .map_err(|e| format!("Cannot open copied file '{}': {}", dst.display(), e))?;
+    dst_file
+        .set_modified(mtime)
+        .map_err(|e| format!("Cannot set mtime on '{}': {}", dst.display(), e))?;
+
+    Ok(())
+}
+
+fn update_state(config: &ResolvedConfig, state: &mut State) {
+    state.last_sync = chrono::Utc::now();
+    state.file.clear();
+
+    for filter in &config.filters {
+        for entry in walkdir::WalkDir::new(&config.source_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            if entry.path_is_symlink() {
+                continue;
+            }
+
+            let abs_path = entry.path();
+            let rel_path = match abs_path.strip_prefix(&config.source_dir) {
+                Ok(p) => p.to_string_lossy().to_string(),
+                Err(_) => continue,
+            };
+
+            if !filter.pattern.matches(&rel_path) {
+                continue;
+            }
+
+            let src_mtime = file_mtime(abs_path).unwrap_or(0);
+            let tgt_path = config.target_dir.join(&rel_path);
+            let tgt_mtime = file_mtime(&tgt_path).unwrap_or(0);
+
+            // Only add files that exist on at least one side
+            if src_mtime > 0 || tgt_mtime > 0 {
+                state.file.push(FileEntry {
+                    path: rel_path,
+                    source_mtime: src_mtime,
+                    target_mtime: tgt_mtime,
+                });
+            }
+        }
+    }
+}
+
+fn file_mtime(path: &Path) -> Option<i64> {
+    let metadata = std::fs::metadata(path).ok()?;
+    let modified = metadata.modified().ok()?;
+    let since_epoch = modified.duration_since(std::time::UNIX_EPOCH).ok()?;
+    Some(since_epoch.as_secs() as i64)
+}
+
+fn is_root() -> bool {
+    unsafe { nix::libc::geteuid() == 0 }
+}
+
+fn enforce_permissions_root(config: &ResolvedConfig, _state: &State) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+
+    for filter in &config.filters {
+        let has_perm_requirements = filter.permissions.is_some() || filter.owner.is_some();
+        if !has_perm_requirements {
+            continue;
+        }
+
+        for entry in walkdir::WalkDir::new(&config.target_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            if entry.path_is_symlink() {
+                continue;
+            }
+
+            let abs_path = entry.path();
+            let rel_path = match abs_path.strip_prefix(&config.target_dir) {
+                Ok(p) => p.to_string_lossy().to_string(),
+                Err(_) => continue,
+            };
+
+            if !filter.pattern.matches(&rel_path) {
+                continue;
+            }
+
+            if let Some(mode) = filter.permissions {
+                let perms = std::fs::Permissions::from_mode(mode);
+                if let Err(e) = std::fs::set_permissions(abs_path, perms) {
+                    eprintln!("Warning: cannot chmod '{}' to {:o}: {}", rel_path, mode, e);
+                }
+            }
+
+            if let Some(ref owner_spec) = filter.owner
+                && let Err(e) = apply_chown(abs_path, owner_spec)
+            {
+                eprintln!(
+                    "Warning: cannot chown '{}' to '{}': {}",
+                    rel_path, owner_spec, e
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn apply_chown(path: &Path, owner_spec: &str) -> Result<(), String> {
+    let parts: Vec<&str> = owner_spec.split(':').collect();
+    if parts.len() > 2 {
+        return Err(format!("Invalid owner format '{}'", owner_spec));
+    }
+
+    let user_name = parts[0];
+    let group_name = if parts.len() == 2 && !parts[1].is_empty() {
+        Some(parts[1])
+    } else {
+        None
+    };
+
+    let uid = if let Some(user) = nix::unistd::User::from_name(user_name)
+        .map_err(|e| format!("Cannot look up user '{}': {}", user_name, e))?
+    {
+        Some(user.uid)
+    } else {
+        return Err(format!("User '{}' not found", user_name));
+    };
+
+    let gid = if let Some(group) = group_name {
+        if let Some(group) = nix::unistd::Group::from_name(group)
+            .map_err(|e| format!("Cannot look up group '{}': {}", group, e))?
+        {
+            Some(group.gid)
+        } else {
+            return Err(format!("Group '{}' not found", group));
+        }
+    } else {
+        None
+    };
+
+    nix::unistd::chown(path, uid, gid).map_err(|e| format!("chown failed: {}", e))
+}
+
+fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome) {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+    for filter in &config.filters {
+        let has_perm_requirements = filter.permissions.is_some() || filter.owner.is_some();
+        if !has_perm_requirements {
+            continue;
+        }
+
+        for entry in walkdir::WalkDir::new(&config.target_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            if entry.path_is_symlink() {
+                continue;
+            }
+
+            let abs_path = entry.path();
+            let rel_path = match abs_path.strip_prefix(&config.target_dir) {
+                Ok(p) => p.to_string_lossy().to_string(),
+                Err(_) => continue,
+            };
+
+            if !filter.pattern.matches(&rel_path) {
+                continue;
+            }
+
+            if let Some(mode) = filter.permissions
+                && let Ok(metadata) = std::fs::metadata(abs_path)
+            {
+                let current_mode = metadata.permissions().mode() & 0o777;
+                if current_mode != mode {
+                    eprintln!(
+                        "Permission warning: '{}' has 0o{:o}, should be 0o{:o} (run as root to fix)",
+                        rel_path, current_mode, mode
+                    );
+                    outcome.skipped_perms += 1;
+                }
+            }
+
+            if let Some(ref _owner_spec) = filter.owner
+                && let Ok(metadata) = std::fs::metadata(abs_path)
+            {
+                let _current_uid = metadata.uid();
+                // Report mismatch (non-root can't fix)
+                eprintln!(
+                    "Owner warning: '{}' should be owned by '{}' (run as root to fix)",
+                    rel_path, _owner_spec
+                );
+                outcome.skipped_perms += 1;
+            }
+        }
+    }
+}
+
+fn eprint_diff(src: &Path, tgt: &Path) {
+    let read = |p: &Path| -> String {
+        let mut f = match std::fs::File::open(p) {
+            Ok(f) => f,
+            Err(_) => return "(file missing)".to_string(),
+        };
+        let mut buf = String::new();
+        f.read_to_string(&mut buf).unwrap_or_default();
+        buf
+    };
+
+    let source_content = read(src);
+    let target_content = read(tgt);
+
+    let diff = TextDiff::from_lines(&target_content, &source_content);
+    let udiff = diff.unified_diff();
+
+    let mut output = String::new();
+    for change in udiff.iter_hunks() {
+        output.push_str(&format!("{}", change));
+    }
+
+    if output.is_empty() {
+        eprintln!("  (files are identical)");
+    } else {
+        eprint!("{}", output);
+    }
+}
+
+fn prompt_user(_src: &Path, _tgt: &Path) -> Result<String, String> {
+    use std::io::Write;
+
+    eprint!("\n[s]ource  [t]arget  [x]skip  [q]uit: ");
+    std::io::stderr()
+        .flush()
+        .map_err(|e| format!("flush: {}", e))?;
+
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| format!("read: {}", e))?;
+
+    Ok(input.trim().to_lowercase())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_copy_file_preserves_mtime() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src = dir.path().join("src.txt");
+        let dst = dir.path().join("dst.txt");
+
+        std::fs::write(&src, "hello world").unwrap();
+        let src_mtime = file_mtime(&src).unwrap();
+
+        copy_file(&src, &dst).unwrap();
+
+        let dst_mtime = file_mtime(&dst).unwrap();
+        assert_eq!(src_mtime, dst_mtime);
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_copy_file_creates_parent_dirs() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src = dir.path().join("src.txt");
+        let dst = dir.path().join("sub").join("nested").join("dst.txt");
+
+        std::fs::write(&src, "test").unwrap();
+        copy_file(&src, &dst).unwrap();
+
+        assert!(dst.exists());
+    }
+
+    #[test]
+    fn test_is_root_returns_bool() {
+        // Not running as root in tests
+        assert!(!is_root());
+    }
+
+    #[test]
+    fn test_file_mtime_nonexistent() {
+        let path = Path::new("/does/not/exist");
+        assert_eq!(file_mtime(path), None);
+    }
+}

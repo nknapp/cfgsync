@@ -1,0 +1,18 @@
+[tools]
+rust = "1.95"
+
+[tasks.fmt-lint-test-build]
+run = [
+    "cargo fmt",
+    "cargo clippy -- -D warnings",
+    "cargo test",
+    "cargo build --release",
+]
+
+[tasks.ci]
+run = [
+    "cargo fmt -- --check",
+    "cargo clippy -- -D warnings",
+    "cargo test",
+    "cargo build --release",
+]

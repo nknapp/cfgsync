@@ -1,0 +1,19 @@
+[package]
+name = "cfgsync"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+glob = "0.3"
+walkdir = "2"
+similar = "2"
+chrono = { version = "0.4", features = ["serde"] }
+nix = { version = "0.30", features = ["user", "fs"] }
+
+[dev-dependencies]
+pretty_assertions = "1"
+rstest = "0.25"
+tempfile = "3"
