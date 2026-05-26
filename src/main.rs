@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::process;
 
 #[derive(Parser)]
-#[command(name = "cfgsync", about = "Bidirectional config file sync")]
+#[command(name = "cfgsync", about = "Bidirectional config file sync", version)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
