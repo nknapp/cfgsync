@@ -35,6 +35,9 @@ enum Commands {
     Status {
         /// Path to the configuration file
         config: PathBuf,
+        /// Use compact output format
+        #[arg(short, long)]
+        short: bool,
     },
     /// Show diff for each changed file
     Diff {
@@ -54,7 +57,7 @@ fn main() {
             interactive,
             dry_run,
         } => cmd_sync(&config, interactive, dry_run),
-        Commands::Status { config } => cmd_status(&config),
+        Commands::Status { config, short } => cmd_status(&config, short),
         Commands::Diff { config } => cmd_diff(&config),
         Commands::Schema => schema::print_schema(),
     }
@@ -82,7 +85,7 @@ fn cmd_sync(config_path: &Path, interactive: bool, dry_run: bool) {
     }
 }
 
-fn cmd_status(config_path: &Path) {
+fn cmd_status(config_path: &Path, short: bool) {
     let resolved = config::load_config(config_path).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
@@ -99,7 +102,7 @@ fn cmd_status(config_path: &Path) {
     });
 
     let counts = changes::count_changes(&changes);
-    status::print_status(&counts);
+    status::print_status(&counts, short);
 }
 
 fn cmd_diff(config_path: &Path) {
