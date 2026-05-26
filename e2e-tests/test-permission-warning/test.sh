@@ -10,5 +10,12 @@ if ! echo "$output" | grep -qi 'Permission warning'; then
     exit 1
 fi
 
+output=$("$CFGSYNC" status config.toml)
+expected="source -> target: 0
+target -> source: 0
+deleted target:   0
+deleted source:   0"
+test "$output" = "$expected"
+
 cd ..
 diff -r --exclude='*.cfgsync.state' expected actual

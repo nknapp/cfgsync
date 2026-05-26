@@ -68,9 +68,11 @@ pub fn classify(config: &ResolvedConfig, state: &State) -> Result<Vec<Change>, S
                 let src_mod = s.mtime != state_entry.source_mtime;
                 let tgt_mod = t.mtime != state_entry.target_mtime;
                 if src_mod && tgt_mod {
-                    changes.push(Change::Conflict {
-                        rel_path: rel_path.to_string(),
-                    });
+                    if !files_identical(&abs_src, &abs_tgt) {
+                        changes.push(Change::Conflict {
+                            rel_path: rel_path.to_string(),
+                        });
+                    }
                 } else if src_mod {
                     changes.push(Change::CopyToTarget {
                         rel_path: rel_path.to_string(),
@@ -123,9 +125,11 @@ pub fn classify(config: &ResolvedConfig, state: &State) -> Result<Vec<Change>, S
             }
 
             (Some(_s), Some(_t), None) => {
-                changes.push(Change::Conflict {
-                    rel_path: rel_path.to_string(),
-                });
+                if !files_identical(&abs_src, &abs_tgt) {
+                    changes.push(Change::Conflict {
+                        rel_path: rel_path.to_string(),
+                    });
+                }
             }
 
             // (None, None, None) cannot happen; all rel_paths come from at least one source
@@ -134,6 +138,14 @@ pub fn classify(config: &ResolvedConfig, state: &State) -> Result<Vec<Change>, S
     }
 
     Ok(changes)
+}
+
+fn files_identical(a: &Path, b: &Path) -> bool {
+    let read_file = |path: &Path| -> Option<Vec<u8>> { std::fs::read(path).ok() };
+    match (read_file(a), read_file(b)) {
+        (Some(a_contents), Some(b_contents)) => a_contents == b_contents,
+        _ => false,
+    }
 }
 
 fn scan_dir(dir: &Path, filters: &[ResolvedFilter]) -> Result<Vec<DiscoveredFile>, String> {

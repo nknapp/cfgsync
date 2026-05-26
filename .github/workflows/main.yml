@@ -43,7 +43,7 @@ jobs:
         id: release
         run: |
           LEVEL=$(convco version --bump --label)
-          if [ -z "$LEVEL" ]; then
+          if [ -z "$LEVEL" ] || [ "$LEVEL" = "release" ]; then
             echo "No bump needed. Skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
