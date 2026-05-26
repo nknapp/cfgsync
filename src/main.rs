@@ -14,6 +14,10 @@ use std::process;
 #[derive(Parser)]
 #[command(name = "cfgsync", about = "Bidirectional config file sync", version)]
 struct Cli {
+    /// Show verbose output
+    #[arg(short, long, global = true)]
+    verbose: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -56,14 +60,14 @@ fn main() {
             config,
             interactive,
             dry_run,
-        } => cmd_sync(&config, interactive, dry_run),
-        Commands::Status { config, short } => cmd_status(&config, short),
-        Commands::Diff { config } => cmd_diff(&config),
+        } => cmd_sync(&config, interactive, dry_run, cli.verbose),
+        Commands::Status { config, short } => cmd_status(&config, short, cli.verbose),
+        Commands::Diff { config } => cmd_diff(&config, cli.verbose),
         Commands::Schema => schema::print_schema(),
     }
 }
 
-fn cmd_sync(config_path: &Path, interactive: bool, dry_run: bool) {
+fn cmd_sync(config_path: &Path, interactive: bool, dry_run: bool, verbose: bool) {
     let resolved = config::load_config(config_path).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
@@ -74,7 +78,7 @@ fn cmd_sync(config_path: &Path, interactive: bool, dry_run: bool) {
         process::exit(1);
     });
 
-    let changes = changes::classify(&resolved, &state).unwrap_or_else(|e| {
+    let changes = changes::classify(&resolved, &state, verbose).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
     });
@@ -85,7 +89,7 @@ fn cmd_sync(config_path: &Path, interactive: bool, dry_run: bool) {
     }
 }
 
-fn cmd_status(config_path: &Path, short: bool) {
+fn cmd_status(config_path: &Path, short: bool, verbose: bool) {
     let resolved = config::load_config(config_path).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
@@ -96,7 +100,7 @@ fn cmd_status(config_path: &Path, short: bool) {
         process::exit(1);
     });
 
-    let changes = changes::classify(&resolved, &state).unwrap_or_else(|e| {
+    let changes = changes::classify(&resolved, &state, verbose).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
     });
@@ -105,7 +109,7 @@ fn cmd_status(config_path: &Path, short: bool) {
     status::print_status(&counts, short);
 }
 
-fn cmd_diff(config_path: &Path) {
+fn cmd_diff(config_path: &Path, verbose: bool) {
     let resolved = config::load_config(config_path).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
@@ -116,7 +120,7 @@ fn cmd_diff(config_path: &Path) {
         process::exit(1);
     });
 
-    let changes = changes::classify(&resolved, &state).unwrap_or_else(|e| {
+    let changes = changes::classify(&resolved, &state, verbose).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
     });

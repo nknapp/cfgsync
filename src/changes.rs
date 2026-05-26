@@ -37,9 +37,22 @@ pub enum Change {
     },
 }
 
-pub fn classify(config: &ResolvedConfig, state: &State) -> Result<Vec<Change>, String> {
+pub fn classify(
+    config: &ResolvedConfig,
+    state: &State,
+    verbose: bool,
+) -> Result<Vec<Change>, String> {
     let source_files = scan_dir(&config.source_dir, &config.filters)?;
     let target_files = scan_dir(&config.target_dir, &config.filters)?;
+
+    if verbose {
+        eprintln!(
+            "files visited: {} (source) + {} (target) = {} total",
+            source_files.len(),
+            target_files.len(),
+            source_files.len() + target_files.len()
+        );
+    }
 
     let state_map = state.as_map();
 
@@ -269,7 +282,7 @@ mod tests {
         let state = State::empty();
         let config = make_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::CopyToTarget { .. }));
     }
@@ -287,7 +300,7 @@ mod tests {
         let state = State::empty();
         let config = make_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::CopyToSource { .. }));
     }
@@ -334,7 +347,7 @@ mod tests {
         };
         let config = make_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::CopyToTarget { .. }));
     }
@@ -380,7 +393,7 @@ mod tests {
         };
         let config = make_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::CopyToSource { .. }));
     }
@@ -433,7 +446,7 @@ mod tests {
         };
         let config = make_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::Conflict { .. }));
     }
@@ -460,7 +473,7 @@ mod tests {
         };
         let config = make_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::DeleteTarget { .. }));
     }
@@ -486,7 +499,7 @@ mod tests {
         };
         let config = make_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::DeleteSource { .. }));
     }
@@ -509,7 +522,7 @@ mod tests {
         };
         let config = make_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::Cleanup { .. }));
     }
@@ -544,7 +557,7 @@ mod tests {
         };
         let config = make_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
         assert!(changes.is_empty());
     }
 
@@ -563,7 +576,7 @@ mod tests {
         config.filters = vec![make_filter("*.conf")];
 
         let state = State::empty();
-        let changes = classify(&config, &state).unwrap();
+        let changes = classify(&config, &state, false).unwrap();
 
         // Only app.conf should be picked up
         assert_eq!(changes.len(), 1);
