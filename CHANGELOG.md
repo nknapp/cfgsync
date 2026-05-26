@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased](https://github.com/nknapp/cfgsync/compare/v0.2.9...fb15c294cced4210da131a704d10a5567003838c) (2026-05-27)
+## [v0.2.10](https://github.com/nknapp/cfgsync/compare/v0.2.9...c0cda0453083fe89f55bb8227b21e48112e5b9a2) (2026-05-27)
 
 ### Features
 

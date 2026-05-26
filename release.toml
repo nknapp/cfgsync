@@ -1,1 +1,3 @@
 pre-release-hook = ["convco", "changelog", "-o", "CHANGELOG.md", "--unreleased", "{{version}}"]
+pre-release-commit-message = "chore: release v{{version}}"
+tag-message = "{{crate_name}} v{{version}}"
