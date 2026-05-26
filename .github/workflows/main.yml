@@ -51,17 +51,9 @@ jobs:
 
           echo "Bump level: $LEVEL"
           convco changelog -o CHANGELOG.md
-          cargo release "$LEVEL" --no-publish --no-confirm --no-push --execute
           git add CHANGELOG.md
-          if ! git diff --cached --quiet; then
-            git commit --amend --no-edit
-            TAG="v$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')"
-            git tag -f "$TAG"
-          else
-            TAG="v$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')"
-          fi
-          git push origin main
-          git push origin "$TAG"
+          cargo release "$LEVEL" --no-publish --no-confirm --execute
+          TAG="v$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')"
           echo "Tag: $TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
