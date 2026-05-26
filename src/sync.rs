@@ -382,33 +382,52 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
     state.last_sync = chrono::Utc::now();
     state.file.clear();
 
+    let mut seen = std::collections::HashSet::new();
+
     for filter in &config.filters {
-        for entry in walkdir::WalkDir::new(&config.source_dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if !entry.file_type().is_file() {
+        let pattern_str = config
+            .source_dir
+            .join(&filter.glob)
+            .to_string_lossy()
+            .to_string();
+
+        let paths = match glob::glob(&pattern_str) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
                 continue;
             }
-            if entry.path_is_symlink() {
+        };
+
+        for entry in paths {
+            let abs_path = match entry {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                    continue;
+                }
+            };
+
+            if !abs_path.is_file() {
+                continue;
+            }
+            if abs_path.is_symlink() {
                 continue;
             }
 
-            let abs_path = entry.path();
             let rel_path = match abs_path.strip_prefix(&config.source_dir) {
                 Ok(p) => p.to_string_lossy().to_string(),
                 Err(_) => continue,
             };
 
-            if !filter.pattern.matches(&rel_path) {
+            if !seen.insert(rel_path.clone()) {
                 continue;
             }
 
-            let src_mtime = file_mtime(abs_path).unwrap_or(0);
+            let src_mtime = file_mtime(&abs_path).unwrap_or(0);
             let tgt_path = config.target_dir.join(&rel_path);
             let tgt_mtime = file_mtime(&tgt_path).unwrap_or(0);
 
-            // Only add files that exist on at least one side
             if src_mtime > 0 || tgt_mtime > 0 {
                 state.file.push(FileEntry {
                     path: rel_path,
@@ -440,36 +459,50 @@ fn enforce_permissions_root(config: &ResolvedConfig, _state: &State) -> Result<(
             continue;
         }
 
-        for entry in walkdir::WalkDir::new(&config.target_dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if !entry.file_type().is_file() {
+        let pattern_str = config
+            .target_dir
+            .join(&filter.glob)
+            .to_string_lossy()
+            .to_string();
+
+        let paths = match glob::glob(&pattern_str) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
                 continue;
             }
-            if entry.path_is_symlink() {
+        };
+
+        for entry in paths {
+            let abs_path = match entry {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                    continue;
+                }
+            };
+
+            if !abs_path.is_file() {
+                continue;
+            }
+            if abs_path.is_symlink() {
                 continue;
             }
 
-            let abs_path = entry.path();
             let rel_path = match abs_path.strip_prefix(&config.target_dir) {
                 Ok(p) => p.to_string_lossy().to_string(),
                 Err(_) => continue,
             };
 
-            if !filter.pattern.matches(&rel_path) {
-                continue;
-            }
-
             if let Some(mode) = filter.permissions {
                 let perms = std::fs::Permissions::from_mode(mode);
-                if let Err(e) = std::fs::set_permissions(abs_path, perms) {
+                if let Err(e) = std::fs::set_permissions(&abs_path, perms) {
                     eprintln!("Warning: cannot chmod '{}' to {:o}: {}", rel_path, mode, e);
                 }
             }
 
             if let Some(ref owner_spec) = filter.owner
-                && let Err(e) = apply_chown(abs_path, owner_spec)
+                && let Err(e) = apply_chown(&abs_path, owner_spec)
             {
                 eprintln!(
                     "Warning: cannot chown '{}' to '{}': {}",
@@ -527,29 +560,43 @@ fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome)
             continue;
         }
 
-        for entry in walkdir::WalkDir::new(&config.target_dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if !entry.file_type().is_file() {
+        let pattern_str = config
+            .target_dir
+            .join(&filter.glob)
+            .to_string_lossy()
+            .to_string();
+
+        let paths = match glob::glob(&pattern_str) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
                 continue;
             }
-            if entry.path_is_symlink() {
+        };
+
+        for entry in paths {
+            let abs_path = match entry {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                    continue;
+                }
+            };
+
+            if !abs_path.is_file() {
+                continue;
+            }
+            if abs_path.is_symlink() {
                 continue;
             }
 
-            let abs_path = entry.path();
             let rel_path = match abs_path.strip_prefix(&config.target_dir) {
                 Ok(p) => p.to_string_lossy().to_string(),
                 Err(_) => continue,
             };
 
-            if !filter.pattern.matches(&rel_path) {
-                continue;
-            }
-
             if let Some(mode) = filter.permissions
-                && let Ok(metadata) = std::fs::metadata(abs_path)
+                && let Ok(metadata) = std::fs::metadata(&abs_path)
             {
                 let current_mode = metadata.permissions().mode() & 0o777;
                 if current_mode != mode {
@@ -562,10 +609,9 @@ fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome)
             }
 
             if let Some(ref _owner_spec) = filter.owner
-                && let Ok(metadata) = std::fs::metadata(abs_path)
+                && let Ok(metadata) = std::fs::metadata(&abs_path)
             {
                 let _current_uid = metadata.uid();
-                // Report mismatch (non-root can't fix)
                 eprintln!(
                     "Owner warning: '{}' should be owned by '{}' (run as root to fix)",
                     rel_path, _owner_spec

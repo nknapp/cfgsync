@@ -1,4 +1,3 @@
-use glob::Pattern;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -31,7 +30,6 @@ pub struct ResolvedConfig {
 pub struct ResolvedFilter {
     #[allow(dead_code)]
     pub glob: String,
-    pub pattern: Pattern,
     pub permissions: Option<u32>,
     pub owner: Option<String>,
 }
@@ -67,6 +65,21 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
         ));
     }
 
+    let source_dir = source_dir.canonicalize().map_err(|e| {
+        format!(
+            "Cannot resolve source_dir '{}': {}",
+            source_dir.display(),
+            e
+        )
+    })?;
+    let target_dir = target_dir.canonicalize().map_err(|e| {
+        format!(
+            "Cannot resolve target_dir '{}': {}",
+            target_dir.display(),
+            e
+        )
+    })?;
+
     let state_path = config_path.with_extension("cfgsync.state");
 
     let filters: Vec<ResolvedFilter> = config
@@ -74,15 +87,13 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
         .into_iter()
         .map(|f| {
             let glob_str = f.glob;
-            match Pattern::new(&glob_str) {
-                Ok(pattern) => Ok(ResolvedFilter {
-                    glob: glob_str,
-                    pattern,
-                    permissions: f.permissions,
-                    owner: f.owner,
-                }),
-                Err(e) => Err(format!("Invalid glob '{}': {}", glob_str, e)),
-            }
+            glob::Pattern::new(&glob_str)
+                .map_err(|e| format!("Invalid glob '{}': {}", glob_str, e))?;
+            Ok(ResolvedFilter {
+                glob: glob_str,
+                permissions: f.permissions,
+                owner: f.owner,
+            })
         })
         .collect::<Result<Vec<_>, String>>()?;
 

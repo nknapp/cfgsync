@@ -138,46 +138,60 @@ pub fn classify(config: &ResolvedConfig, state: &State) -> Result<Vec<Change>, S
 
 fn scan_dir(dir: &Path, filters: &[ResolvedFilter]) -> Result<Vec<DiscoveredFile>, String> {
     let mut files = Vec::new();
-    for entry in walkdir::WalkDir::new(dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        if !entry.file_type().is_file() {
-            continue;
+    let mut seen = HashSet::new();
+
+    for filter in filters {
+        let pattern_str = dir.join(&filter.glob).to_string_lossy().to_string();
+
+        for entry in glob::glob(&pattern_str)
+            .map_err(|e| format!("Invalid glob pattern '{}': {}", pattern_str, e))?
+        {
+            let path = match entry {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                    continue;
+                }
+            };
+
+            if !path.is_file() {
+                continue;
+            }
+            if path.is_symlink() {
+                eprintln!("Warning: skipping symlink '{}'", path.display());
+                continue;
+            }
+
+            let rel_path = path
+                .strip_prefix(dir)
+                .map_err(|e| {
+                    format!(
+                        "Failed to compute relative path for '{}': {}",
+                        path.display(),
+                        e
+                    )
+                })?
+                .to_string_lossy()
+                .to_string();
+
+            if !seen.insert(rel_path.clone()) {
+                return Err(format!(
+                    "Configuration error: file '{}' matches multiple filter globs. Each file must match exactly one filter.",
+                    rel_path
+                ));
+            }
+
+            let metadata = std::fs::metadata(&path)
+                .map_err(|e| format!("Cannot read metadata for '{}': {}", path.display(), e))?;
+            let mtime = metadata
+                .modified()
+                .map_err(|e| format!("Cannot read mtime for '{}': {}", path.display(), e))?
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|e| format!("mtime before epoch for '{}': {}", path.display(), e))?
+                .as_secs() as i64;
+
+            files.push(DiscoveredFile { rel_path, mtime });
         }
-        if entry.path_is_symlink() {
-            eprintln!("Warning: skipping symlink '{}'", entry.path().display());
-            continue;
-        }
-
-        let abs_path = entry.path();
-        let rel_path = abs_path
-            .strip_prefix(dir)
-            .map_err(|e| {
-                format!(
-                    "Failed to compute relative path for '{}': {}",
-                    abs_path.display(),
-                    e
-                )
-            })?
-            .to_string_lossy()
-            .to_string();
-
-        let matches = filters.iter().any(|f| f.pattern.matches(&rel_path));
-        if !matches {
-            continue;
-        }
-
-        let metadata = std::fs::metadata(abs_path)
-            .map_err(|e| format!("Cannot read metadata for '{}': {}", abs_path.display(), e))?;
-        let mtime = metadata
-            .modified()
-            .map_err(|e| format!("Cannot read mtime for '{}': {}", abs_path.display(), e))?
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|e| format!("mtime before epoch for '{}': {}", abs_path.display(), e))?
-            .as_secs() as i64;
-
-        files.push(DiscoveredFile { rel_path, mtime });
     }
     Ok(files)
 }
@@ -211,12 +225,10 @@ mod tests {
     use super::*;
     use crate::config::ResolvedFilter;
     use crate::state::FileEntry;
-    use glob::Pattern;
 
     fn make_filter(glob: &str) -> ResolvedFilter {
         ResolvedFilter {
             glob: glob.to_string(),
-            pattern: Pattern::new(glob).unwrap(),
             permissions: None,
             owner: None,
         }
