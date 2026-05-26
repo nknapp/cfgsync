@@ -1,15 +1,22 @@
 # Changelog
 
-## [Unreleased](https://github.com/nknapp/cfgsync/compare/v0.2.8...a55999f1944b3c95e7e10d6840a461c3f239f795) (2026-05-26)
+## [Unreleased](https://github.com/nknapp/cfgsync/compare/v0.2.9...fb15c294cced4210da131a704d10a5567003838c) (2026-05-27)
 
 ### Features
+
+* add --verbose flag showing files visited
+([fb15c29](https://github.com/nknapp/cfgsync/commit/fb15c294cced4210da131a704d10a5567003838c))
+
+### [v0.2.9](https://github.com/nknapp/cfgsync/compare/v0.2.8...v0.2.9) (2026-05-26)
+
+#### Features
 
 * add --short flag to status command
 ([a55999f](https://github.com/nknapp/cfgsync/commit/a55999f1944b3c95e7e10d6840a461c3f239f795))
 * add --version parameter
 ([e78edac](https://github.com/nknapp/cfgsync/commit/e78edacd8d5da460844e059d84fa69cde7bf656d))
 
-### Fixes
+#### Fixes
 
 * add content check again
 ([521bb7d](https://github.com/nknapp/cfgsync/commit/521bb7d8259776b8d7ed8183d2f15376a437ac15))

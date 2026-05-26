@@ -1,0 +1,1 @@
+pre-release-hook = ["convco", "changelog", "-o", "CHANGELOG.md", "--unreleased", "{{version}}"]

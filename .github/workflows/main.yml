@@ -50,8 +50,6 @@ jobs:
           fi
 
           echo "Bump level: $LEVEL"
-          convco changelog -o CHANGELOG.md
-          git add CHANGELOG.md
           cargo release "$LEVEL" --no-publish --no-confirm --execute
           TAG="v$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')"
           echo "Tag: $TAG"
