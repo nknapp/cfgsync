@@ -115,20 +115,24 @@ export async function readTestDir(
   baseDir: URL,
   configToml: string,
 ): Promise<TestFile[]> {
-  const filesAndDirs = (await Array.fromAsync(walkDir(baseDir))).toSorted(byPath)
-  return await Promise.all(filesAndDirs.map(async ({ stat, path, fullPath }): Promise<TestFile> => {
-    const user = idToUser[stat.uid ?? 1000];
-    const group = idToGroup[stat.gid ?? 1000];
-    const mode = stat.mode ?? 0o0000;
-    const perms = (mode & 0o7777).toString(8).padStart(4, "0") as TestPerms;
-    if (stat.isDirectory) {
-      return `${user}:${group} | ${perms} | ${path}/`;
-    } else {
-      const raw = await Deno.readTextFile(fullPath);
-      const contents = getContents(raw, configToml, path);
-      return `${user}:${group} | ${perms} | ${path} | ${contents}`;
-    }
-  }))
+  const filesAndDirs = (await Array.fromAsync(walkDir(baseDir))).toSorted(
+    byPath,
+  );
+  return await Promise.all(
+    filesAndDirs.map(async ({ stat, path, fullPath }): Promise<TestFile> => {
+      const user = idToUser[stat.uid ?? 1000];
+      const group = idToGroup[stat.gid ?? 1000];
+      const mode = stat.mode ?? 0o0000;
+      const perms = (mode & 0o7777).toString(8).padStart(4, "0") as TestPerms;
+      if (stat.isDirectory) {
+        return `${user}:${group} | ${perms} | ${path}/`;
+      } else {
+        const raw = await Deno.readTextFile(fullPath);
+        const contents = getContents(raw, configToml, path);
+        return `${user}:${group} | ${perms} | ${path} | ${contents}`;
+      }
+    }),
+  );
 }
 
 interface WalkDirResult {
@@ -137,21 +141,20 @@ interface WalkDirResult {
   stat: Deno.FileInfo;
 }
 
-
 export async function* walkDir(
-    baseDir: URL,
-    relativeDir: string = "",
+  baseDir: URL,
+  relativeDir: string = "",
 ): AsyncGenerator<WalkDirResult> {
   const currentDir = new URL(relativeDir, baseDir);
-  console.log(relativeDir)
+  console.log(relativeDir);
   for await (const entry of Deno.readDir(currentDir)) {
     const path = relativeDir + entry.name;
     const fullPath = new URL(encodeURI("./" + path), baseDir);
-    console.log(fullPath.pathname)
+    console.log(fullPath.pathname);
     const stat = await Deno.stat(fullPath);
     yield { path, fullPath, stat };
     if (stat.isDirectory) {
-      console.log("isDir", path)
+      console.log("isDir", path);
       yield* walkDir(baseDir, path + "/");
     }
   }
@@ -168,8 +171,7 @@ function getContents(raw: string, configToml: string, path: string) {
 }
 
 function byPath(o1: WalkDirResult, o2: WalkDirResult) {
-  if (o1.path < o2.path) return -1
-  if (o1.path > o2.path) return 1
-  return 0
-
+  if (o1.path < o2.path) return -1;
+  if (o1.path > o2.path) return 1;
+  return 0;
 }
