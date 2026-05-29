@@ -37,9 +37,7 @@ jobs:
       - name: Build x86_64
         run: cargo build --release --target x86_64-unknown-linux-gnu
       - name: E2E tests (x86_64)
-        run: ./e2e-tests/run.sh
-        env:
-          CFGSYNC: target/x86_64-unknown-linux-gnu/release/cfgsync
+        run: ./e2e-tests/run-docker.sh
       - name: Build aarch64
         run: cargo build --release --target aarch64-unknown-linux-gnu
 

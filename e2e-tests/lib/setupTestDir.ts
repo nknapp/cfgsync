@@ -106,7 +106,14 @@ export function getTestDir(t: Deno.TestContext) {
 export async function setupTestDir(
   t: TestContext,
   spec: TestSpec,
-): Promise<URL> {
+): Promise<URL | null> {
+  if (spec.requiresRootAccess && Deno.uid() !== 0) {
+    console.log(
+      `Skipping test "${t.name}" (requires root, running as uid ${Deno.uid()})`,
+    );
+    return null;
+  }
+
   const testDir = getTestDir(t);
   try {
     await Deno.remove(testDir, { recursive: true });

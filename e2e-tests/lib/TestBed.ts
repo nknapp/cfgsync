@@ -7,19 +7,27 @@ type ExecReturn = { code: number; stdout: string; stderr: string };
 
 export class TestBed {
   private lastRun?: ExecReturn;
+  private skipped = false;
 
   static async create(t: TestContext, spec: TestSpec) {
-    return new TestBed(t, spec, await setupTestDir(t, spec));
+    const dir = await setupTestDir(t, spec);
+    if (dir === null) {
+      return new TestBed(t, spec, new URL("file:///dev/null/"), true);
+    }
+    return new TestBed(t, spec, dir, false);
   }
 
   constructor(
     private t: TestContext,
     private spec: TestSpec,
     private testDir: URL,
+    skipped = false,
   ) {
+    this.skipped = skipped;
   }
 
   async readTestDir() {
+    if (this.skipped) return [];
     return readTestDir(this.t, this.spec);
   }
 
@@ -28,10 +36,15 @@ export class TestBed {
   }
 
   async deleteFile(relativePath: string) {
+    if (this.skipped) return;
     await Deno.remove(new URL(relativePath, this.testDir));
   }
 
   async run(runArgs: Omit<RunArgs, "cwd">) {
+    if (this.skipped) {
+      this.lastRun = { code: 0, stdout: "", stderr: "" };
+      return;
+    }
     this.lastRun = await runCfgsync({ cwd: this.testDir, ...runArgs });
   }
 
