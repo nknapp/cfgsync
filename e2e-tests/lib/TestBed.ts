@@ -10,11 +10,10 @@ export class TestBed {
 
   static async create(t: Deno.TestContext, spec: TestSpec) {
     const dir = await setupTestDir(t, spec);
-    return new TestBed(t, spec, dir);
+    return new TestBed(spec, dir);
   }
 
   constructor(
-    private t: Deno.TestContext,
     private spec: TestSpec,
     private testDir: URL,
   ) {
