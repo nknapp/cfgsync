@@ -15,7 +15,7 @@ cargo install cfgsync
 Or with [mise](https://mise.jdx.dev) (binary with verified provenance):
 
 ```bash
-mise use github:<owner>/cfgsync
+mise use github:nknapp/cfgsync
 ```
 
 Or download a pre-built binary from the [releases page](https://github.com/nils/cfgsync/releases).

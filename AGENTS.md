@@ -3,14 +3,14 @@
 ## Project identity
 
 - **Name**: `cfgsync` (crate name)
-- **Version**: `0.1.0`
+- **Version**: `0.3.0`
 - **Rust edition**: 2024
 - **Description**: Bidirectional config file sync tool. Keeps files in sync between a source directory (e.g. version-controlled dotfiles) and a target directory (e.g. `/etc`) using mtime-based state tracking. Supports conflict detection with interactive resolution, dry-run preview, diff output, and permission/ownership enforcement when run as root.
-- **Repository format**: `https://github.com/<owner>/cfgsync` (update URL in `README.md`)
+- **Repository format**: `https://github.com/nknapp/cfgsync`
 
 ## Commands
 
-Always run from the workspace root (`/home/nils/projects/sync`):
+Always run from the workspace root (`/home/nils/projects/cfgsync`):
 
 | Purpose     | Command                           |
 |-------------|-----------------------------------|
@@ -69,19 +69,26 @@ sync::run()              → handle conflicts, execute copies/deletes, enforce p
 - **Framework**: plain `#[test]` — `rstest` and `pretty_assertions` are in `Cargo.toml` dev-deps but **not used** (removable dependency debt).
 - **Location**: `#[cfg(test)] mod tests` blocks at the bottom of each source file. No `tests/` directory. All unit tests.
 - **Pattern**: Use `tempfile::TempDir` for filesystem tests. Write TOML configs as strings. Call `File::set_modified()` to control mtimes in classification tests.
-- **Total**: 21 tests across `config.rs` (6), `state.rs` (3), `changes.rs` (8), `sync.rs` (4).
+- **Total**: 45 tests across `config.rs` (19), `state.rs` (6), `changes.rs` (16), `sync.rs` (4).
 - **Gaps**: No test for `diff::print_diffs`, `status::print_status`, or interactive mode.
 
 ### E2E tests
 
-Located in `e2e-tests/`. Each subdirectory is a self-contained test with `config.toml`, `source/`, `target/`, and a `test.sh` script. Run with:
+Located in `e2e-tests/`. Tests are written as Deno TypeScript files (`test-*.test.ts`), discovered and run by `deno test`. Each test file is a self-contained scenario that sets up temporary source/target directories, writes config files, runs `cfgsync`, and asserts outcomes.
+
+Run with:
 
 ```bash
 cargo build --release
-./e2e-tests/run.sh [path-to-cfgsync-binary]
+./e2e-tests/run.sh
 ```
 
-Tests: `basic-sync-to-target`, `basic-sync-to-source`, `conflict-detection`, `delete-from-target`, `delete-from-source`, `permission-warning` (non-root), `unchanged-skip`.
+The binary is auto-discovered from `target/release/` or `target/debug/`. Override with the `CFGSYNC` env var. Additional arguments are forwarded to `deno test`.
+
+Test files (22 total):
+`basic-sync-to-target`, `basic-sync-to-source`, `conflict-detection`, `delete-from-target`, `delete-from-source`, `permission-warning` (non-root), `unchanged-skip`, `chown`, `copy-to-source-owner`, `diff-conflict`, `identical-untracked`, `ignore-non-matching`, `multi-group-independent`, `multi-group-overlap`, `multi-group-owner`, `multi-group-per-glob`, `per-glob-no-group-defaults`, `relative-paths`, `schema-json`, `status-short`, `sync-dry-run`.
+
+**Rule**: For every new feature, an e2e test must be added. The e2e test framework should not be changed without good reason.
 
 ## Code conventions
 
@@ -123,5 +130,3 @@ target_mtime = 1716634200
 
 - Config schema: `cfgsync schema` or read `src/schema_doc.toml`
 - Help: `cfgsync --help`, `cfgsync sync --help`, `cfgsync status --help`, `cfgsync diff --help`
-- Design doc: `PLAN.md`
-- Prompts history: `prompts/`
