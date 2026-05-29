@@ -1,6 +1,0 @@
-source_dir = "./source"
-target_dir = "./target"
-
-[[filter]]
-glob = "**/*.conf"
-permissions = 0o600

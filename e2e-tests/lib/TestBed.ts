@@ -23,6 +23,14 @@ export class TestBed {
     return readTestDir(this.t, this.spec);
   }
 
+  get dir(): URL {
+    return this.testDir;
+  }
+
+  async deleteFile(relativePath: string) {
+    await Deno.remove(new URL(relativePath, this.testDir));
+  }
+
   async run(runArgs: Omit<RunArgs, "cwd">) {
     this.lastRun = await runCfgsync({ cwd: this.testDir, ...runArgs });
   }

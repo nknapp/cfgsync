@@ -1,5 +1,0 @@
-source_dir = "./source"
-target_dir = "./target"
-
-[[filter]]
-glob = "*.txt"

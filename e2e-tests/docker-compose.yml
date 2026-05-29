@@ -5,4 +5,7 @@ services:
     volumes:
       - ../target:/target:ro
       - .:/e2e-tests:ro
-    command: deno run /e2e-tests/run.ts
+    environment:
+      CFGSYNC: /target/release/cfgsync
+      E2E_TEST_DIR: /home/cfgsync_user/e2e-test-tmp
+    command: deno test --config /e2e-tests/deno.json --frozen --allow-write --allow-sys --allow-read --allow-env --allow-run --allow-net /e2e-tests/

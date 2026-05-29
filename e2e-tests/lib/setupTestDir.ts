@@ -83,10 +83,23 @@ async function createDirOrFile(line: string, testDir: URL, configToml: string) {
   }
 }
 
+function resolveBaseUrl(raw: string): URL {
+  if (raw.includes("://")) {
+    return new URL(raw.endsWith("/") ? raw : raw + "/");
+  }
+  const abs = raw.startsWith("/") ? raw : "/" + raw;
+  const withSlash = abs.endsWith("/") ? abs : abs + "/";
+  return new URL("file://" + withSlash);
+}
+
 export function getTestDir(t: Deno.TestContext) {
+  const base = Deno.env.get("E2E_TEST_DIR");
+  const baseUrl = base
+    ? resolveBaseUrl(base)
+    : new URL("_tmp/", t.origin);
   return new URL(
     t.name.replace(/\W/g, "_") + "/",
-    t.origin + "_tmp/",
+    baseUrl,
   );
 }
 
@@ -95,7 +108,11 @@ export async function setupTestDir(
   spec: TestSpec,
 ): Promise<URL> {
   const testDir = getTestDir(t);
-  await Deno.remove(testDir, { recursive: true });
+  try {
+    await Deno.remove(testDir, { recursive: true });
+  } catch (e) {
+    if (!(e instanceof Deno.errors.NotFound)) throw e;
+  }
   await Deno.mkdir(testDir, { recursive: true });
 
   for (const file of spec.files) {
