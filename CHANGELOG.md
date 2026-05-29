@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.2.14](https://github.com/nknapp/cfgsync/compare/v0.2.13...91e6ff2bbf91bc2f211c3eb5e42860e2553e2871) (2026-05-29)
+## [v0.2.15](https://github.com/nknapp/cfgsync/compare/v0.2.14...1469e556cbbe2286a0702170dc5ddf95e3de12ff) (2026-05-29)
 
 ### Fixes
+
+* dynamically map current uid/gid to 'user' in e2e tests
+([1469e55](https://github.com/nknapp/cfgsync/commit/1469e556cbbe2286a0702170dc5ddf95e3de12ff))
+
+### [v0.2.14](https://github.com/nknapp/cfgsync/compare/v0.2.13...v0.2.14) (2026-05-29)
+
+#### Fixes
 
 * resolve relative CFGSYNC path to absolute in run.sh
 ([91e6ff2](https://github.com/nknapp/cfgsync/commit/91e6ff2bbf91bc2f211c3eb5e42860e2553e2871))
