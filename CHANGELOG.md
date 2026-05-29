@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.2.11](https://github.com/nknapp/cfgsync/compare/v0.2.10...1622383bb03b666e7499324caa66c90ee6d8095e) (2026-05-29)
+## [v0.2.12](https://github.com/nknapp/cfgsync/compare/v0.2.11...f0a12ed44f31c4bd9f8bafb06021f39ca3ece806) (2026-05-29)
 
 ### Fixes
+
+* restore e2e test runner for CI pipeline
+([f0a12ed](https://github.com/nknapp/cfgsync/commit/f0a12ed44f31c4bd9f8bafb06021f39ca3ece806))
+
+### [v0.2.11](https://github.com/nknapp/cfgsync/compare/v0.2.10...v0.2.11) (2026-05-29)
+
+#### Fixes
 
 * deterministic output of copied files in stdout
 ([1622383](https://github.com/nknapp/cfgsync/commit/1622383bb03b666e7499324caa66c90ee6d8095e))
