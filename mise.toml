@@ -5,8 +5,9 @@
 "github:crate-ci/cargo-release" = "1.1.2"
 "github:convco/convco" = "0.6.4"
 "deno" = "2.8.0"
+yq = "latest"
 
-[tasks.format-and-test]
+[tasks.all-local]
 run = [
     "cargo fmt",
     "convco check 93da8491..HEAD",
@@ -16,11 +17,11 @@ run = [
     "cargo build --release",
     "cd e2e-tests && deno fmt",
     "cd e2e-tests && deno lint",
-    "cd e2e-tests && ./run.sh",
+    "cd e2e-tests && ./run-docker.sh",
     "echo \"version: $(convco version --bump) ($(convco version --bump --label))\"",
 ]
 
-[tasks.ci]
+[tasks.ci-check]
 run = [
     "cd e2e-tests && deno fmt",
     "cd e2e-tests && deno lint",
@@ -28,5 +29,4 @@ run = [
     "cargo clippy -- -D warnings",
     "actionlint",
     "cargo test",
-    "cargo build --release",
 ]

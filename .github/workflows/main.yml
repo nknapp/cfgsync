@@ -13,13 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v4
-      - run: rustup component add rustfmt clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: mise run ci
+      - uses: ./.github/actions/setup
+      - run: mise run ci-check
+
+  build:
+    uses: ./.github/workflows/_build.yml
+    with:
+      git-ref: main
+      run-e2e-tests: true
 
   bump:
-    needs: check
+    needs:
+      - check
+      - build
     runs-on: ubuntu-latest
     outputs:
       skip: ${{ steps.release.outputs.skip }}
@@ -30,9 +36,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: jdx/mise-action@v4
-      - run: rustup component add rustfmt clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/setup
 
       - name: Configure git
         run: |
@@ -43,7 +47,7 @@ jobs:
         id: release
         run: |
           LEVEL=$(convco version --bump --label)
-          if [ -z "$LEVEL" ] || [ "$LEVEL" = "release" ]; then
+          if [ "$LEVEL" = "release" ]; then
             echo "No bump needed. Skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -51,7 +55,7 @@ jobs:
 
           echo "Bump level: $LEVEL"
           cargo release "$LEVEL" --no-publish --no-confirm --execute
-          TAG="v$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')"
+          TAG="v$( yq .package.version Cargo.toml )"
           echo "Tag: $TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"

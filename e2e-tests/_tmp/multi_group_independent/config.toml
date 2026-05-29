@@ -1,9 +1,0 @@
-[[sync]]
-source = "./source-a"
-target = "./target-a"
-globs = ["**/*.txt"]
-
-[[sync]]
-source = "./source-b"
-target = "./target-b"
-globs = ["**/*.conf"]

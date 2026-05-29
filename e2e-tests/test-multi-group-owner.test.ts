@@ -31,18 +31,6 @@ Deno.test({
 
   await testbed.run({ args: ["sync", "config.toml"], sudo: true });
 
-  assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source-no-owner/",
-    "user:user | 0644 | source-no-owner/file.conf | no owner group file",
-    "user:user | 0755 | source-with-owner/",
-    "user:user | 0644 | source-with-owner/file.conf | owner group file",
-    "user:user | 0755 | target-no-owner/",
-    "user:user | 0644 | target-no-owner/file.conf | no owner group file",
-    "user:user | 0755 | target-with-owner/",
-    "root:root | 0644 | target-with-owner/file.conf | owner group file",
-  ]);
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
@@ -56,4 +44,17 @@ Deno.test({
     `,
     stderr: "",
   });
+
+  assertEquals(await testbed.readTestDir(), [
+    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | source-no-owner/",
+    "user:user | 0644 | source-no-owner/file.conf | no owner group file",
+    "user:user | 0755 | source-with-owner/",
+    "user:user | 0644 | source-with-owner/file.conf | owner group file",
+    "user:user | 0755 | target-no-owner/",
+    "user:user | 0644 | target-no-owner/file.conf | no owner group file",
+    "user:user | 0755 | target-with-owner/",
+    "root:root | 0644 | target-with-owner/file.conf | owner group file",
+  ]);
 });

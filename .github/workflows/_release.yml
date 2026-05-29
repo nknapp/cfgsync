@@ -13,87 +13,13 @@ permissions:
   attestations: write
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.tag }}
-
-      - uses: jdx/mise-action@v4
-      - run: rustup component add rustfmt clippy
-      - run: rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: linux
-
-      - name: Install cross-compilation deps (ARM64)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-
-      - name: Build x86_64
-        run: cargo build --release --target x86_64-unknown-linux-gnu
-      - name: E2E tests (x86_64)
-        run: ./e2e-tests/run-docker.sh
-      - name: Build aarch64
-        run: cargo build --release --target aarch64-unknown-linux-gnu
-
-      - name: Package x86_64
-        run: tar -czf cfgsync-x86_64-unknown-linux-gnu.tar.gz -C target/x86_64-unknown-linux-gnu/release cfgsync
-      - name: Package aarch64
-        run: tar -czf cfgsync-aarch64-unknown-linux-gnu.tar.gz -C target/aarch64-unknown-linux-gnu/release cfgsync
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cfgsync-x86_64-unknown-linux-gnu
-          path: cfgsync-x86_64-unknown-linux-gnu.tar.gz
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cfgsync-aarch64-unknown-linux-gnu
-          path: cfgsync-aarch64-unknown-linux-gnu.tar.gz
-          if-no-files-found: error
-
-  build-macos:
-    strategy:
-      matrix:
-        target:
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.tag }}
-
-      - uses: jdx/mise-action@v4
-      - run: rustup component add rustfmt clippy
-      - run: rustup target add ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-
-      - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
-      - name: E2E tests
-        run: ./e2e-tests/run.sh
-        env:
-          CFGSYNC: target/${{ matrix.target }}/release/cfgsync
-      - name: Package
-        run: tar -czf cfgsync-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release cfgsync
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cfgsync-${{ matrix.target }}
-          path: cfgsync-${{ matrix.target }}.tar.gz
-          if-no-files-found: error
+  build:
+    uses: ./.github/workflows/_build.yml
+    with:
+      git-ref: ${{ inputs.tag }}
 
   release:
-    needs: [build-linux, build-macos]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

@@ -22,14 +22,6 @@ Deno.test({
 
   await testbed.run({ args: ["sync", "config.toml"], sudo: true });
 
-  assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "root:root | 0644 | source/file.txt | target-only file",
-    "user:user | 0755 | target/",
-    "root:root | 0644 | target/file.txt | target-only file",
-  ]);
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
@@ -42,4 +34,13 @@ Deno.test({
     `,
     stderr: "",
   });
+
+  assertEquals(await testbed.readTestDir(), [
+    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | source/",
+    "root:root | 0644 | source/file.txt | target-only file",
+    "user:user | 0755 | target/",
+    "root:root | 0644 | target/file.txt | target-only file",
+  ]);
 });

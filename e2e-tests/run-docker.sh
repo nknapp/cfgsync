@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+
+#
+# Runs e2e-tests in a docker container
+#
 set -eu
+
 cd "$(dirname "$(readlink -f "$0")")"
 
-echo "Building cfgsync binary..."
-(cd .. && cargo build --release)
-
-echo "Running e2e tests in Docker..."
-exec docker compose up --build --exit-code-from testbed
+exec docker compose run --build --rm --env CFGSYNC="${CFGSYNC:+/$CFGSYNC}" testbed ./e2e-tests/run.sh

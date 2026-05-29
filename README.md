@@ -18,7 +18,7 @@ Or with [mise](https://mise.jdx.dev) (binary with verified provenance):
 mise use github:nknapp/cfgsync
 ```
 
-Or download a pre-built binary from the [releases page](https://github.com/nils/cfgsync/releases).
+Or download a pre-built binary from the [releases page](https://github.com/nknapp/cfgsync/releases).
 
 ## Quick start
 
