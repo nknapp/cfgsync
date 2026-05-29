@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.2.13](https://github.com/nknapp/cfgsync/compare/v0.2.12...e4e573b0de28d69beef86b07a300d78049dc3e87) (2026-05-29)
+## [v0.2.14](https://github.com/nknapp/cfgsync/compare/v0.2.13...91e6ff2bbf91bc2f211c3eb5e42860e2553e2871) (2026-05-29)
 
 ### Fixes
+
+* resolve relative CFGSYNC path to absolute in run.sh
+([91e6ff2](https://github.com/nknapp/cfgsync/commit/91e6ff2bbf91bc2f211c3eb5e42860e2553e2871))
+
+### [v0.2.13](https://github.com/nknapp/cfgsync/compare/v0.2.12...v0.2.13) (2026-05-29)
+
+#### Fixes
 
 * handle chown PermissionDenied on non-root environments
 ([e4e573b](https://github.com/nknapp/cfgsync/commit/e4e573b0de28d69beef86b07a300d78049dc3e87))
