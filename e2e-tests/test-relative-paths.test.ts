@@ -4,11 +4,10 @@ import { TestBed } from "./lib/TestBed.ts";
 Deno.test("relative-paths", async (t) => {
   const testbed = await TestBed.create(t, {
     configToml: deindent`
-      source_dir = "./source"
-      target_dir = "../target"
-
-      [[filter]]
-      glob = "**/*.txt"
+      [[sync]]
+      source = "./source"
+      target = "../target"
+      globs = ["**/*.txt"]
     `,
     files: [
       "user:user | 0755  | subdir/",

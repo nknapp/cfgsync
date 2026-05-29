@@ -32,7 +32,7 @@ pub fn run(
     if !conflicts.is_empty() && !interactive {
         eprintln!("Conflicts detected ({} files):", conflict_count);
         for c in &conflicts {
-            if let Change::Conflict { rel_path } = c {
+            if let Change::Conflict { rel_path, .. } = c {
                 eprintln!("  {}", rel_path);
             }
         }
@@ -58,6 +58,7 @@ pub fn run(
                 rel_path,
                 abs_src,
                 abs_tgt,
+                ..
             } if !interactive => {
                 if dry_run {
                     println!("[dry-run] copy {} -> target", rel_path);
@@ -83,6 +84,7 @@ pub fn run(
                 rel_path,
                 abs_src,
                 abs_tgt,
+                ..
             } if !interactive => {
                 if dry_run {
                     println!("[dry-run] copy {} -> source", rel_path);
@@ -104,7 +106,9 @@ pub fn run(
                 }
             }
 
-            Change::DeleteTarget { rel_path, abs_tgt } if !interactive => {
+            Change::DeleteTarget {
+                rel_path, abs_tgt, ..
+            } if !interactive => {
                 if dry_run {
                     println!("[dry-run] delete target/{}", rel_path);
                 } else {
@@ -124,7 +128,9 @@ pub fn run(
                 }
             }
 
-            Change::DeleteSource { rel_path, abs_src } if !interactive => {
+            Change::DeleteSource {
+                rel_path, abs_src, ..
+            } if !interactive => {
                 if dry_run {
                     println!("[dry-run] delete source/{}", rel_path);
                 } else {
@@ -146,7 +152,7 @@ pub fn run(
 
             Change::Cleanup { .. } => {}
 
-            _ => {} // interactive conflicts handled below
+            _ => {}
         }
     }
 
@@ -154,21 +160,23 @@ pub fn run(
     if interactive {
         for change in &changes {
             match change {
-                Change::Conflict { rel_path } => {
-                    let abs_src = config.source_dir.join(rel_path);
-                    let abs_tgt = config.target_dir.join(rel_path);
-
+                Change::Conflict {
+                    rel_path,
+                    abs_src,
+                    abs_tgt,
+                    ..
+                } => {
                     eprintln!("\n=== Conflict: {} ===", rel_path);
-                    eprint_diff(&abs_src, &abs_tgt);
+                    eprint_diff(abs_src, abs_tgt);
 
-                    let choice = prompt_user(&abs_src, &abs_tgt)?;
+                    let choice = prompt_user(abs_src, abs_tgt)?;
 
                     match choice.as_str() {
                         "s" => {
                             if dry_run {
                                 println!("[dry-run] would copy source -> target: {}", rel_path);
                             } else {
-                                match copy_file(&abs_src, &abs_tgt) {
+                                match copy_file(abs_src, abs_tgt) {
                                     Ok(()) => {
                                         println!("resolved: {} (kept source)", rel_path);
                                         outcome.copied_to_target += 1;
@@ -186,7 +194,7 @@ pub fn run(
                             if dry_run {
                                 println!("[dry-run] would copy target -> source: {}", rel_path);
                             } else {
-                                match copy_file(&abs_tgt, &abs_src) {
+                                match copy_file(abs_tgt, abs_src) {
                                     Ok(()) => {
                                         println!("resolved: {} (kept target)", rel_path);
                                         outcome.copied_to_source += 1;
@@ -205,7 +213,6 @@ pub fn run(
                             return Err("Aborted by user.".to_string());
                         }
                         _ => {
-                            // "x" or anything else, skip this conflict
                             println!("skipped conflict: {}", rel_path);
                             outcome.conflicts_skipped += 1;
                             conflict_count -= 1;
@@ -213,11 +220,11 @@ pub fn run(
                     }
                 }
 
-                // Handle non-conflict changes during interactive mode
                 Change::CopyToTarget {
                     rel_path,
                     abs_src,
                     abs_tgt,
+                    ..
                 } => {
                     if dry_run {
                         println!("[dry-run] copy {} -> target", rel_path);
@@ -242,6 +249,7 @@ pub fn run(
                     rel_path,
                     abs_src,
                     abs_tgt,
+                    ..
                 } => {
                     if dry_run {
                         println!("[dry-run] copy {} -> source", rel_path);
@@ -262,7 +270,9 @@ pub fn run(
                     }
                 }
 
-                Change::DeleteTarget { rel_path, abs_tgt } => {
+                Change::DeleteTarget {
+                    rel_path, abs_tgt, ..
+                } => {
                     if dry_run {
                         println!("[dry-run] delete target/{}", rel_path);
                     } else {
@@ -282,7 +292,9 @@ pub fn run(
                     }
                 }
 
-                Change::DeleteSource { rel_path, abs_src } => {
+                Change::DeleteSource {
+                    rel_path, abs_src, ..
+                } => {
                     if dry_run {
                         println!("[dry-run] delete source/{}", rel_path);
                     } else {
@@ -384,56 +396,59 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
 
     let mut seen = std::collections::HashSet::new();
 
-    for filter in &config.filters {
-        let pattern_str = config
-            .source_dir
-            .join(&filter.glob)
-            .to_string_lossy()
-            .to_string();
+    for (group_index, group) in config.sync_groups.iter().enumerate() {
+        for glob_entry in &group.globs {
+            let pattern_str = group
+                .source_dir
+                .join(&glob_entry.pattern)
+                .to_string_lossy()
+                .to_string();
 
-        let paths = match glob::glob(&pattern_str) {
-            Ok(p) => p,
-            Err(e) => {
-                eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
-                continue;
-            }
-        };
-
-        for entry in paths {
-            let abs_path = match entry {
+            let paths = match glob::glob(&pattern_str) {
                 Ok(p) => p,
                 Err(e) => {
-                    eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                    eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
                     continue;
                 }
             };
 
-            if !abs_path.is_file() {
-                continue;
-            }
-            if abs_path.is_symlink() {
-                continue;
-            }
+            for entry in paths {
+                let abs_path = match entry {
+                    Ok(p) => p,
+                    Err(e) => {
+                        eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                        continue;
+                    }
+                };
 
-            let rel_path = match abs_path.strip_prefix(&config.source_dir) {
-                Ok(p) => p.to_string_lossy().to_string(),
-                Err(_) => continue,
-            };
+                if !abs_path.is_file() {
+                    continue;
+                }
+                if abs_path.is_symlink() {
+                    continue;
+                }
 
-            if !seen.insert(rel_path.clone()) {
-                continue;
-            }
+                let rel_path = match abs_path.strip_prefix(&group.source_dir) {
+                    Ok(p) => p.to_string_lossy().to_string(),
+                    Err(_) => continue,
+                };
 
-            let src_mtime = file_mtime(&abs_path).unwrap_or(0);
-            let tgt_path = config.target_dir.join(&rel_path);
-            let tgt_mtime = file_mtime(&tgt_path).unwrap_or(0);
+                if !seen.insert((group_index, rel_path.clone())) {
+                    continue;
+                }
 
-            if src_mtime > 0 || tgt_mtime > 0 {
-                state.file.push(FileEntry {
-                    path: rel_path,
-                    source_mtime: src_mtime,
-                    target_mtime: tgt_mtime,
-                });
+                let src_mtime = file_mtime(&abs_path).unwrap_or(0);
+                let tgt_path = group.target_dir.join(&rel_path);
+                let tgt_mtime = file_mtime(&tgt_path).unwrap_or(0);
+
+                if src_mtime > 0 || tgt_mtime > 0 {
+                    state.file.push(FileEntry {
+                        group_index,
+                        path: rel_path,
+                        source_mtime: src_mtime,
+                        target_mtime: tgt_mtime,
+                    });
+                }
             }
         }
     }
@@ -453,61 +468,64 @@ fn is_root() -> bool {
 fn enforce_permissions_root(config: &ResolvedConfig, _state: &State) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
 
-    for filter in &config.filters {
-        let has_perm_requirements = filter.permissions.is_some() || filter.owner.is_some();
-        if !has_perm_requirements {
-            continue;
-        }
-
-        let pattern_str = config
-            .target_dir
-            .join(&filter.glob)
-            .to_string_lossy()
-            .to_string();
-
-        let paths = match glob::glob(&pattern_str) {
-            Ok(p) => p,
-            Err(e) => {
-                eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
+    for group in &config.sync_groups {
+        for glob_entry in &group.globs {
+            let has_perm_requirements =
+                glob_entry.permissions.is_some() || glob_entry.owner.is_some();
+            if !has_perm_requirements {
                 continue;
             }
-        };
 
-        for entry in paths {
-            let abs_path = match entry {
+            let pattern_str = group
+                .target_dir
+                .join(&glob_entry.pattern)
+                .to_string_lossy()
+                .to_string();
+
+            let paths = match glob::glob(&pattern_str) {
                 Ok(p) => p,
                 Err(e) => {
-                    eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                    eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
                     continue;
                 }
             };
 
-            if !abs_path.is_file() {
-                continue;
-            }
-            if abs_path.is_symlink() {
-                continue;
-            }
+            for entry in paths {
+                let abs_path = match entry {
+                    Ok(p) => p,
+                    Err(e) => {
+                        eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                        continue;
+                    }
+                };
 
-            let rel_path = match abs_path.strip_prefix(&config.target_dir) {
-                Ok(p) => p.to_string_lossy().to_string(),
-                Err(_) => continue,
-            };
-
-            if let Some(mode) = filter.permissions {
-                let perms = std::fs::Permissions::from_mode(mode);
-                if let Err(e) = std::fs::set_permissions(&abs_path, perms) {
-                    eprintln!("Warning: cannot chmod '{}' to {:o}: {}", rel_path, mode, e);
+                if !abs_path.is_file() {
+                    continue;
                 }
-            }
+                if abs_path.is_symlink() {
+                    continue;
+                }
 
-            if let Some(ref owner_spec) = filter.owner
-                && let Err(e) = apply_chown(&abs_path, owner_spec)
-            {
-                eprintln!(
-                    "Warning: cannot chown '{}' to '{}': {}",
-                    rel_path, owner_spec, e
-                );
+                let rel_path = match abs_path.strip_prefix(&group.target_dir) {
+                    Ok(p) => p.to_string_lossy().to_string(),
+                    Err(_) => continue,
+                };
+
+                if let Some(mode) = glob_entry.permissions {
+                    let perms = std::fs::Permissions::from_mode(mode);
+                    if let Err(e) = std::fs::set_permissions(&abs_path, perms) {
+                        eprintln!("Warning: cannot chmod '{}' to {:o}: {}", rel_path, mode, e);
+                    }
+                }
+
+                if let Some(ref owner_spec) = glob_entry.owner
+                    && let Err(e) = apply_chown(&abs_path, owner_spec)
+                {
+                    eprintln!(
+                        "Warning: cannot chown '{}' to '{}': {}",
+                        rel_path, owner_spec, e
+                    );
+                }
             }
         }
     }
@@ -554,69 +572,72 @@ fn apply_chown(path: &Path, owner_spec: &str) -> Result<(), String> {
 fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome) {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
-    for filter in &config.filters {
-        let has_perm_requirements = filter.permissions.is_some() || filter.owner.is_some();
-        if !has_perm_requirements {
-            continue;
-        }
-
-        let pattern_str = config
-            .target_dir
-            .join(&filter.glob)
-            .to_string_lossy()
-            .to_string();
-
-        let paths = match glob::glob(&pattern_str) {
-            Ok(p) => p,
-            Err(e) => {
-                eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
+    for group in &config.sync_groups {
+        for glob_entry in &group.globs {
+            let has_perm_requirements =
+                glob_entry.permissions.is_some() || glob_entry.owner.is_some();
+            if !has_perm_requirements {
                 continue;
             }
-        };
 
-        for entry in paths {
-            let abs_path = match entry {
+            let pattern_str = group
+                .target_dir
+                .join(&glob_entry.pattern)
+                .to_string_lossy()
+                .to_string();
+
+            let paths = match glob::glob(&pattern_str) {
                 Ok(p) => p,
                 Err(e) => {
-                    eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                    eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
                     continue;
                 }
             };
 
-            if !abs_path.is_file() {
-                continue;
-            }
-            if abs_path.is_symlink() {
-                continue;
-            }
+            for entry in paths {
+                let abs_path = match entry {
+                    Ok(p) => p,
+                    Err(e) => {
+                        eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
+                        continue;
+                    }
+                };
 
-            let rel_path = match abs_path.strip_prefix(&config.target_dir) {
-                Ok(p) => p.to_string_lossy().to_string(),
-                Err(_) => continue,
-            };
+                if !abs_path.is_file() {
+                    continue;
+                }
+                if abs_path.is_symlink() {
+                    continue;
+                }
 
-            if let Some(mode) = filter.permissions
-                && let Ok(metadata) = std::fs::metadata(&abs_path)
-            {
-                let current_mode = metadata.permissions().mode() & 0o777;
-                if current_mode != mode {
+                let rel_path = match abs_path.strip_prefix(&group.target_dir) {
+                    Ok(p) => p.to_string_lossy().to_string(),
+                    Err(_) => continue,
+                };
+
+                if let Some(mode) = glob_entry.permissions
+                    && let Ok(metadata) = std::fs::metadata(&abs_path)
+                {
+                    let current_mode = metadata.permissions().mode() & 0o777;
+                    if current_mode != mode {
+                        eprintln!(
+                            "Permission warning: '{}' has 0o{:o}, should be 0o{:o} (run as root to fix)",
+                            rel_path, current_mode, mode
+                        );
+                        outcome.skipped_perms += 1;
+                    }
+                }
+
+                if let Some(ref _owner_spec) = glob_entry.owner
+                    && let Ok(metadata) = std::fs::metadata(&abs_path)
+                {
+                    let _current_uid = metadata.uid();
                     eprintln!(
-                        "Permission warning: '{}' has 0o{:o}, should be 0o{:o} (run as root to fix)",
-                        rel_path, current_mode, mode
+                        "Owner warning: '{}' should be owned by '{}' (run as root to fix)",
+                        rel_path, _owner_spec
                     );
                     outcome.skipped_perms += 1;
                 }
-            }
-
-            if let Some(ref _owner_spec) = filter.owner
-                && let Ok(metadata) = std::fs::metadata(&abs_path)
-            {
-                let _current_uid = metadata.uid();
-                eprintln!(
-                    "Owner warning: '{}' should be owned by '{}' (run as root to fix)",
-                    rel_path, _owner_spec
-                );
-                outcome.skipped_perms += 1;
             }
         }
     }
@@ -701,7 +722,6 @@ mod tests {
 
     #[test]
     fn test_is_root_returns_bool() {
-        // Not running as root in tests
         assert!(!is_root());
     }
 

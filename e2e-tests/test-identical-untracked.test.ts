@@ -4,11 +4,10 @@ import { TestBed } from "./lib/TestBed.ts";
 Deno.test("identical-untracked", async (t) => {
   const testbed = await TestBed.create(t, {
     configToml: deindent`
-      source_dir = "./source"
-      target_dir = "./target"
-
-      [[filter]]
-      glob = "**/*.conf"
+      [[sync]]
+      source = "./source"
+      target = "./target"
+      globs = ["**/*.conf"]
     `,
     files: [
       "user:user | 0755  | config.toml | __CONFIG_TOML__",

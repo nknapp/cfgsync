@@ -12,6 +12,8 @@ pub struct State {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileEntry {
+    #[serde(default)]
+    pub group_index: usize,
     pub path: String,
     pub source_mtime: i64,
     pub target_mtime: i64,
@@ -47,8 +49,11 @@ impl State {
             .map_err(|e| format!("Cannot write state file '{}': {}", path.display(), e))
     }
 
-    pub fn as_map(&self) -> HashMap<&str, &FileEntry> {
-        self.file.iter().map(|e| (e.path.as_str(), e)).collect()
+    pub fn as_map(&self) -> HashMap<(usize, &str), &FileEntry> {
+        self.file
+            .iter()
+            .map(|e| ((e.group_index, e.path.as_str()), e))
+            .collect()
     }
 }
 
@@ -74,11 +79,13 @@ mod tests {
                 .to_utc(),
             file: vec![
                 FileEntry {
+                    group_index: 0,
                     path: "etc/nginx.conf".to_string(),
                     source_mtime: 1716634200,
                     target_mtime: 1716634200,
                 },
                 FileEntry {
+                    group_index: 0,
                     path: "etc/app.conf".to_string(),
                     source_mtime: 1716634300,
                     target_mtime: 1716634300,
@@ -91,8 +98,14 @@ mod tests {
 
         assert_eq!(parsed.file.len(), 2);
         let map = parsed.as_map();
-        assert_eq!(map.get("etc/nginx.conf").unwrap().source_mtime, 1716634200);
-        assert_eq!(map.get("etc/app.conf").unwrap().source_mtime, 1716634300);
+        assert_eq!(
+            map.get(&(0, "etc/nginx.conf")).unwrap().source_mtime,
+            1716634200
+        );
+        assert_eq!(
+            map.get(&(0, "etc/app.conf")).unwrap().source_mtime,
+            1716634300
+        );
     }
 
     #[test]
@@ -113,6 +126,7 @@ mod tests {
                 .unwrap()
                 .to_utc(),
             file: vec![FileEntry {
+                group_index: 0,
                 path: "test.conf".to_string(),
                 source_mtime: 100,
                 target_mtime: 200,
@@ -125,5 +139,43 @@ mod tests {
         assert_eq!(loaded.file[0].path, "test.conf");
         assert_eq!(loaded.file[0].source_mtime, 100);
         assert_eq!(loaded.file[0].target_mtime, 200);
+    }
+
+    #[test]
+    fn test_state_map_lookup_by_group() {
+        let state = State {
+            last_sync: Utc::now(),
+            file: vec![
+                FileEntry {
+                    group_index: 0,
+                    path: "nginx.conf".to_string(),
+                    source_mtime: 100,
+                    target_mtime: 100,
+                },
+                FileEntry {
+                    group_index: 1,
+                    path: "nginx.conf".to_string(),
+                    source_mtime: 200,
+                    target_mtime: 200,
+                },
+            ],
+        };
+        let map = state.as_map();
+        assert_eq!(map.get(&(0, "nginx.conf")).unwrap().source_mtime, 100);
+        assert_eq!(map.get(&(1, "nginx.conf")).unwrap().source_mtime, 200);
+    }
+
+    #[test]
+    fn test_old_state_without_group_index() {
+        let toml_str = r#"last_sync = "2026-05-25T10:30:00Z"
+
+[[file]]
+path = "old.conf"
+source_mtime = 100
+target_mtime = 100
+"#;
+        let parsed: State = toml::from_str(toml_str).unwrap();
+        assert_eq!(parsed.file.len(), 1);
+        assert_eq!(parsed.file[0].group_index, 0);
     }
 }

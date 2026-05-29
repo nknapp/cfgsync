@@ -1,0 +1,4 @@
+[[sync]]
+source = "./source"
+target = "./target"
+globs = ["**/*.txt"]

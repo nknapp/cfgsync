@@ -7,11 +7,10 @@ Deno.test({
 }, async (t) => {
   const testbed = await TestBed.create(t, {
     configToml: deindent`
-      source_dir = "./source"
-      target_dir = "./target"
-
-      [[filter]]
-      glob = "**/*.conf"
+      [[sync]]
+      source = "./source"
+      target = "./target"
+      globs = ["**/*.conf"]
       owner = "root:root"
     `,
     files: [

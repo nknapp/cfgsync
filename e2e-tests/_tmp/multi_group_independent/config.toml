@@ -1,0 +1,9 @@
+[[sync]]
+source = "./src-a"
+target = "./tgt-a"
+globs = ["**/*.txt"]
+
+[[sync]]
+source = "./src-b"
+target = "./tgt-b"
+globs = ["**/*.conf"]

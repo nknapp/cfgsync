@@ -10,6 +10,7 @@ pub fn print_diffs(changes: &[Change]) {
                 rel_path,
                 abs_src,
                 abs_tgt,
+                ..
             } => {
                 println!("\n=== {} (source -> target) ===", rel_path);
                 print_unified_diff(abs_src, abs_tgt);
@@ -18,15 +19,19 @@ pub fn print_diffs(changes: &[Change]) {
                 rel_path,
                 abs_src,
                 abs_tgt,
+                ..
             } => {
                 println!("\n=== {} (target -> source) ===", rel_path);
                 print_unified_diff(abs_tgt, abs_src);
             }
-            Change::Conflict { rel_path } => {
+            Change::Conflict {
+                rel_path,
+                abs_src,
+                abs_tgt,
+                ..
+            } => {
                 println!("\n=== {} (CONFLICT) ===", rel_path);
-                // For conflicts, we show both versions side by side info, then diff
-                // Can't get abs paths from Change::Conflict alone
-                eprintln!("  (both sides modified independently)");
+                print_unified_diff(abs_src, abs_tgt);
             }
             Change::DeleteTarget { rel_path, .. } => {
                 println!("\n=== {} (would be deleted from target) ===", rel_path);

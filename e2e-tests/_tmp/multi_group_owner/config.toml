@@ -1,0 +1,10 @@
+[[sync]]
+source = "./nginx-source"
+target = "./nginx-target"
+globs = ["**/*.conf"]
+owner = "root:root"
+
+[[sync]]
+source = "./app-source"
+target = "./app-target"
+globs = ["**/*.conf"]

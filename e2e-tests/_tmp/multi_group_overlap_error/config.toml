@@ -1,0 +1,9 @@
+[[sync]]
+source = "./source"
+target = "./target-a"
+globs = ["**/*"]
+
+[[sync]]
+source = "./source"
+target = "./target-b"
+globs = ["**/*"]

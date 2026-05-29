@@ -1,6 +1,6 @@
-use crate::config::{ResolvedConfig, ResolvedFilter};
+use crate::config::{ResolvedConfig, ResolvedGlob};
 use crate::state::State;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -12,27 +12,35 @@ pub struct DiscoveredFile {
 #[derive(Debug, PartialEq)]
 pub enum Change {
     CopyToTarget {
+        group_index: usize,
         rel_path: String,
         abs_src: PathBuf,
         abs_tgt: PathBuf,
     },
     CopyToSource {
+        group_index: usize,
         rel_path: String,
         abs_src: PathBuf,
         abs_tgt: PathBuf,
     },
     Conflict {
+        group_index: usize,
         rel_path: String,
+        abs_src: PathBuf,
+        abs_tgt: PathBuf,
     },
     DeleteTarget {
+        group_index: usize,
         rel_path: String,
         abs_tgt: PathBuf,
     },
     DeleteSource {
+        group_index: usize,
         rel_path: String,
         abs_src: PathBuf,
     },
     Cleanup {
+        group_index: usize,
         rel_path: String,
     },
 }
@@ -42,39 +50,93 @@ pub fn classify(
     state: &State,
     verbose: bool,
 ) -> Result<Vec<Change>, String> {
-    let source_files = scan_dir(&config.source_dir, &config.filters)?;
-    let target_files = scan_dir(&config.target_dir, &config.filters)?;
+    let mut group_source_files: Vec<Vec<DiscoveredFile>> = Vec::new();
+    let mut group_target_files: Vec<Vec<DiscoveredFile>> = Vec::new();
+    let mut total_source = 0usize;
+    let mut total_target = 0usize;
+
+    for group in config.sync_groups.iter() {
+        let src_files = scan_dir(&group.source_dir, &group.globs)?;
+        let tgt_files = scan_dir(&group.target_dir, &group.globs)?;
+        total_source += src_files.len();
+        total_target += tgt_files.len();
+        group_source_files.push(src_files);
+        group_target_files.push(tgt_files);
+    }
 
     if verbose {
         eprintln!(
             "files visited: {} (source) + {} (target) = {} total",
-            source_files.len(),
-            target_files.len(),
-            source_files.len() + target_files.len()
+            total_source,
+            total_target,
+            total_source + total_target
         );
+    }
+
+    // Cross-group overlap validation
+    let mut path_to_group: HashMap<String, usize> = HashMap::new();
+    for (i, src_files) in group_source_files.iter().enumerate() {
+        for f in src_files {
+            if let Some(&existing_group) = path_to_group.get(&f.rel_path)
+                && existing_group != i
+            {
+                return Err(format!(
+                    "File '{}' matches globs in both sync group {} and sync group {}. Each file must belong to exactly one group.",
+                    f.rel_path,
+                    existing_group + 1,
+                    i + 1
+                ));
+            }
+            path_to_group.insert(f.rel_path.clone(), i);
+        }
+    }
+    for (i, tgt_files) in group_target_files.iter().enumerate() {
+        for f in tgt_files {
+            if let Some(&existing_group) = path_to_group.get(&f.rel_path)
+                && existing_group != i
+            {
+                return Err(format!(
+                    "File '{}' matches globs in both sync group {} and sync group {}. Each file must belong to exactly one group.",
+                    f.rel_path,
+                    existing_group + 1,
+                    i + 1
+                ));
+            }
+            path_to_group.insert(f.rel_path.clone(), i);
+        }
     }
 
     let state_map = state.as_map();
 
-    let mut all_paths: BTreeSet<&str> = BTreeSet::new();
-    for f in &source_files {
-        all_paths.insert(&f.rel_path);
+    // Collect all unique paths across all groups
+    let mut all_paths: BTreeSet<(usize, &str)> = BTreeSet::new();
+    for (i, src_files) in group_source_files.iter().enumerate() {
+        for f in src_files {
+            all_paths.insert((i, &f.rel_path));
+        }
     }
-    for f in &target_files {
-        all_paths.insert(&f.rel_path);
+    for (i, tgt_files) in group_target_files.iter().enumerate() {
+        for f in tgt_files {
+            all_paths.insert((i, &f.rel_path));
+        }
     }
-    for path in state_map.keys() {
-        all_paths.insert(path);
+    for &(group_index, path) in state_map.keys() {
+        all_paths.insert((group_index, path));
     }
 
     let mut changes = Vec::new();
 
-    for rel_path in all_paths {
-        let in_source = source_files.iter().find(|f| f.rel_path == rel_path);
-        let in_target = target_files.iter().find(|f| f.rel_path == rel_path);
-        let in_state = state_map.get(rel_path);
-        let abs_src = config.source_dir.join(rel_path);
-        let abs_tgt = config.target_dir.join(rel_path);
+    for (group_index, rel_path) in all_paths {
+        let group = &config.sync_groups[group_index];
+        let in_source = group_source_files[group_index]
+            .iter()
+            .find(|f| f.rel_path == rel_path);
+        let in_target = group_target_files[group_index]
+            .iter()
+            .find(|f| f.rel_path == rel_path);
+        let in_state = state_map.get(&(group_index, rel_path));
+        let abs_src = group.source_dir.join(rel_path);
+        let abs_tgt = group.target_dir.join(rel_path);
 
         match (in_source, in_target, in_state) {
             (Some(s), Some(t), Some(state_entry)) => {
@@ -83,17 +145,22 @@ pub fn classify(
                 if src_mod && tgt_mod {
                     if !files_identical(&abs_src, &abs_tgt) {
                         changes.push(Change::Conflict {
+                            group_index,
                             rel_path: rel_path.to_string(),
+                            abs_src,
+                            abs_tgt,
                         });
                     }
                 } else if src_mod {
                     changes.push(Change::CopyToTarget {
+                        group_index,
                         rel_path: rel_path.to_string(),
                         abs_src,
                         abs_tgt,
                     });
                 } else if tgt_mod {
                     changes.push(Change::CopyToSource {
+                        group_index,
                         rel_path: rel_path.to_string(),
                         abs_src,
                         abs_tgt,
@@ -101,51 +168,58 @@ pub fn classify(
                 }
             }
 
-            (Some(_s), None, None) => {
+            (Some(_), None, None) => {
                 changes.push(Change::CopyToTarget {
+                    group_index,
                     rel_path: rel_path.to_string(),
                     abs_src,
                     abs_tgt,
                 });
             }
 
-            (None, Some(_t), None) => {
+            (None, Some(_), None) => {
                 changes.push(Change::CopyToSource {
+                    group_index,
                     rel_path: rel_path.to_string(),
                     abs_src,
                     abs_tgt,
                 });
             }
 
-            (Some(_s), None, Some(_state_entry)) => {
+            (Some(_), None, Some(_)) => {
                 changes.push(Change::DeleteSource {
+                    group_index,
                     rel_path: rel_path.to_string(),
                     abs_src,
                 });
             }
 
-            (None, Some(_t), Some(_state_entry)) => {
+            (None, Some(_), Some(_)) => {
                 changes.push(Change::DeleteTarget {
+                    group_index,
                     rel_path: rel_path.to_string(),
                     abs_tgt,
                 });
             }
 
-            (None, None, Some(_state_entry)) => {
+            (None, None, Some(_)) => {
                 changes.push(Change::Cleanup {
+                    group_index,
                     rel_path: rel_path.to_string(),
                 });
             }
 
-            (Some(_s), Some(_t), None) => {
+            (Some(_), Some(_), None) => {
                 if !files_identical(&abs_src, &abs_tgt) {
                     changes.push(Change::Conflict {
+                        group_index,
                         rel_path: rel_path.to_string(),
+                        abs_src,
+                        abs_tgt,
                     });
                 }
             }
 
-            // (None, None, None) cannot happen; all rel_paths come from at least one source
             (None, None, None) => {}
         }
     }
@@ -161,12 +235,12 @@ fn files_identical(a: &Path, b: &Path) -> bool {
     }
 }
 
-fn scan_dir(dir: &Path, filters: &[ResolvedFilter]) -> Result<Vec<DiscoveredFile>, String> {
+fn scan_dir(dir: &Path, globs: &[ResolvedGlob]) -> Result<Vec<DiscoveredFile>, String> {
     let mut files = Vec::new();
     let mut seen = HashSet::new();
 
-    for filter in filters {
-        let pattern_str = dir.join(&filter.glob).to_string_lossy().to_string();
+    for glob_entry in globs {
+        let pattern_str = dir.join(&glob_entry.pattern).to_string_lossy().to_string();
 
         for entry in glob::glob(&pattern_str)
             .map_err(|e| format!("Invalid glob pattern '{}': {}", pattern_str, e))?
@@ -201,7 +275,7 @@ fn scan_dir(dir: &Path, filters: &[ResolvedFilter]) -> Result<Vec<DiscoveredFile
 
             if !seen.insert(rel_path.clone()) {
                 return Err(format!(
-                    "Configuration error: file '{}' matches multiple filter globs. Each file must match exactly one filter.",
+                    "Configuration error: file '{}' matches multiple globs in the same group. Each file must match exactly one glob.",
                     rel_path
                 ));
             }
@@ -230,7 +304,7 @@ pub fn count_changes(changes: &[Change]) -> ChangeCounts {
             Change::Conflict { .. } => counts.conflicts += 1,
             Change::DeleteTarget { .. } => counts.delete_target += 1,
             Change::DeleteSource { .. } => counts.delete_source += 1,
-            Change::Cleanup { .. } => {} // not shown to user
+            Change::Cleanup { .. } => {}
         }
     }
     counts
@@ -248,25 +322,39 @@ pub struct ChangeCounts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::ResolvedFilter;
+    use crate::config::ResolvedGlob;
     use crate::state::FileEntry;
 
-    fn make_filter(glob: &str) -> ResolvedFilter {
-        ResolvedFilter {
-            glob: glob.to_string(),
+    fn make_glob(pattern: &str) -> ResolvedGlob {
+        ResolvedGlob {
+            pattern: pattern.to_string(),
             permissions: None,
             owner: None,
         }
     }
 
-    fn make_config(src: &Path, tgt: &Path, state_path: &Path) -> ResolvedConfig {
+    fn make_config(groups: Vec<(PathBuf, PathBuf, &Path)>, state_path: &Path) -> ResolvedConfig {
         ResolvedConfig {
-            config_dir: src.parent().unwrap().to_path_buf(),
-            source_dir: src.to_path_buf(),
-            target_dir: tgt.to_path_buf(),
-            filters: vec![make_filter("**/*")],
+            config_dir: groups[0].0.parent().unwrap().to_path_buf(),
+            sync_groups: groups
+                .into_iter()
+                .map(|(src, tgt, _)| crate::config::ResolvedSyncGroup {
+                    source_dir: src,
+                    target_dir: tgt,
+                    globs: vec![make_glob("**/*")],
+                    permissions: None,
+                    owner: None,
+                })
+                .collect(),
             state_path: state_path.to_path_buf(),
         }
+    }
+
+    fn make_single_config(src: &Path, tgt: &Path, state_path: &Path) -> ResolvedConfig {
+        make_config(
+            vec![(src.to_path_buf(), tgt.to_path_buf(), src)],
+            state_path,
+        )
     }
 
     #[test]
@@ -280,7 +368,7 @@ mod tests {
         std::fs::write(src.join("new.conf"), "content").unwrap();
 
         let state = State::empty();
-        let config = make_config(&src, &tgt, &dir.path().join("state"));
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
@@ -298,7 +386,7 @@ mod tests {
         std::fs::write(tgt.join("new.conf"), "content").unwrap();
 
         let state = State::empty();
-        let config = make_config(&src, &tgt, &dir.path().join("state"));
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
@@ -318,7 +406,6 @@ mod tests {
         std::fs::write(&src_file, "v1").unwrap();
         std::fs::write(&tgt_file, "v1").unwrap();
 
-        // Force both files to have the same explicit mtime
         let sync_time = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1000);
         std::fs::File::open(&src_file)
             .unwrap()
@@ -329,7 +416,6 @@ mod tests {
             .set_modified(sync_time)
             .unwrap();
 
-        // Modify source and give it a newer mtime
         std::fs::write(&src_file, "v2").unwrap();
         let new_time = std::time::UNIX_EPOCH + std::time::Duration::from_secs(2000);
         std::fs::File::open(&src_file)
@@ -340,12 +426,13 @@ mod tests {
         let state = State {
             last_sync: chrono::Utc::now(),
             file: vec![FileEntry {
+                group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: 1000,
                 target_mtime: 1000,
             }],
         };
-        let config = make_config(&src, &tgt, &dir.path().join("state"));
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
@@ -375,7 +462,6 @@ mod tests {
             .set_modified(sync_time)
             .unwrap();
 
-        // Modify target and give it a newer mtime
         std::fs::write(&tgt_file, "v2").unwrap();
         let new_time = std::time::UNIX_EPOCH + std::time::Duration::from_secs(2000);
         std::fs::File::open(&tgt_file)
@@ -386,12 +472,13 @@ mod tests {
         let state = State {
             last_sync: chrono::Utc::now(),
             file: vec![FileEntry {
+                group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: 1000,
                 target_mtime: 1000,
             }],
         };
-        let config = make_config(&src, &tgt, &dir.path().join("state"));
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
@@ -421,7 +508,6 @@ mod tests {
             .set_modified(sync_time)
             .unwrap();
 
-        // Modify both and give them different newer mtimes
         std::fs::write(&src_file, "v2_source").unwrap();
         let new_src_time = std::time::UNIX_EPOCH + std::time::Duration::from_secs(2000);
         std::fs::File::open(&src_file)
@@ -439,16 +525,25 @@ mod tests {
         let state = State {
             last_sync: chrono::Utc::now(),
             file: vec![FileEntry {
+                group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: 1000,
                 target_mtime: 1000,
             }],
         };
-        let config = make_config(&src, &tgt, &dir.path().join("state"));
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
-        assert!(matches!(changes[0], Change::Conflict { .. }));
+        let change = &changes[0];
+        assert!(matches!(change, Change::Conflict { .. }));
+        if let Change::Conflict {
+            abs_src, abs_tgt, ..
+        } = change
+        {
+            assert!(abs_src.ends_with("app.conf"));
+            assert!(abs_tgt.ends_with("app.conf"));
+        }
     }
 
     #[test]
@@ -459,19 +554,19 @@ mod tests {
         std::fs::create_dir(&src).unwrap();
         std::fs::create_dir(&tgt).unwrap();
 
-        // File exists only in target (was synced before, now deleted from source)
         std::fs::write(tgt.join("app.conf"), "v1").unwrap();
         let tgt_mtime = unix_timestamp(&tgt.join("app.conf"));
 
         let state = State {
             last_sync: chrono::Utc::now(),
             file: vec![FileEntry {
+                group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: tgt_mtime,
                 target_mtime: tgt_mtime,
             }],
         };
-        let config = make_config(&src, &tgt, &dir.path().join("state"));
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
@@ -492,12 +587,13 @@ mod tests {
         let state = State {
             last_sync: chrono::Utc::now(),
             file: vec![FileEntry {
+                group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: src_mtime,
                 target_mtime: src_mtime,
             }],
         };
-        let config = make_config(&src, &tgt, &dir.path().join("state"));
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
@@ -515,12 +611,13 @@ mod tests {
         let state = State {
             last_sync: chrono::Utc::now(),
             file: vec![FileEntry {
+                group_index: 0,
                 path: "old.conf".to_string(),
                 source_mtime: 100,
                 target_mtime: 100,
             }],
         };
-        let config = make_config(&src, &tgt, &dir.path().join("state"));
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false).unwrap();
         assert_eq!(changes.len(), 1);
@@ -550,19 +647,20 @@ mod tests {
         let state = State {
             last_sync: chrono::Utc::now(),
             file: vec![FileEntry {
+                group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: mtime,
                 target_mtime: mtime,
             }],
         };
-        let config = make_config(&src, &tgt, &dir.path().join("state"));
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false).unwrap();
         assert!(changes.is_empty());
     }
 
     #[test]
-    fn test_filter_respects_glob() {
+    fn test_glob_respects_glob() {
         let dir = tempfile::TempDir::new().unwrap();
         let src = dir.path().join("source");
         let tgt = dir.path().join("target");
@@ -572,18 +670,303 @@ mod tests {
         std::fs::write(src.join("app.conf"), "content").unwrap();
         std::fs::write(src.join("readme.txt"), "text").unwrap();
 
-        let mut config = make_config(&src, &tgt, &dir.path().join("state"));
-        config.filters = vec![make_filter("*.conf")];
+        let mut config = make_single_config(&src, &tgt, &dir.path().join("state"));
+        config.sync_groups[0].globs = vec![make_glob("*.conf")];
 
         let state = State::empty();
         let changes = classify(&config, &state, false).unwrap();
 
-        // Only app.conf should be picked up
         assert_eq!(changes.len(), 1);
         let Change::CopyToTarget { ref rel_path, .. } = changes[0] else {
             panic!("expected CopyToTarget");
         };
         assert_eq!(rel_path, "app.conf");
+    }
+
+    #[test]
+    fn test_classify_overlapping_groups_error() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src1 = dir.path().join("source1");
+        let src2 = dir.path().join("source2");
+        let tgt1 = dir.path().join("target1");
+        let tgt2 = dir.path().join("target2");
+        std::fs::create_dir(&src1).unwrap();
+        std::fs::create_dir(&src2).unwrap();
+        std::fs::create_dir(&tgt1).unwrap();
+        std::fs::create_dir(&tgt2).unwrap();
+
+        std::fs::write(src1.join("shared.conf"), "c1").unwrap();
+        std::fs::write(src2.join("shared.conf"), "c2").unwrap();
+
+        let config = ResolvedConfig {
+            config_dir: dir.path().to_path_buf(),
+            sync_groups: vec![
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src1,
+                    target_dir: tgt1,
+                    globs: vec![make_glob("**/*")],
+                    permissions: None,
+                    owner: None,
+                },
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src2,
+                    target_dir: tgt2,
+                    globs: vec![make_glob("**/*")],
+                    permissions: None,
+                    owner: None,
+                },
+            ],
+            state_path: dir.path().join("state"),
+        };
+
+        let state = State::empty();
+        let result = classify(&config, &state, false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("matches globs in both sync group"),
+            "got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_classify_multiple_groups_independent() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src1 = dir.path().join("source1");
+        let tgt1 = dir.path().join("target1");
+        let src2 = dir.path().join("source2");
+        let tgt2 = dir.path().join("target2");
+        std::fs::create_dir(&src1).unwrap();
+        std::fs::create_dir(&tgt1).unwrap();
+        std::fs::create_dir(&src2).unwrap();
+        std::fs::create_dir(&tgt2).unwrap();
+
+        std::fs::write(src1.join("file1.conf"), "a").unwrap();
+        std::fs::write(src2.join("file2.conf"), "b").unwrap();
+
+        let config = ResolvedConfig {
+            config_dir: dir.path().to_path_buf(),
+            sync_groups: vec![
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src1,
+                    target_dir: tgt1,
+                    globs: vec![make_glob("file1.*")],
+                    permissions: None,
+                    owner: None,
+                },
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src2,
+                    target_dir: tgt2,
+                    globs: vec![make_glob("file2.*")],
+                    permissions: None,
+                    owner: None,
+                },
+            ],
+            state_path: dir.path().join("state"),
+        };
+
+        let state = State::empty();
+        let changes = classify(&config, &state, false).unwrap();
+        assert_eq!(changes.len(), 2);
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, Change::CopyToTarget { group_index: 0, .. }))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, Change::CopyToTarget { group_index: 1, .. }))
+        );
+    }
+
+    #[test]
+    fn test_classify_group_with_zero_matching_files() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src = dir.path().join("source");
+        let tgt = dir.path().join("target");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::create_dir(&tgt).unwrap();
+
+        std::fs::write(src.join("file.txt"), "content").unwrap();
+
+        let config = ResolvedConfig {
+            config_dir: dir.path().to_path_buf(),
+            sync_groups: vec![
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src.clone(),
+                    target_dir: tgt.clone(),
+                    globs: vec![make_glob("**/*.txt")],
+                    permissions: None,
+                    owner: None,
+                },
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src.clone(),
+                    target_dir: tgt.clone(),
+                    globs: vec![make_glob("*.nothing")],
+                    permissions: None,
+                    owner: None,
+                },
+            ],
+            state_path: dir.path().join("state"),
+        };
+
+        let state = State::empty();
+        let changes = classify(&config, &state, false).unwrap();
+        // Only group 0 matches; group 1 has zero files
+        assert_eq!(changes.len(), 1);
+        assert!(matches!(
+            changes[0],
+            Change::CopyToTarget { group_index: 0, .. }
+        ));
+    }
+
+    #[test]
+    fn test_classify_multi_group_same_dir_non_overlapping_globs() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src = dir.path().join("source");
+        let tgt = dir.path().join("target");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::create_dir(&tgt).unwrap();
+
+        std::fs::write(src.join("app.conf"), "conf").unwrap();
+        std::fs::write(src.join("readme.txt"), "txt").unwrap();
+
+        let config = ResolvedConfig {
+            config_dir: dir.path().to_path_buf(),
+            sync_groups: vec![
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src.clone(),
+                    target_dir: tgt.clone(),
+                    globs: vec![make_glob("*.conf")],
+                    permissions: None,
+                    owner: None,
+                },
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src.clone(),
+                    target_dir: tgt.clone(),
+                    globs: vec![make_glob("*.txt")],
+                    permissions: None,
+                    owner: None,
+                },
+            ],
+            state_path: dir.path().join("state"),
+        };
+
+        let state = State::empty();
+        let changes = classify(&config, &state, false).unwrap();
+        assert_eq!(changes.len(), 2);
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, Change::CopyToTarget { group_index: 0, .. }))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, Change::CopyToTarget { group_index: 1, .. }))
+        );
+    }
+
+    #[test]
+    fn test_classify_cleanup_across_multiple_groups() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src1 = dir.path().join("source1");
+        let tgt1 = dir.path().join("target1");
+        let src2 = dir.path().join("source2");
+        let tgt2 = dir.path().join("target2");
+        std::fs::create_dir(&src1).unwrap();
+        std::fs::create_dir(&tgt1).unwrap();
+        std::fs::create_dir(&src2).unwrap();
+        std::fs::create_dir(&tgt2).unwrap();
+
+        // Both files are gone but still tracked in state — should produce Cleanup for each group
+        let state = State {
+            last_sync: chrono::Utc::now(),
+            file: vec![
+                FileEntry {
+                    group_index: 0,
+                    path: "gone1.conf".to_string(),
+                    source_mtime: 100,
+                    target_mtime: 100,
+                },
+                FileEntry {
+                    group_index: 1,
+                    path: "gone2.conf".to_string(),
+                    source_mtime: 200,
+                    target_mtime: 200,
+                },
+            ],
+        };
+        let config = ResolvedConfig {
+            config_dir: dir.path().to_path_buf(),
+            sync_groups: vec![
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src1,
+                    target_dir: tgt1,
+                    globs: vec![make_glob("**/*")],
+                    permissions: None,
+                    owner: None,
+                },
+                crate::config::ResolvedSyncGroup {
+                    source_dir: src2,
+                    target_dir: tgt2,
+                    globs: vec![make_glob("**/*")],
+                    permissions: None,
+                    owner: None,
+                },
+            ],
+            state_path: dir.path().join("state"),
+        };
+
+        let changes = classify(&config, &state, false).unwrap();
+        assert_eq!(changes.len(), 2);
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, Change::Cleanup { group_index: 0, .. }))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|c| matches!(c, Change::Cleanup { group_index: 1, .. }))
+        );
+    }
+
+    #[test]
+    fn test_classify_conflict_variant_has_abs_paths() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src = dir.path().join("source");
+        let tgt = dir.path().join("target");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::create_dir(&tgt).unwrap();
+
+        std::fs::write(src.join("conflict.txt"), "v1").unwrap();
+        std::fs::write(tgt.join("conflict.txt"), "v2").unwrap();
+
+        let config = make_single_config(&src, &tgt, &dir.path().join("state"));
+        let state = State::empty();
+        let changes = classify(&config, &state, false).unwrap();
+        assert_eq!(changes.len(), 1);
+
+        if let Change::Conflict {
+            abs_src, abs_tgt, ..
+        } = &changes[0]
+        {
+            assert!(
+                abs_src.ends_with("conflict.txt"),
+                "abs_src ends with conflict.txt"
+            );
+            assert!(
+                abs_tgt.ends_with("conflict.txt"),
+                "abs_tgt ends with conflict.txt"
+            );
+            assert!(!abs_src.to_string_lossy().is_empty());
+            assert!(!abs_tgt.to_string_lossy().is_empty());
+        } else {
+            panic!("expected Conflict variant");
+        }
     }
 
     fn unix_timestamp(path: &Path) -> i64 {

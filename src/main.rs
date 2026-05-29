@@ -49,7 +49,11 @@ enum Commands {
         config: PathBuf,
     },
     /// Print configuration file schema and example
-    Schema,
+    Schema {
+        /// Output JSON Schema instead of human-readable TOML reference
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 fn main() {
@@ -63,7 +67,7 @@ fn main() {
         } => cmd_sync(&config, interactive, dry_run, cli.verbose),
         Commands::Status { config, short } => cmd_status(&config, short, cli.verbose),
         Commands::Diff { config } => cmd_diff(&config, cli.verbose),
-        Commands::Schema => schema::print_schema(),
+        Commands::Schema { json } => schema::print_schema(json),
     }
 }
 
