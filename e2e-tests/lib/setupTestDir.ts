@@ -78,18 +78,8 @@ async function createDirOrFile(line: string, testDir: URL, configToml: string) {
   }
   await Deno.chmod(realPath, parseInt(perms, 8));
 
-  if (uid !== Deno.uid() || gid !== Deno.gid()) {
-    try {
-      await Deno.chown(realPath, uid, gid);
-    } catch (e) {
-      if (e instanceof Deno.errors.PermissionDenied) {
-        console.log(
-          `[warn] Cannot chown '${path}' to ${uid}:${gid} (not root)`,
-        );
-      } else {
-        throw e;
-      }
-    }
+  if (Deno.uid() === 0) {
+    await Deno.chown(realPath, uid, gid);
   }
 }
 
@@ -117,9 +107,9 @@ export async function setupTestDir(
   t: TestContext,
   spec: TestSpec,
 ): Promise<URL | null> {
-  if (spec.requiresRootAccess && Deno.uid() !== 0) {
+  if (spec.requiresRootAccess && Deno.env.get("E2E_IN_DOCKER") !== "true") {
     console.log(
-      `Skipping test "${t.name}" (requires root, running as uid ${Deno.uid()})`,
+      `Skipping test "${t.name}" (requires root, not running in Docker)`,
     );
     return null;
   }

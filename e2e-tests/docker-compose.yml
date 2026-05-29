@@ -8,4 +8,5 @@ services:
     environment:
       CFGSYNC: /target/release/cfgsync
       E2E_TEST_DIR: /home/cfgsync_user/e2e-test-tmp
+      E2E_IN_DOCKER: "true"
     command: deno test --config /e2e-tests/deno.json --frozen --allow-write --allow-sys --allow-read --allow-env --allow-run --allow-net /e2e-tests/
