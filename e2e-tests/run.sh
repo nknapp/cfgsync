@@ -1,21 +1,15 @@
 #!/usr/bin/env bash
+
 set -eu
 
-PROJECT_ROOT="$(pwd)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$( dirname "$( readlink -f "$0")" )"
 
-if [ -n "${CFGSYNC:-}" ]; then
-  case "$CFGSYNC" in
-    /*) ;;  # already absolute
-    *) CFGSYNC="$PROJECT_ROOT/$CFGSYNC" ;;
-  esac
-else
-  CFGSYNC="$SCRIPT_DIR/../target/release/cfgsync"
-fi
-export CFGSYNC
+function find_cfg_sync() {
+  PATH="../target/release:../target/debug:${PATH}" which cfgsync
+}
 
-cd "$SCRIPT_DIR"
+CFGSYNC="$(realpath "${CFGSYNC:-$(find_cfg_sync)}")"
+E2E_TEST_DIR="$(realpath ./_tmp )/"
+export CFGSYNC E2E_TEST_DIR
 
-deno test --config deno.json --frozen \
-  --allow-write --allow-sys --allow-read --allow-env --allow-run --allow-net \
-  .
+deno test --allow-write --allow-sys --allow-read --allow-env --allow-run

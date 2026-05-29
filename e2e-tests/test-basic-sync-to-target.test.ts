@@ -1,4 +1,4 @@
-import { assertEquals, assertOutput, deindent } from "./lib/index.ts";
+import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("basic-sync-to-target", async (t) => {
@@ -34,15 +34,17 @@ Deno.test("basic-sync-to-target", async (t) => {
     "user:user | 0755 | target/subdir/",
     "user:user | 0644 | target/subdir/deep.txt | deep nested file",
   ]);
-  testbed.assertExitCode(0);
-  testbed.assertStdout(deindent`
-    copied hello.txt -> target
-    copied subdir/deep.txt -> target
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      copied hello.txt -> target
+      copied subdir/deep.txt -> target
 
-    source -> target: 2
-    target -> source: 0
-    deleted target:   0
-    deleted source:   0
-  `);
-  testbed.assertStderr("");
+      source -> target: 2
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
+  });
 });

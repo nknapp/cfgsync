@@ -1,4 +1,4 @@
-import TestContext = Deno.TestContext;
+import { requireEnv } from "./requireEnv.ts";
 
 type TestPath = string;
 type TestContents = string;
@@ -12,7 +12,6 @@ export type TestFile =
   | `${TestOwner} | ${TestPerms} | ${TestPath}/`;
 
 export interface TestSpec {
-  requiresRootAccess?: true;
   files: TestFile[];
   configToml: string;
 }
@@ -61,7 +60,6 @@ async function createDirOrFile(line: string, testDir: URL, configToml: string) {
   const isDirectory = path.endsWith("/");
 
   const realPath = new URL(encodeURI(path), testDir);
-  console.log("Creating", realPath.pathname);
   if (isDirectory) {
     await Deno.mkdir(realPath);
   } else {
@@ -83,37 +81,16 @@ async function createDirOrFile(line: string, testDir: URL, configToml: string) {
   }
 }
 
-function resolveBaseUrl(raw: string): URL {
-  if (raw.includes("://")) {
-    return new URL(raw.endsWith("/") ? raw : raw + "/");
-  }
-  const abs = raw.startsWith("/") ? raw : "/" + raw;
-  const withSlash = abs.endsWith("/") ? abs : abs + "/";
-  return new URL("file://" + withSlash);
-}
-
 export function getTestDir(t: Deno.TestContext) {
-  const base = Deno.env.get("E2E_TEST_DIR");
-  const baseUrl = base
-    ? resolveBaseUrl(base)
-    : new URL("_tmp/", t.origin);
-  return new URL(
-    t.name.replace(/\W/g, "_") + "/",
-    baseUrl,
-  );
+  const testBaseDir = requireEnv("E2E_TEST_DIR");
+  const base = new URL(testBaseDir, import.meta.url);
+  return new URL(t.name.replace(/\W/g, "_") + "/", base);
 }
 
 export async function setupTestDir(
-  t: TestContext,
+  t: Deno.TestContext,
   spec: TestSpec,
-): Promise<URL | null> {
-  if (spec.requiresRootAccess && Deno.env.get("E2E_IN_DOCKER") !== "true") {
-    console.log(
-      `Skipping test "${t.name}" (requires root, not running in Docker)`,
-    );
-    return null;
-  }
-
+): Promise<URL> {
   const testDir = getTestDir(t);
   try {
     await Deno.remove(testDir, { recursive: true });
@@ -186,7 +163,7 @@ async function walkDir(
 }
 
 export async function readTestDir(
-  t: TestContext,
+  t: Deno.TestContext,
   spec: TestSpec,
 ): Promise<TestFile[]> {
   const testDir = getTestDir(t);

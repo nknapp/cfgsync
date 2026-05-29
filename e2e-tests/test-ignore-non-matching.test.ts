@@ -1,4 +1,4 @@
-import { assertEquals, assertOutput, deindent } from "./lib/index.ts";
+import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("ignore-non-matching", async (t) => {
@@ -22,7 +22,6 @@ Deno.test("ignore-non-matching", async (t) => {
   });
 
   await testbed.run({ args: ["sync", "config.toml"] });
-  testbed.assertExitCode(0);
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
@@ -36,14 +35,17 @@ Deno.test("ignore-non-matching", async (t) => {
     "user:user | 0644 | target/hello.txt | hello source",
     "user:user | 0644 | target/no-sync.conf | no sync",
   ]);
-  testbed.assertStdout(deindent`
-    copied target -> data.txt
-    copied hello.txt -> target
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      copied target -> data.txt
+      copied hello.txt -> target
 
-    source -> target: 1
-    target -> source: 1
-    deleted target:   0
-    deleted source:   0
-  `);
-  testbed.assertStderr("");
+      source -> target: 1
+      target -> source: 1
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
+  });
 });

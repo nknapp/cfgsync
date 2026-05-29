@@ -1,4 +1,4 @@
-import { assertEquals, assertOutput, deindent } from "./lib/index.ts";
+import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("identical-untracked", async (t) => {
@@ -29,12 +29,14 @@ Deno.test("identical-untracked", async (t) => {
     "user:user | 0755 | target/",
     "user:user | 0644 | target/app.conf | server { listen 80; }",
   ]);
-  testbed.assertExitCode(0);
-  testbed.assertStdout(deindent`
-    source -> target: 0
-    target -> source: 0
-    deleted target:   0
-    deleted source:   0
-  `);
-  testbed.assertStderr("");
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      source -> target: 0
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
+  });
 });

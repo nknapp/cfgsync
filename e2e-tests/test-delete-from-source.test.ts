@@ -1,4 +1,4 @@
-import { assertEquals, assertOutput, deindent } from "./lib/index.ts";
+import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("delete-from-source", async (t) => {
@@ -28,14 +28,16 @@ Deno.test("delete-from-source", async (t) => {
     "user:user | 0755 | source/",
     "user:user | 0755 | target/",
   ]);
-  testbed.assertExitCode(0);
-  testbed.assertStdout(deindent`
-    deleted source/delete-me.txt
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      deleted source/delete-me.txt
 
-    source -> target: 0
-    target -> source: 0
-    deleted target:   0
-    deleted source:   1
-  `);
-  testbed.assertStderr("");
+      source -> target: 0
+      target -> source: 0
+      deleted target:   0
+      deleted source:   1
+    `,
+    stderr: "",
+  });
 });

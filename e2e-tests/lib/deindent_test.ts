@@ -2,7 +2,7 @@ import { assertEquals } from "./assert.ts";
 import { deindent } from "./deindent.ts";
 
 Deno.test("deindent", () => {
-  let result = deindent`
+  const result = deindent`
         abc
            cde
               def
@@ -11,7 +11,7 @@ Deno.test("deindent", () => {
 });
 
 Deno.test("ignores empty lines", () => {
-  let result = deindent`
+  const result = deindent`
         abc
            cde
     

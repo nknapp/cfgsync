@@ -13,8 +13,11 @@ import { assertEquals } from "@std/assert";
  *                if the normalized strings do not match.
  */
 export function assertOutput(actual: string, expected: string) {
+
   assertEquals(
     actual.replace(/ $/mg, "").trim(),
     expected.replace(/ $/mg, "").trim(),
   );
 }
+
+

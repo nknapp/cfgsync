@@ -1,7 +1,6 @@
 import { readTestDir, setupTestDir, TestSpec } from "./setupTestDir.ts";
 import { RunArgs, runCfgsync } from "./runCfgsync.ts";
-import TestContext = Deno.TestContext;
-import { assertEquals, assertOutput } from "./assert.ts";
+import { assertEquals, assertOutput as assertStr } from "./assert.ts";
 
 type ExecReturn = { code: number; stdout: string; stderr: string };
 
@@ -9,34 +8,23 @@ export class TestBed {
   private lastRun?: ExecReturn;
   private skipped = false;
 
-  static async create(t: TestContext, spec: TestSpec) {
+  static async create(t: Deno.TestContext, spec: TestSpec) {
     const dir = await setupTestDir(t, spec);
-    if (dir === null) {
-      return new TestBed(t, spec, new URL("file:///dev/null/"), true);
-    }
-    return new TestBed(t, spec, dir, false);
+    return new TestBed(t, spec, dir);
   }
 
   constructor(
-    private t: TestContext,
+    private t: Deno.TestContext,
     private spec: TestSpec,
     private testDir: URL,
-    skipped = false,
   ) {
-    this.skipped = skipped;
   }
 
-  async readTestDir() {
-    if (this.skipped) return [];
+  readTestDir() {
     return readTestDir(this.t, this.spec);
   }
 
-  get dir(): URL {
-    return this.testDir;
-  }
-
   async deleteFile(relativePath: string) {
-    if (this.skipped) return;
     await Deno.remove(new URL(relativePath, this.testDir));
   }
 
@@ -48,22 +36,22 @@ export class TestBed {
     this.lastRun = await runCfgsync({ cwd: this.testDir, ...runArgs });
   }
 
-  assertExitCode(code: number) {
-    assertEquals(code, this.getLastRun().code);
-  }
-
-  assertStdout(stdout: string) {
-    assertOutput(this.getLastRun().stdout, stdout);
-  }
-
-  assertStderr(stderr: string) {
-    assertOutput(this.getLastRun().stderr, stderr);
-  }
-
-  private getLastRun(): ExecReturn {
+  assertOutput(expectedOutput: ExecReturn) {
     if (this.lastRun == null) {
-      throw new Error("Call 'run' before checkout output");
+      throw new Error("Call 'run' before checking output");
     }
-    return this.lastRun;
+
+    assertEquals(
+      this.normalizeOutput(this.lastRun),
+      this.normalizeOutput(expectedOutput),
+    );
+  }
+
+  private normalizeOutput({ code, stdout, stderr }: ExecReturn): ExecReturn {
+    return {
+      code,
+      stdout: stdout.replace(/ $/mg, "").trim(),
+      stderr: stderr.replace(/ $/mg, "").trim(),
+    };
   }
 }

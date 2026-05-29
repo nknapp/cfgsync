@@ -1,4 +1,4 @@
-import { assertEquals, assertOutput, deindent } from "./lib/index.ts";
+import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("basic-sync-to-source", async (t) => {
@@ -28,14 +28,16 @@ Deno.test("basic-sync-to-source", async (t) => {
     "user:user | 0755 | target/",
     "user:user | 0644 | target/data.txt | My data",
   ]);
-  testbed.assertExitCode(0);
-  testbed.assertStdout(deindent`
-       copied target -> data.txt
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      copied target -> data.txt
 
-       source -> target: 0
-       target -> source: 1
-       deleted target:   0
-       deleted source:   0
-    `);
-  testbed.assertStderr("");
+      source -> target: 0
+      target -> source: 1
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
+  });
 });

@@ -1,4 +1,4 @@
-import { assertEquals, assertOutput, deindent } from "./lib/index.ts";
+import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("relative-paths", async (t) => {
@@ -29,14 +29,16 @@ Deno.test("relative-paths", async (t) => {
     "user:user | 0755 | target/",
     "user:user | 0644 | target/same.txt | identical content",
   ]);
-  testbed.assertExitCode(0);
-  testbed.assertStdout(deindent`
-    copied same.txt -> target
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      copied same.txt -> target
 
-    source -> target: 1
-    target -> source: 0
-    deleted target:   0
-    deleted source:   0
-  `);
-  testbed.assertStderr("");
+      source -> target: 1
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
+  });
 });

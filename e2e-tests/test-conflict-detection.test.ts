@@ -1,4 +1,4 @@
-import { assertEquals, assertOutput, deindent } from "./lib/index.ts";
+import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("conflict-detection", async (t) => {
@@ -20,21 +20,28 @@ Deno.test("conflict-detection", async (t) => {
   });
 
   await testbed.run({ args: ["status", "config.toml"] });
-  testbed.assertStdout(deindent`
-    source -> target: 0
-    target -> source: 0
-    deleted target:   0
-    deleted source:   0
-    conflicts:        1
-  `);
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      source -> target: 0
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+      conflicts:        1
+    `,
+    stderr: "",
+  });
 
   await testbed.run({ args: ["sync", "config.toml"] });
-  testbed.assertExitCode(1);
-  testbed.assertStderr(deindent`
-    Conflicts detected (1 files):
-      conflict.txt
-    Error: Aborting due to 1 conflict(s). Use -i/--interactive to resolve.
-  `);
+  testbed.assertOutput({
+    code: 1,
+    stdout: "",
+    stderr: deindent`
+      Conflicts detected (1 files):
+        conflict.txt
+      Error: Aborting due to 1 conflict(s). Use -i/--interactive to resolve.
+    `,
+  });
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0755 | config.toml | __CONFIG_TOML__",

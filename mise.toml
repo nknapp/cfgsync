@@ -9,16 +9,21 @@
 [tasks.format-and-test]
 run = [
     "cargo fmt",
-    "echo \"version: $(convco version --bump) ($(convco version --bump --label))\"",
     "convco check 93da8491..HEAD",
     "cargo clippy -- -D warnings",
     "actionlint",
     "cargo test",
     "cargo build --release",
+    "cd e2e-tests && deno fmt",
+    "cd e2e-tests && deno lint",
+    "cd e2e-tests && ./run.sh",
+    "echo \"version: $(convco version --bump) ($(convco version --bump --label))\"",
 ]
 
 [tasks.ci]
 run = [
+    "cd e2e-tests && deno fmt",
+    "cd e2e-tests && deno lint",
     "cargo fmt -- --check",
     "cargo clippy -- -D warnings",
     "actionlint",

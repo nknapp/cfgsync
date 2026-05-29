@@ -1,4 +1,4 @@
-import { assertEquals, assertOutput, deindent } from "./lib/index.ts";
+import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("permission-warning", async (t) => {
@@ -29,17 +29,19 @@ Deno.test("permission-warning", async (t) => {
     "user:user | 0755 | target/",
     "user:user | 0644 | target/nginx.conf | worker_processes 1;",
   ]);
-  testbed.assertExitCode(0);
-  testbed.assertStdout(deindent`
-    copied nginx.conf -> target
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      copied nginx.conf -> target
 
-    source -> target: 1
-    target -> source: 0
-    deleted target:   0
-    deleted source:   0
-    permission skips: 1
-  `);
-  testbed.assertStderr(deindent`
-    Permission warning: 'nginx.conf' has 0o644, should be 0o600 (run as root to fix)
-  `);
+      source -> target: 1
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+      permission skips: 1
+    `,
+    stderr: deindent`
+      Permission warning: 'nginx.conf' has 0o644, should be 0o600 (run as root to fix)
+    `,
+  });
 });
