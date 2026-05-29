@@ -138,8 +138,16 @@ export async function setupTestDir(
   return testDir;
 }
 
-const idToUser: Record<number, TestUser> = { 0: "root", 1000: "user" };
-const idToGroup: Record<number, TestGroup> = { 0: "root", 1000: "user" };
+const _currentUid = Deno.uid() ?? 1000;
+const _currentGid = Deno.gid() ?? 1000;
+const idToUser: Record<number, TestUser> = {
+  0: "root",
+};
+idToUser[_currentUid] = "user";
+const idToGroup: Record<number, TestGroup> = {
+  0: "root",
+};
+idToGroup[_currentGid] = "user";
 
 async function walkDir(
   baseDir: URL,
