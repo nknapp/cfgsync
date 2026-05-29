@@ -53,6 +53,7 @@ pub enum GlobEntry {
 pub struct ResolvedConfig {
     #[allow(dead_code)]
     pub config_dir: PathBuf,
+    pub config_path: PathBuf,
     pub sync_groups: Vec<ResolvedSyncGroup>,
     pub state_path: PathBuf,
 }
@@ -185,6 +186,7 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
 
     Ok(ResolvedConfig {
         config_dir,
+        config_path: config_path.to_path_buf(),
         sync_groups,
         state_path,
     })

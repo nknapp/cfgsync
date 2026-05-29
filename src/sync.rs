@@ -330,6 +330,7 @@ pub fn run(
         // Rebuild state from current filesystem
         update_state(config, state);
         state.save(&config.state_path)?;
+        chown_state_file(&config.state_path, &config.config_path);
     }
 
     // Print summary
@@ -459,6 +460,20 @@ fn file_mtime(path: &Path) -> Option<i64> {
     let modified = metadata.modified().ok()?;
     let since_epoch = modified.duration_since(std::time::UNIX_EPOCH).ok()?;
     Some(since_epoch.as_secs() as i64)
+}
+
+fn chown_state_file(state_path: &Path, config_path: &Path) {
+    if !is_root() {
+        return;
+    }
+    use std::os::unix::fs::MetadataExt;
+    let config_meta = match std::fs::metadata(config_path) {
+        Ok(m) => m,
+        Err(_) => return,
+    };
+    let uid = nix::unistd::Uid::from_raw(config_meta.uid());
+    let gid = nix::unistd::Gid::from_raw(config_meta.gid());
+    let _ = nix::unistd::chown(state_path, Some(uid), Some(gid));
 }
 
 fn is_root() -> bool {

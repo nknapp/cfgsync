@@ -336,6 +336,7 @@ mod tests {
     fn make_config(groups: Vec<(PathBuf, PathBuf, &Path)>, state_path: &Path) -> ResolvedConfig {
         ResolvedConfig {
             config_dir: groups[0].0.parent().unwrap().to_path_buf(),
+            config_path: state_path.with_extension("toml"),
             sync_groups: groups
                 .into_iter()
                 .map(|(src, tgt, _)| crate::config::ResolvedSyncGroup {
@@ -700,6 +701,7 @@ mod tests {
 
         let config = ResolvedConfig {
             config_dir: dir.path().to_path_buf(),
+            config_path: dir.path().join("state").with_extension("toml"),
             sync_groups: vec![
                 crate::config::ResolvedSyncGroup {
                     source_dir: src1,
@@ -747,6 +749,7 @@ mod tests {
 
         let config = ResolvedConfig {
             config_dir: dir.path().to_path_buf(),
+            config_path: dir.path().join("state").with_extension("toml"),
             sync_groups: vec![
                 crate::config::ResolvedSyncGroup {
                     source_dir: src1,
@@ -793,6 +796,7 @@ mod tests {
 
         let config = ResolvedConfig {
             config_dir: dir.path().to_path_buf(),
+            config_path: dir.path().join("state").with_extension("toml"),
             sync_groups: vec![
                 crate::config::ResolvedSyncGroup {
                     source_dir: src.clone(),
@@ -835,6 +839,7 @@ mod tests {
 
         let config = ResolvedConfig {
             config_dir: dir.path().to_path_buf(),
+            config_path: dir.path().join("state").with_extension("toml"),
             sync_groups: vec![
                 crate::config::ResolvedSyncGroup {
                     source_dir: src.clone(),
@@ -901,6 +906,7 @@ mod tests {
         };
         let config = ResolvedConfig {
             config_dir: dir.path().to_path_buf(),
+            config_path: dir.path().join("state").with_extension("toml"),
             sync_groups: vec![
                 crate::config::ResolvedSyncGroup {
                     source_dir: src1,
