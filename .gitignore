@@ -3,3 +3,4 @@
 /e2e-tests/*/actual
 *.cfgsync.state
 /.idea/
+*.test.ts_tmp
