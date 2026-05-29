@@ -1,6 +1,6 @@
 use crate::config::{ResolvedConfig, ResolvedFilter};
 use crate::state::State;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -56,7 +56,7 @@ pub fn classify(
 
     let state_map = state.as_map();
 
-    let mut all_paths: HashSet<&str> = HashSet::new();
+    let mut all_paths: BTreeSet<&str> = BTreeSet::new();
     for f in &source_files {
         all_paths.insert(&f.rel_path);
     }
