@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.2.12](https://github.com/nknapp/cfgsync/compare/v0.2.11...f0a12ed44f31c4bd9f8bafb06021f39ca3ece806) (2026-05-29)
+## [v0.2.13](https://github.com/nknapp/cfgsync/compare/v0.2.12...e4e573b0de28d69beef86b07a300d78049dc3e87) (2026-05-29)
 
 ### Fixes
+
+* handle chown PermissionDenied on non-root environments
+([e4e573b](https://github.com/nknapp/cfgsync/commit/e4e573b0de28d69beef86b07a300d78049dc3e87))
+
+### [v0.2.12](https://github.com/nknapp/cfgsync/compare/v0.2.11...v0.2.12) (2026-05-29)
+
+#### Fixes
 
 * restore e2e test runner for CI pipeline
 ([f0a12ed](https://github.com/nknapp/cfgsync/commit/f0a12ed44f31c4bd9f8bafb06021f39ca3ece806))
