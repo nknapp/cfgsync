@@ -1,0 +1,8 @@
+services:
+  testbed:
+    build: .
+    init: true
+    volumes:
+      - ../target:/target:ro
+      - .:/e2e-tests:ro
+    command: deno run /e2e-tests/run.ts
