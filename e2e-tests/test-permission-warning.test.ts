@@ -13,7 +13,7 @@ Deno.test("permission-warning", async (t) => {
     files: [
       "user:user | 0755  | config.toml | __CONFIG_TOML__",
       "user:user | 0755  | source/",
-      "user:user | 0644  | source/nginx.conf | worker_processes 1;",
+      "user:user | 0644  | source/file.conf | some content",
       "user:user | 0755  | target/",
     ],
   });
@@ -24,14 +24,14 @@ Deno.test("permission-warning", async (t) => {
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
     "user:user | 0755 | config.toml | __CONFIG_TOML__",
     "user:user | 0755 | source/",
-    "user:user | 0644 | source/nginx.conf | worker_processes 1;",
+    "user:user | 0644 | source/file.conf | some content",
     "user:user | 0755 | target/",
-    "user:user | 0644 | target/nginx.conf | worker_processes 1;",
+    "user:user | 0644 | target/file.conf | some content",
   ]);
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      copied nginx.conf -> target
+      copied file.conf -> target
 
       source -> target: 1
       target -> source: 0
@@ -40,7 +40,7 @@ Deno.test("permission-warning", async (t) => {
       permission skips: 1
     `,
     stderr: deindent`
-      Permission warning: 'nginx.conf' has 0o644, should be 0o600 (run as root to fix)
+      Permission warning: 'file.conf' has 0o644, should be 0o600 (run as root to fix)
     `,
   });
 });

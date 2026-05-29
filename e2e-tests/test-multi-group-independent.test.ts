@@ -5,23 +5,23 @@ Deno.test("multi-group-independent", async (t) => {
   const testbed = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
-      source = "./src-a"
-      target = "./tgt-a"
+      source = "./source-a"
+      target = "./target-a"
       globs = ["**/*.txt"]
 
       [[sync]]
-      source = "./src-b"
-      target = "./tgt-b"
+      source = "./source-b"
+      target = "./target-b"
       globs = ["**/*.conf"]
     `,
     files: [
       "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | src-a/",
-      "user:user | 0644  | src-a/readme.txt | hello from a",
-      "user:user | 0755  | tgt-a/",
-      "user:user | 0755  | src-b/",
-      "user:user | 0644  | src-b/app.conf | port = 443",
-      "user:user | 0755  | tgt-b/",
+      "user:user | 0755  | source-a/",
+      "user:user | 0644  | source-a/file.txt | content from group a",
+      "user:user | 0755  | target-a/",
+      "user:user | 0755  | source-b/",
+      "user:user | 0644  | source-b/file.conf | content from group b",
+      "user:user | 0755  | target-b/",
     ],
   });
 
@@ -30,8 +30,8 @@ Deno.test("multi-group-independent", async (t) => {
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      copied readme.txt -> target
-      copied app.conf -> target
+      copied file.txt -> target
+      copied file.conf -> target
 
       source -> target: 2
       target -> source: 0
@@ -57,13 +57,13 @@ Deno.test("multi-group-independent", async (t) => {
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
     "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | src-a/",
-    "user:user | 0644 | src-a/readme.txt | hello from a",
-    "user:user | 0755 | src-b/",
-    "user:user | 0644 | src-b/app.conf | port = 443",
-    "user:user | 0755 | tgt-a/",
-    "user:user | 0644 | tgt-a/readme.txt | hello from a",
-    "user:user | 0755 | tgt-b/",
-    "user:user | 0644 | tgt-b/app.conf | port = 443",
+    "user:user | 0755 | source-a/",
+    "user:user | 0644 | source-a/file.txt | content from group a",
+    "user:user | 0755 | source-b/",
+    "user:user | 0644 | source-b/file.conf | content from group b",
+    "user:user | 0755 | target-a/",
+    "user:user | 0644 | target-a/file.txt | content from group a",
+    "user:user | 0755 | target-b/",
+    "user:user | 0644 | target-b/file.conf | content from group b",
   ]);
 });

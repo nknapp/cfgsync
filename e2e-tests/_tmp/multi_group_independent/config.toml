@@ -1,9 +1,9 @@
 [[sync]]
-source = "./src-a"
-target = "./tgt-a"
+source = "./source-a"
+target = "./target-a"
 globs = ["**/*.txt"]
 
 [[sync]]
-source = "./src-b"
-target = "./tgt-b"
+source = "./source-b"
+target = "./target-b"
 globs = ["**/*.conf"]

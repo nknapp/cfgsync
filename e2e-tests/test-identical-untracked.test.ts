@@ -12,9 +12,9 @@ Deno.test("identical-untracked", async (t) => {
     files: [
       "user:user | 0755  | config.toml | __CONFIG_TOML__",
       "user:user | 0755  | source/",
-      "user:user | 0644  | source/app.conf | server { listen 80; }",
+      "user:user | 0644  | source/duplicate.conf | same content on both sides",
       "user:user | 0755  | target/",
-      "user:user | 0644  | target/app.conf | server { listen 80; }",
+      "user:user | 0644  | target/duplicate.conf | same content on both sides",
     ],
   });
 
@@ -24,9 +24,9 @@ Deno.test("identical-untracked", async (t) => {
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
     "user:user | 0755 | config.toml | __CONFIG_TOML__",
     "user:user | 0755 | source/",
-    "user:user | 0644 | source/app.conf | server { listen 80; }",
+    "user:user | 0644 | source/duplicate.conf | same content on both sides",
     "user:user | 0755 | target/",
-    "user:user | 0644 | target/app.conf | server { listen 80; }",
+    "user:user | 0644 | target/duplicate.conf | same content on both sides",
   ]);
   testbed.assertOutput({
     code: 0,

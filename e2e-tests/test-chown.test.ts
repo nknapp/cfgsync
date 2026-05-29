@@ -16,7 +16,7 @@ Deno.test({
     files: [
       "user:user | 0755  | config.toml | __CONFIG_TOML__",
       "user:user | 0755  | source/",
-      "user:user | 0644  | source/nginx.conf | worker_processes 1;",
+      "user:user | 0644  | source/file.conf | some content",
       "user:user | 0755  | target/",
     ],
   });
@@ -26,7 +26,7 @@ Deno.test({
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      copied nginx.conf -> target
+      copied file.conf -> target
 
       source -> target: 1
       target -> source: 0
@@ -40,8 +40,8 @@ Deno.test({
     "root:root | 0644 | config.cfgsync.state | CFGSYNC_STATE",
     "user:user | 0755 | config.toml | __CONFIG_TOML__",
     "user:user | 0755 | source/",
-    "user:user | 0644 | source/nginx.conf | worker_processes 1;",
+    "user:user | 0644 | source/file.conf | some content",
     "user:user | 0755 | target/",
-    "root:root | 0644 | target/nginx.conf | worker_processes 1;",
+    "root:root | 0644 | target/file.conf | some content",
   ]);
 });
