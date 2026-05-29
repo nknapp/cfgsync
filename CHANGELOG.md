@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.2.10](https://github.com/nknapp/cfgsync/compare/v0.2.9...9e256b15ed8c9640812fc99fbea4bbc547d174bb) (2026-05-27)
+## [v0.2.11](https://github.com/nknapp/cfgsync/compare/v0.2.10...1622383bb03b666e7499324caa66c90ee6d8095e) (2026-05-29)
 
-### Features
+### Fixes
+
+* deterministic output of copied files in stdout
+([1622383](https://github.com/nknapp/cfgsync/commit/1622383bb03b666e7499324caa66c90ee6d8095e))
+
+### [v0.2.10](https://github.com/nknapp/cfgsync/compare/v0.2.9...v0.2.10) (2026-05-26)
+
+#### Features
 
 * add --verbose flag showing files visited
 ([fb15c29](https://github.com/nknapp/cfgsync/commit/fb15c294cced4210da131a704d10a5567003838c))
