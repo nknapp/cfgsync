@@ -1,4 +1,4 @@
-import { readTestDir, setupTestDir, TestSpec } from "./setupTestDir.ts";
+import {readTestDir, setupTestDir, TestSpec, walkDir} from "./setupTestDir.ts";
 import { RunArgs, runCfgsync } from "./runCfgsync.ts";
 import { assertEquals, assertOutput as assertStr } from "./assert.ts";
 
@@ -21,7 +21,7 @@ export class TestBed {
   }
 
   readTestDir() {
-    return readTestDir(this.t, this.spec);
+    return readTestDir(this.testDir, this.spec.configToml)
   }
 
   async deleteFile(relativePath: string) {

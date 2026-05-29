@@ -1,4 +1,5 @@
 import { requireEnv } from "./requireEnv.ts";
+import { invertKeyValues } from "./invertKeyValues.ts";
 
 type TestPath = string;
 type TestContents = string;
@@ -17,13 +18,16 @@ export interface TestSpec {
 }
 
 const userIdMap = {
-  user: 1000,
+  user: Deno.uid() ?? 1000,
   root: 0,
 };
+const idToUser = invertKeyValues(userIdMap);
+
 const groupIdMap = {
-  user: 1000,
+  user: Deno.uid() ?? 1000,
   root: 0,
 };
+const idToGroup = invertKeyValues(groupIdMap);
 
 function userToId(user: TestUser): number {
   if (user in userIdMap) return userIdMap[user] as number;
@@ -48,6 +52,8 @@ function assertNotNull<T>(
   }
 }
 
+const CONFIG_TOML_PLACEHOLDER = "__CONFIG_TOML__";
+
 async function createDirOrFile(line: string, testDir: URL, configToml: string) {
   const [owner, perms, path, contents] = line.split(" | ");
   assertNotNull(owner, "owner must not be null");
@@ -71,7 +77,7 @@ async function createDirOrFile(line: string, testDir: URL, configToml: string) {
     await Deno.create(realPath);
     await Deno.writeTextFile(
       realPath,
-      contents == "__CONFIG_TOML__" ? configToml : contents,
+      contents == CONFIG_TOML_PLACEHOLDER ? configToml : contents,
     );
   }
   await Deno.chmod(realPath, parseInt(perms, 8));
@@ -105,69 +111,65 @@ export async function setupTestDir(
   return testDir;
 }
 
-const _currentUid = Deno.uid() ?? 1000;
-const _currentGid = Deno.gid() ?? 1000;
-const idToUser: Record<number, TestUser> = {
-  0: "root",
-};
-idToUser[_currentUid] = "user";
-const idToGroup: Record<number, TestGroup> = {
-  0: "root",
-};
-idToGroup[_currentGid] = "user";
-
-async function walkDir(
+export async function readTestDir(
   baseDir: URL,
-  dir: URL,
-  result: TestFile[],
   configToml: string,
-) {
-  const entries = [];
-  for await (const entry of Deno.readDir(dir)) entries.push(entry);
-  entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-
-  for (const entry of entries) {
-    const fullPath = new URL(encodeURIComponent(entry.name), dir);
-    const stat = await Deno.stat(fullPath);
-    assertNotNull(stat.mode, "stat.mode must not be null");
-    assertNotNull(stat.uid, "stat.uid must not be null");
-    assertNotNull(stat.gid, "stat.gid must not be null");
-    const user = idToUser[stat.uid] ?? `uid:${stat.uid}`;
-    const group = idToGroup[stat.gid] ?? `gid:${stat.gid}`;
-    const perms = (stat.mode & 0o7777).toString(8).padStart(4, "0");
-    const relPath = fullPath.pathname.slice(baseDir.pathname.length);
-
-    if (entry.isDirectory) {
-      result.push(`${user}:${group} | ${perms} | ${relPath}/` as TestFile);
-      await walkDir(
-        baseDir,
-        new URL(encodeURIComponent(entry.name) + "/", dir),
-        result,
-        configToml,
-      );
-    } else if (entry.isFile) {
+): Promise<TestFile[]> {
+  const filesAndDirs = (await Array.fromAsync(walkDir(baseDir))).toSorted(byPath)
+  return await Promise.all(filesAndDirs.map(async ({ stat, path, fullPath }): Promise<TestFile> => {
+    const user = idToUser[stat.uid ?? 1000];
+    const group = idToGroup[stat.gid ?? 1000];
+    const mode = stat.mode ?? 0o0000;
+    const perms = (mode & 0o7777).toString(8).padStart(4, "0") as TestPerms;
+    if (stat.isDirectory) {
+      return `${user}:${group} | ${perms} | ${path}/`;
+    } else {
       const raw = await Deno.readTextFile(fullPath);
-      let contents: string;
-      if (raw === configToml) {
-        contents = "__CONFIG_TOML__";
-      } else if (entry.name.endsWith("cfgsync.state")) {
-        contents = "CFGSYNC_STATE";
-      } else {
-        contents = raw;
-      }
-      result.push(
-        `${user}:${group} | ${perms} | ${relPath} | ${contents}` as TestFile,
-      );
+      const contents = getContents(raw, configToml, path);
+      return `${user}:${group} | ${perms} | ${path} | ${contents}`;
+    }
+  }))
+}
+
+interface WalkDirResult {
+  path: string;
+  fullPath: URL;
+  stat: Deno.FileInfo;
+}
+
+
+export async function* walkDir(
+    baseDir: URL,
+    relativeDir: string = "",
+): AsyncGenerator<WalkDirResult> {
+  const currentDir = new URL(relativeDir, baseDir);
+  console.log(relativeDir)
+  for await (const entry of Deno.readDir(currentDir)) {
+    const path = relativeDir + entry.name;
+    const fullPath = new URL(encodeURI("./" + path), baseDir);
+    console.log(fullPath.pathname)
+    const stat = await Deno.stat(fullPath);
+    yield { path, fullPath, stat };
+    if (stat.isDirectory) {
+      console.log("isDir", path)
+      yield* walkDir(baseDir, path + "/");
     }
   }
 }
 
-export async function readTestDir(
-  t: Deno.TestContext,
-  spec: TestSpec,
-): Promise<TestFile[]> {
-  const testDir = getTestDir(t);
-  const result: TestFile[] = [];
-  await walkDir(testDir, testDir, result, spec.configToml);
-  return result;
+function getContents(raw: string, configToml: string, path: string) {
+  let contents = raw;
+  if (raw === configToml) {
+    contents = CONFIG_TOML_PLACEHOLDER;
+  } else if (path.endsWith(".cfgsync.state")) {
+    contents = "CFGSYNC_STATE";
+  }
+  return contents;
+}
+
+function byPath(o1: WalkDirResult, o2: WalkDirResult) {
+  if (o1.path < o2.path) return -1
+  if (o1.path > o2.path) return 1
+  return 0
+
 }
