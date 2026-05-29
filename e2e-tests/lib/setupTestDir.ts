@@ -78,8 +78,18 @@ async function createDirOrFile(line: string, testDir: URL, configToml: string) {
   }
   await Deno.chmod(realPath, parseInt(perms, 8));
 
-  if (uid !== Deno.uid() && gid !== Deno.gid()) {
-    await Deno.chown(realPath, uid, gid);
+  if (uid !== Deno.uid() || gid !== Deno.gid()) {
+    try {
+      await Deno.chown(realPath, uid, gid);
+    } catch (e) {
+      if (e instanceof Deno.errors.PermissionDenied) {
+        console.log(
+          `[warn] Cannot chown '${path}' to ${uid}:${gid} (not root)`,
+        );
+      } else {
+        throw e;
+      }
+    }
   }
 }
 
