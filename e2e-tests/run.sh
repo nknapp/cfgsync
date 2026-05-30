@@ -2,9 +2,10 @@
 
 set -eu
 
-cd "$( dirname "$( readlink -f "$0")" )"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$SCRIPT_DIR"
 
-PROJECT_DIR="$( realpath .. )"
+PROJECT_DIR="$( cd .. && pwd )"
 E2E_TEST_DIR="${E2E_TEST_DIR:-${PROJECT_DIR}/e2e-tests/_tmp/}"
 
 function find_cfg_sync() {
