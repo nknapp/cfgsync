@@ -73,11 +73,12 @@ pub fn classify(
         );
     }
 
-    // Cross-group overlap validation
-    let mut path_to_group: HashMap<String, usize> = HashMap::new();
+    // Cross-group overlap validation (based on absolute paths)
+    let mut path_to_group: HashMap<PathBuf, usize> = HashMap::new();
     for (i, src_files) in group_source_files.iter().enumerate() {
         for f in src_files {
-            if let Some(&existing_group) = path_to_group.get(&f.rel_path)
+            let abs_path = config.sync_groups[i].source_dir.join(&f.rel_path);
+            if let Some(&existing_group) = path_to_group.get(&abs_path)
                 && existing_group != i
             {
                 return Err(format!(
@@ -87,12 +88,13 @@ pub fn classify(
                     i + 1
                 ));
             }
-            path_to_group.insert(f.rel_path.clone(), i);
+            path_to_group.insert(abs_path, i);
         }
     }
     for (i, tgt_files) in group_target_files.iter().enumerate() {
         for f in tgt_files {
-            if let Some(&existing_group) = path_to_group.get(&f.rel_path)
+            let abs_path = config.sync_groups[i].target_dir.join(&f.rel_path);
+            if let Some(&existing_group) = path_to_group.get(&abs_path)
                 && existing_group != i
             {
                 return Err(format!(
@@ -102,7 +104,7 @@ pub fn classify(
                     i + 1
                 ));
             }
-            path_to_group.insert(f.rel_path.clone(), i);
+            path_to_group.insert(abs_path, i);
         }
     }
 
@@ -687,31 +689,28 @@ mod tests {
     #[test]
     fn test_classify_overlapping_groups_error() {
         let dir = tempfile::TempDir::new().unwrap();
-        let src1 = dir.path().join("source1");
-        let src2 = dir.path().join("source2");
+        let src = dir.path().join("source");
         let tgt1 = dir.path().join("target1");
         let tgt2 = dir.path().join("target2");
-        std::fs::create_dir(&src1).unwrap();
-        std::fs::create_dir(&src2).unwrap();
+        std::fs::create_dir(&src).unwrap();
         std::fs::create_dir(&tgt1).unwrap();
         std::fs::create_dir(&tgt2).unwrap();
 
-        std::fs::write(src1.join("shared.conf"), "c1").unwrap();
-        std::fs::write(src2.join("shared.conf"), "c2").unwrap();
+        std::fs::write(src.join("shared.conf"), "content").unwrap();
 
         let config = ResolvedConfig {
             config_dir: dir.path().to_path_buf(),
             config_path: dir.path().join("state").with_extension("toml"),
             sync_groups: vec![
                 crate::config::ResolvedSyncGroup {
-                    source_dir: src1,
+                    source_dir: src.clone(),
                     target_dir: tgt1,
                     globs: vec![make_glob("**/*")],
                     permissions: None,
                     owner: None,
                 },
                 crate::config::ResolvedSyncGroup {
-                    source_dir: src2,
+                    source_dir: src,
                     target_dir: tgt2,
                     globs: vec![make_glob("**/*")],
                     permissions: None,

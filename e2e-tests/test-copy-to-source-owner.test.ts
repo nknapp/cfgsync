@@ -11,6 +11,7 @@ Deno.test({
       source = "./source"
       target = "./target"
       globs = ["**/*.txt"]
+      owner = "root:root"
     `,
     files: [
       "user:user | 0755  | config.toml | __CONFIG_TOML__",

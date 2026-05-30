@@ -84,6 +84,7 @@ pub fn run(
                 rel_path,
                 abs_src,
                 abs_tgt,
+                group_index,
                 ..
             } if !interactive => {
                 if dry_run {
@@ -93,6 +94,7 @@ pub fn run(
                     match copy_file(abs_tgt, abs_src) {
                         Ok(()) => {
                             println!("copied target -> {}", rel_path);
+                            apply_source_owner(config, *group_index, abs_src);
                             outcome.copied_to_source += 1;
                         }
                         Err(e) => {
@@ -164,6 +166,7 @@ pub fn run(
                     rel_path,
                     abs_src,
                     abs_tgt,
+                    group_index,
                     ..
                 } => {
                     eprintln!("\n=== Conflict: {} ===", rel_path);
@@ -197,6 +200,7 @@ pub fn run(
                                 match copy_file(abs_tgt, abs_src) {
                                     Ok(()) => {
                                         println!("resolved: {} (kept target)", rel_path);
+                                        apply_source_owner(config, *group_index, abs_src);
                                         outcome.copied_to_source += 1;
                                         outcome.conflicts_skipped += 1;
                                     }
@@ -249,6 +253,7 @@ pub fn run(
                     rel_path,
                     abs_src,
                     abs_tgt,
+                    group_index,
                     ..
                 } => {
                     if dry_run {
@@ -257,6 +262,7 @@ pub fn run(
                         match copy_file(abs_tgt, abs_src) {
                             Ok(()) => {
                                 println!("copied target -> {}", rel_path);
+                                apply_source_owner(config, *group_index, abs_src);
                                 outcome.copied_to_source += 1;
                             }
                             Err(e) => {
@@ -388,6 +394,13 @@ fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
         .set_modified(mtime)
         .map_err(|e| format!("Cannot set mtime on '{}': {}", dst.display(), e))?;
 
+    if is_root() {
+        use std::os::unix::fs::MetadataExt;
+        let uid = nix::unistd::Uid::from_raw(src_metadata.uid());
+        let gid = nix::unistd::Gid::from_raw(src_metadata.gid());
+        let _ = nix::unistd::chown(dst, Some(uid), Some(gid));
+    }
+
     Ok(())
 }
 
@@ -478,6 +491,30 @@ fn chown_state_file(state_path: &Path, config_path: &Path) {
 
 fn is_root() -> bool {
     unsafe { nix::libc::geteuid() == 0 }
+}
+
+fn apply_source_owner(config: &ResolvedConfig, group_index: usize, src_path: &Path) {
+    if !is_root() {
+        return;
+    }
+    let group = &config.sync_groups[group_index];
+    let src_str = src_path.to_string_lossy();
+    for glob_entry in &group.globs {
+        if glob_entry.owner.is_none() {
+            continue;
+        }
+        let pattern_str = group
+            .source_dir
+            .join(&glob_entry.pattern)
+            .to_string_lossy()
+            .to_string();
+        if let Ok(pattern) = glob::Pattern::new(&pattern_str)
+            && pattern.matches(&src_str)
+            && let Err(e) = apply_chown(src_path, glob_entry.owner.as_ref().unwrap())
+        {
+            eprintln!("Warning: cannot chown '{}': {}", src_path.display(), e);
+        }
+    }
 }
 
 fn enforce_permissions_root(config: &ResolvedConfig, _state: &State) -> Result<(), String> {

@@ -3,3 +3,4 @@
 /.idea/
 /tmp-opencode/
 /e2e-tests/_tmp/
+.env
