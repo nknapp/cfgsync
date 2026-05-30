@@ -24,7 +24,7 @@ const userIdMap = {
 const idToUser = invertKeyValues(userIdMap);
 
 const groupIdMap = {
-  user: Deno.uid() ?? 1000,
+  user: Deno.gid() ?? 1000,
   root: 0,
 };
 const idToGroup = invertKeyValues(groupIdMap);
