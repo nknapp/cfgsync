@@ -19,8 +19,8 @@ jobs:
   build:
     uses: ./.github/workflows/_build.yml
     with:
-      git-ref: main
-      run-e2e-tests: true
+      git_ref: main
+      run_e2e_tests: true
 
   bump:
     needs:

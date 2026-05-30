@@ -3,10 +3,10 @@ name: Release
 on:
   workflow_call:
     inputs:
-      git-ref:
+      git_ref:
         required: true
         type: string
-      run-e2e-tests:
+      run_e2e_tests:
         required: false
         type: boolean
         default: false
@@ -22,41 +22,41 @@ jobs:
         include:
           - os: ubuntu-latest
             primary: x86_64-unknown-linux-gnu
-            cross-compile: aarch64-unknown-linux-gnu
-            linux-cross-compile-deps: true
-            e2e-test-command: "./e2e-tests/run-docker.sh"
+            cross_compile: aarch64-unknown-linux-gnu
+            linux_cross_compile_deps: true
+            e2e_test_command: "./e2e-tests/run-docker.sh"
           - os: macos-latest
             primary: aarch64-apple-darwin
-            cross-compile: x86_64-apple-darwin
-            linux-cross-compile-deps: false
-            e2e-test-command: "./e2e-tests/run.sh"
+            cross_compile: x86_64-apple-darwin
+            linux_cross_compile_deps: false
+            e2e_test_command: "./e2e-tests/run.sh"
     runs-on: ${{ matrix.os }}
     env:
-      PRIMARY: ${{matrix.primary}}
-      CROSS_COMPILE: ${{matrix.cross-compile}}
-      E2E_TEST_COMMAND: ${{matrix.e2e-test-command}}
+      PRIMARY: ${{ matrix.primary }}
+      CROSS_COMPILE: ${{ matrix.cross_compile }}
+      E2E_TEST_COMMAND: ${{ matrix.e2e_test_command }}
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.git-ref }}
+          ref: ${{ inputs.git_ref }}
       - uses: ./.github/actions/setup
         with:
-          linux-cross-compile-deps: ${{ matrix.linux-cross-compile-deps }}
+          linux-cross-compile-deps: ${{ matrix.linux_cross_compile_deps }}
       - run: rustup target add "${PRIMARY}" "${CROSS_COMPILE}"
       - run: cargo build --release --target "${PRIMARY}"
-      - run: CFG_SYNC="target/${PRIMARY}/release/cfgsync" "${E2E_TEST_COMMAND}"
-        if: inputs.run-e2e-tests
-      - run: tar -czf "cfgsync-${PRIMARY}.tar.gz" -C "target/${PRIMARY}/release cfgsync"
+      - run: CFGSYNC="target/${PRIMARY}/release/cfgsync" "${E2E_TEST_COMMAND}"
+        if: inputs.run_e2e_tests
+      - run: tar -czf "cfgsync-${PRIMARY}.tar.gz" -C "target/${PRIMARY}/release" cfgsync
       - run: cargo build --release --target "${CROSS_COMPILE}"
-      - run: tar -czf "cfgsync-${CROSS_COMPILE}.tar.gz" -C "target/${CROSS_COMPILE}/release cfgsync"
+      - run: tar -czf "cfgsync-${CROSS_COMPILE}.tar.gz" -C "target/${CROSS_COMPILE}/release" cfgsync
       - uses: actions/upload-artifact@v4
         with:
-          name: cfgsync-${{matrix.primary}}
-          path: cfgsync-${{matrix.primary}}.tar.gz
+          name: cfgsync-${{ matrix.primary }}
+          path: cfgsync-${{ matrix.primary }}.tar.gz
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: cfgsync-${{matrix.cross-compile}}
-          path: cfgsync-${{matrix.cross-compile}}.tar.gz
+          name: cfgsync-${{ matrix.cross_compile }}
+          path: cfgsync-${{ matrix.cross_compile }}.tar.gz
           if-no-files-found: error
 

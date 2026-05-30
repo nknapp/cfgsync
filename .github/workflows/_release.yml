@@ -16,7 +16,7 @@ jobs:
   build:
     uses: ./.github/workflows/_build.yml
     with:
-      git-ref: ${{ inputs.tag }}
+      git_ref: ${{ inputs.tag }}
 
   release:
     needs: build
