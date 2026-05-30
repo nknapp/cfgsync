@@ -1,8 +1,26 @@
 # Changelog
 
-## [v0.2.15](https://github.com/nknapp/cfgsync/compare/v0.2.14...1469e556cbbe2286a0702170dc5ddf95e3de12ff) (2026-05-29)
+## [v0.3.0](https://github.com/nknapp/cfgsync/compare/v0.2.15...d8f0d45e8e064042fffaac477893718520cae6f6) (2026-05-30)
+
+### Features
+
+* preserve source file ownership when syncing to source
+([47397a4](https://github.com/nknapp/cfgsync/commit/47397a4468346f3b8fec283442176d47d956b5cd))
+* new configuration format allowing multiple groups per config
+([3fb65a4](https://github.com/nknapp/cfgsync/commit/3fb65a4ac790c2a6e1391439a847372535ca8b13))
 
 ### Fixes
+
+* use gid() instead of uid() for group ID mapping
+([d8f0d45](https://github.com/nknapp/cfgsync/commit/d8f0d45e8e064042fffaac477893718520cae6f6))
+* try to fix pipeline
+([527bf42](https://github.com/nknapp/cfgsync/commit/527bf4207842aca027b2705749cc457193611dd4))
+* chown state file to match config file owner instead of root
+([16182a2](https://github.com/nknapp/cfgsync/commit/16182a23352d77f204fe0b2993017c0fa65ecb55))
+
+### [v0.2.15](https://github.com/nknapp/cfgsync/compare/v0.2.14...v0.2.15) (2026-05-29)
+
+#### Fixes
 
 * dynamically map current uid/gid to 'user' in e2e tests
 ([1469e55](https://github.com/nknapp/cfgsync/commit/1469e556cbbe2286a0702170dc5ddf95e3de12ff))
