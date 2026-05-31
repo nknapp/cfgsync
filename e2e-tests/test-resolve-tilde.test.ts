@@ -5,7 +5,7 @@ import { readTestDir } from "./lib/setupTestDir.ts";
 Deno.test.beforeEach(async () => {
   try {
     await Deno.remove("/home/user/cfgsync-test-subdir", { recursive: true });
-  } catch (error) {
+  } catch (_error) {
     // ignore error
   }
 });
