@@ -175,7 +175,7 @@ pub fn run(
                     let choice = prompt_user(abs_src, abs_tgt)?;
 
                     match choice.as_str() {
-                        "s" => {
+                        "t" => {
                             if dry_run {
                                 println!("[dry-run] would copy source -> target: {}", rel_path);
                             } else {
@@ -193,7 +193,7 @@ pub fn run(
                                 }
                             }
                         }
-                        "t" => {
+                        "s" => {
                             if dry_run {
                                 println!("[dry-run] would copy target -> source: {}", rel_path);
                             } else {
@@ -764,7 +764,7 @@ fn eprint_diff(src: &Path, tgt: &Path) {
 fn prompt_user(_src: &Path, _tgt: &Path) -> Result<String, String> {
     use std::io::Write;
 
-    eprint!("\n[s]ource  [t]arget  [x]skip  [q]uit: ");
+    eprint!("\nOverwrite [t]arget   Overwrite [s]ource   [x]skip  [q]uit: ");
     std::io::stderr()
         .flush()
         .map_err(|e| format!("flush: {}", e))?;
