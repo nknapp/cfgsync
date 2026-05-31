@@ -49,6 +49,7 @@ pub fn classify(
     config: &ResolvedConfig,
     state: &State,
     verbose: bool,
+    debug: bool,
 ) -> Result<Vec<Change>, String> {
     let mut group_source_files: Vec<Vec<DiscoveredFile>> = Vec::new();
     let mut group_target_files: Vec<Vec<DiscoveredFile>> = Vec::new();
@@ -56,8 +57,8 @@ pub fn classify(
     let mut total_target = 0usize;
 
     for group in config.sync_groups.iter() {
-        let src_files = scan_dir(&group.source_dir, &group.globs)?;
-        let tgt_files = scan_dir(&group.target_dir, &group.globs)?;
+        let src_files = scan_dir(&group.source_dir, &group.globs, debug)?;
+        let tgt_files = scan_dir(&group.target_dir, &group.globs, debug)?;
         total_source += src_files.len();
         total_target += tgt_files.len();
         group_source_files.push(src_files);
@@ -237,12 +238,24 @@ fn files_identical(a: &Path, b: &Path) -> bool {
     }
 }
 
-fn scan_dir(dir: &Path, globs: &[ResolvedGlob]) -> Result<Vec<DiscoveredFile>, String> {
+fn scan_dir(
+    dir: &Path,
+    globs: &[ResolvedGlob],
+    debug: bool,
+) -> Result<Vec<DiscoveredFile>, String> {
     let mut files = Vec::new();
     let mut seen = HashSet::new();
 
     for glob_entry in globs {
         let pattern_str = dir.join(&glob_entry.pattern).to_string_lossy().to_string();
+
+        if debug {
+            eprintln!(
+                "[debug] scanning {} with pattern '{}'",
+                dir.display(),
+                pattern_str
+            );
+        }
 
         for entry in glob::glob(&pattern_str)
             .map_err(|e| format!("Invalid glob pattern '{}': {}", pattern_str, e))?
@@ -254,6 +267,10 @@ fn scan_dir(dir: &Path, globs: &[ResolvedGlob]) -> Result<Vec<DiscoveredFile>, S
                     continue;
                 }
             };
+
+            if debug {
+                eprintln!("[debug]   found {}", path.display());
+            }
 
             if !path.is_file() {
                 continue;
@@ -373,7 +390,7 @@ mod tests {
         let state = State::empty();
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::CopyToTarget { .. }));
     }
@@ -391,7 +408,7 @@ mod tests {
         let state = State::empty();
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::CopyToSource { .. }));
     }
@@ -437,7 +454,7 @@ mod tests {
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::CopyToTarget { .. }));
     }
@@ -483,7 +500,7 @@ mod tests {
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::CopyToSource { .. }));
     }
@@ -536,7 +553,7 @@ mod tests {
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
         let change = &changes[0];
         assert!(matches!(change, Change::Conflict { .. }));
@@ -571,7 +588,7 @@ mod tests {
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::DeleteTarget { .. }));
     }
@@ -598,7 +615,7 @@ mod tests {
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::DeleteSource { .. }));
     }
@@ -622,7 +639,7 @@ mod tests {
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
         assert!(matches!(changes[0], Change::Cleanup { .. }));
     }
@@ -658,7 +675,7 @@ mod tests {
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert!(changes.is_empty());
     }
 
@@ -677,7 +694,7 @@ mod tests {
         config.sync_groups[0].globs = vec![make_glob("*.conf")];
 
         let state = State::empty();
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
 
         assert_eq!(changes.len(), 1);
         let Change::CopyToTarget { ref rel_path, .. } = changes[0] else {
@@ -721,7 +738,7 @@ mod tests {
         };
 
         let state = State::empty();
-        let result = classify(&config, &state, false);
+        let result = classify(&config, &state, false, false);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
@@ -769,7 +786,7 @@ mod tests {
         };
 
         let state = State::empty();
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 2);
         assert!(
             changes
@@ -816,7 +833,7 @@ mod tests {
         };
 
         let state = State::empty();
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         // Only group 0 matches; group 1 has zero files
         assert_eq!(changes.len(), 1);
         assert!(matches!(
@@ -859,7 +876,7 @@ mod tests {
         };
 
         let state = State::empty();
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 2);
         assert!(
             changes
@@ -925,7 +942,7 @@ mod tests {
             state_path: dir.path().join("state"),
         };
 
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 2);
         assert!(
             changes
@@ -952,7 +969,7 @@ mod tests {
 
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
         let state = State::empty();
-        let changes = classify(&config, &state, false).unwrap();
+        let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
 
         if let Change::Conflict {
