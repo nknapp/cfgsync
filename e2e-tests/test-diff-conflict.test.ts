@@ -21,17 +21,17 @@ Deno.test("diff-conflict-shows-unified-diff", async (t) => {
 
   const testDir = getTestDir(t);
   await Deno.utime(
-      new URL("source/conflict.txt", testDir),
-      new Date("2026-05-20T13:00:00Z"),
-      new Date("2026-05-20T13:00:00Z"),
+    new URL("source/conflict.txt", testDir),
+    new Date("2026-05-20T13:00:00Z"),
+    new Date("2026-05-20T13:00:00Z"),
   );
   await Deno.utime(
-      new URL("target/conflict.txt", testDir),
-      new Date("2026-05-20T15:00:00Z"),
-      new Date("2026-05-20T15:00:00Z"),
+    new URL("target/conflict.txt", testDir),
+    new Date("2026-05-20T15:00:00Z"),
+    new Date("2026-05-20T15:00:00Z"),
   );
 
-  await testbed.run({ args: ["diff", "config.toml"], env: { TZ: "UTC"} });
+  await testbed.run({ args: ["diff", "config.toml"], env: { TZ: "UTC" } });
   testbed.assertOutput({
     code: 0,
     stderr: "",
@@ -47,7 +47,7 @@ Deno.test("diff-conflict-shows-unified-diff", async (t) => {
     `,
   });
 
-  await testbed.run({ args: ["diff", "config.toml"], env: { TZ: "Europe/Berlin"} });
+  await testbed.run({ args: ["diff", "config.toml"], env: { TZ: "Europe/Berlin" } });
   testbed.assertOutput({
     code: 0,
     stderr: "",
