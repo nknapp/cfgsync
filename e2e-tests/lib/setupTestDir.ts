@@ -1,4 +1,4 @@
-import { requireEnv } from "./requireEnv.ts";
+import { testBaseDir } from "./env.ts";
 import { invertKeyValues } from "./invertKeyValues.ts";
 
 type TestPath = string;
@@ -88,9 +88,7 @@ async function createDirOrFile(line: string, testDir: URL, configToml: string) {
 }
 
 export function getTestDir(t: Deno.TestContext) {
-  const testBaseDir = requireEnv("E2E_TEST_DIR");
-  const base = new URL(testBaseDir, import.meta.url);
-  return new URL(t.name.replace(/\W/g, "_") + "/", base);
+  return new URL(t.name.replace(/\W/g, "_") + "/", testBaseDir);
 }
 
 export async function setupTestDir(

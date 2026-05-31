@@ -5,6 +5,6 @@
 #
 set -eu
 
-cd "$(dirname "$(readlink -f "$0")")"
+cd "$(dirname "$0")"
 
 exec docker compose run --build --rm --env CFGSYNC="${CFGSYNC:+/$CFGSYNC}" testbed ./e2e-tests/run.sh

@@ -1,5 +1,13 @@
 {
   "imports": {
     "@std/assert": "jsr:@std/assert@1"
+  },
+  "test": {
+    "permissions": {
+      "all": true
+    }
+  },
+  "fmt": {
+    "lineWidth": 100
   }
 }
