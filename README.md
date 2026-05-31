@@ -258,3 +258,7 @@ cargo build --release
 ```
 
 Rust 1.95+ required.
+
+### Known issues
+
+* Symlink permissions are not adjusted on macOS (at least, this is not tested). On Linux this does not work anyway.

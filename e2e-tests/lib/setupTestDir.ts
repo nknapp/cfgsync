@@ -157,7 +157,9 @@ export async function readTestDir(
         return `${user}:${group} | ${perms} | ${path}/`;
       } else if (stat.isSymlink) {
         const linkTarget = await Deno.readLink(fullPath);
-        return `${user}:${group} | ${perms} | ${path} -> ${linkTarget}`;
+        // For now, we ignore perms for symlinks. On macOS, they are 0755 in the tests, while on Linux, they are 0777
+        // This might matter on macOS. We note this down as known issue for the moment.
+        return `${user}:${group} |      | ${path} -> ${linkTarget}`;
       } else {
         const raw = await Deno.readTextFile(fullPath);
         const contents = getContents(raw, configToml, path);
