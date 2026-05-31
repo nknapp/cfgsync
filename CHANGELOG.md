@@ -1,15 +1,22 @@
 # Changelog
 
-## [v0.3.2](https://github.com/nknapp/cfgsync/compare/v0.3.1...a3f925a743ba1528f6609b73b098b67ed079d077) (2026-05-31)
+## [v0.3.3](https://github.com/nknapp/cfgsync/compare/v0.3.2...be1b9ff9633b9729ca991ff0d4eb2b338f087940) (2026-05-31)
 
-### Features
+### Fixes
+
+* adjust example config to use schema from githubusercontents
+([be1b9ff](https://github.com/nknapp/cfgsync/commit/be1b9ff9633b9729ca991ff0d4eb2b338f087940))
+
+### [v0.3.2](https://github.com/nknapp/cfgsync/compare/v0.3.1...v0.3.2) (2026-05-31)
+
+#### Features
 
 * expand tilde in sync source/target paths to owner's home directory
 ([67d1b82](https://github.com/nknapp/cfgsync/commit/67d1b826cfdf839930196b86b89d77b740c71c84))
 * show file modification timestamps in diff output
 ([310bd02](https://github.com/nknapp/cfgsync/commit/310bd02569e7ef1b20de93cdebd4ea0f6c6ff614))
 
-### Fixes
+#### Fixes
 
 * clarify and swap interactive conflict resolution key order
 ([62d679a](https://github.com/nknapp/cfgsync/commit/62d679a00ef8f8eb8df13e2661842531707cac40))
