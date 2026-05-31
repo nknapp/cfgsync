@@ -1,8 +1,24 @@
 # Changelog
 
-## [v0.3.1](https://github.com/nknapp/cfgsync/compare/v0.3.0...7d7af7adfb8a2cd69c0af587a7b82635f3f507e1) (2026-05-31)
+## [v0.3.2](https://github.com/nknapp/cfgsync/compare/v0.3.1...a3f925a743ba1528f6609b73b098b67ed079d077) (2026-05-31)
 
 ### Features
+
+* expand tilde in sync source/target paths to owner's home directory
+([67d1b82](https://github.com/nknapp/cfgsync/commit/67d1b826cfdf839930196b86b89d77b740c71c84))
+* show file modification timestamps in diff output
+([310bd02](https://github.com/nknapp/cfgsync/commit/310bd02569e7ef1b20de93cdebd4ea0f6c6ff614))
+
+### Fixes
+
+* clarify and swap interactive conflict resolution key order
+([62d679a](https://github.com/nknapp/cfgsync/commit/62d679a00ef8f8eb8df13e2661842531707cac40))
+* handle symbolic links
+([2d0636d](https://github.com/nknapp/cfgsync/commit/2d0636d9e5d293e62088ad78d709c011008be57a))
+
+### [v0.3.1](https://github.com/nknapp/cfgsync/compare/v0.3.0...v0.3.1) (2026-05-31)
+
+#### Features
 
 * add `--debug` flag to show detailed scan information
 ([00cb0be](https://github.com/nknapp/cfgsync/commit/00cb0be9383fdef929e3f77afd4fdeb53f4ab926))
