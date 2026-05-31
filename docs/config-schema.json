@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "type": "object",
+  "required": [
+    "sync"
+  ],
+  "properties": {
+    "sync": {
+      "description": "List of sync groups. Each group defines a source, target, and globs.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/SyncGroup"
+      }
+    }
+  },
+  "definitions": {
+    "GlobEntry": {
+      "anyOf": [
+        {
+          "description": "A plain glob string (e.g. \"**/*.conf\")",
+          "type": "string"
+        },
+        {
+          "description": "A detailed glob entry with optional per-glob permissions and owner overrides",
+          "type": "object",
+          "required": [
+            "pattern"
+          ],
+          "properties": {
+            "owner": {
+              "description": "Optional owner override for this glob (user:group)",
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "pattern": {
+              "description": "The glob pattern (e.g. \"**/*.conf\")",
+              "type": "string"
+            },
+            "permissions": {
+              "description": "Optional octal permission override for this glob",
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "SyncGroup": {
+      "type": "object",
+      "required": [
+        "source",
+        "target"
+      ],
+      "properties": {
+        "globs": {
+          "description": "Glob patterns defining which files to sync. Each entry is either a plain glob string or an object with per-glob overrides.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GlobEntry"
+          }
+        },
+        "owner": {
+          "description": "Default owner (user:group) applied to synced files",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "description": "Default permissions as an octal string (e.g. \"644\", \"755\")",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "Path to the source directory (files are read from here)",
+          "type": "string"
+        },
+        "target": {
+          "description": "Path to the target directory (files are written here)",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

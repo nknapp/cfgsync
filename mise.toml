@@ -38,3 +38,10 @@ run = [
     "actionlint",
     "cargo test",
 ]
+
+[tasks.update-schema]
+run = [
+    "cargo build --release",
+    "mkdir -p docs",
+    "target/release/cfgsync schema --json >docs/config-schema.json"
+]
