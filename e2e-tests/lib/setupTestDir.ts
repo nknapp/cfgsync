@@ -8,12 +8,13 @@ type TestGroup = keyof typeof groupIdMap;
 type TestOwner = `${"user" | "root"}:${"user" | "root"}`;
 type TestPerms = `${number | ""}${number}${number}${number}`;
 
-export type TestFile =
-  | `${TestOwner} | ${TestPerms} | ${TestPath} | ${TestContents}`
-  | `${TestOwner} | ${TestPerms} | ${TestPath}/`;
+type TestFile = `${TestOwner} | ${TestPerms} | ${TestPath} | ${TestContents}`;
+type TestSymlink = `${TestOwner} | ${TestPerms} | ${TestPath} -> ${TestPath}`;
+type TestDir = `${TestOwner} | ${TestPerms} | ${TestPath}/`;
+export type TestEntry = TestFile | TestSymlink | TestDir;
 
 export interface TestSpec {
-  files: TestFile[];
+  files: TestEntry[];
   configToml: string;
 }
 
@@ -62,28 +63,58 @@ async function createDirOrFile(line: string, testDir: URL, configToml: string) {
   const [user, group] = owner.split(":");
   const uid = userToId(user as TestUser);
   const gid = groupToId(group as TestGroup);
+  const realPath = await createNoOwnerAndPerms(path, testDir, contents, configToml);
+  if (!(await Deno.lstat(realPath)).isSymlink) {
+    await Deno.chmod(realPath, parseInt(perms, 8));
 
-  const isDirectory = path.endsWith("/");
-
-  const realPath = new URL(encodeURI(path), testDir);
-  if (isDirectory) {
-    await Deno.mkdir(realPath);
-  } else {
-    assertNotNull(
-      contents,
-      "contents must not be null if path does not end with '/'",
-    );
-
-    await Deno.create(realPath);
-    await Deno.writeTextFile(
-      realPath,
-      contents == CONFIG_TOML_PLACEHOLDER ? configToml : contents,
-    );
+    if (Deno.uid() === 0) {
+      await Deno.chown(realPath, uid, gid);
+    }
   }
-  await Deno.chmod(realPath, parseInt(perms, 8));
+}
 
-  if (Deno.uid() === 0) {
-    await Deno.chown(realPath, uid, gid);
+async function createDirectory(path: string, testDir: URL) {
+  const realPath = new URL(encodeURI(path), testDir);
+  await Deno.mkdir(realPath);
+  return realPath;
+}
+
+async function createRegularFile(path: string, testDir: URL, contents: string, configToml: string) {
+  const realPath = new URL(encodeURI(path), testDir);
+  await Deno.create(realPath);
+  await Deno.writeTextFile(
+    realPath,
+    contents == CONFIG_TOML_PLACEHOLDER ? configToml : contents,
+  );
+  return realPath;
+}
+
+async function createSymlink(symlinkSpec: string, testDir: URL) {
+  const [sourcePath, targetPath] = symlinkSpec.split(" -> ");
+  const absoluteSourcePath = new URL(encodeURI(sourcePath), testDir);
+  await Deno.symlink(targetPath, absoluteSourcePath);
+  return absoluteSourcePath;
+}
+
+async function createNoOwnerAndPerms(
+  path: string,
+  testDir: URL,
+  contents: string | undefined,
+  configToml: string,
+) {
+  const type = path.endsWith("/") ? "directory" : (path.includes(" -> ") ? "symlink" : "file");
+
+  switch (type) {
+    case "directory":
+      return await createDirectory(path, testDir);
+    case "file":
+      assertNotNull(
+        contents,
+        "contents must not be null if path does not end with '/'",
+      );
+      return await createRegularFile(path, testDir, contents, configToml);
+    case "symlink":
+      return await createSymlink(path, testDir);
   }
 }
 
@@ -112,18 +143,22 @@ export async function setupTestDir(
 export async function readTestDir(
   baseDir: URL,
   configToml: string,
-): Promise<TestFile[]> {
+): Promise<TestEntry[]> {
   const filesAndDirs = (await Array.fromAsync(walkDir(baseDir))).toSorted(
     byPath,
   );
   return await Promise.all(
-    filesAndDirs.map(async ({ stat, path, fullPath }): Promise<TestFile> => {
+    filesAndDirs.map(async ({ stat, path, fullPath }): Promise<TestEntry> => {
       const user = idToUser[stat.uid ?? 1000];
       const group = idToGroup[stat.gid ?? 1000];
       const mode = stat.mode ?? 0o0000;
       const perms = (mode & 0o7777).toString(8).padStart(4, "0") as TestPerms;
+      console.log(path, stat);
       if (stat.isDirectory) {
         return `${user}:${group} | ${perms} | ${path}/`;
+      } else if (stat.isSymlink) {
+        const linkTarget = await Deno.readLink(fullPath);
+        return `${user}:${group} | ${perms} | ${path} -> ${linkTarget}`;
       } else {
         const raw = await Deno.readTextFile(fullPath);
         const contents = getContents(raw, configToml, path);
@@ -148,8 +183,7 @@ export async function* walkDir(
   for await (const entry of Deno.readDir(currentDir)) {
     const path = relativeDir + entry.name;
     const fullPath = new URL(encodeURI("./" + path), baseDir);
-    console.log(fullPath.pathname);
-    const stat = await Deno.stat(fullPath);
+    const stat = await Deno.lstat(fullPath);
     yield { path, fullPath, stat };
     if (stat.isDirectory) {
       console.log("isDir", path);

@@ -117,7 +117,7 @@ target_mtime = 1716634200
 
 ## Edge cases and gotchas
 
-- **Symlinks**: Always skipped with a stderr warning. No option to follow them.
+- **Symlinks**: Preserved as symlinks during sync (the symlink target path is replicated). Symlink targets are tracked in the state file for change detection. Permission enforcement skips symlinks.
 - **Root vs non-root**: Root applies `chmod` + `chown` after sync. Non-root only warns about permission/owner mismatches.
 - **Dry-run**: No filesystem changes, no state save, no permission enforcement. Summary still prints counts.
 - **Interactive (`-i`)**: `[s]ource [t]arget [x]skip [q]uit`. `q` aborts entire sync. Diff shows target→source. Non-conflict changes are also processed interactively (duplicated code between interactive and non-interactive paths).

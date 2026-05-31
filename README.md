@@ -179,7 +179,7 @@ For each unique `(group_index, rel_path)` tuple found in source, target, or stat
 
 ### Symlinks
 
-Symlinks are **always skipped** with a stderr warning. This applies to scanning, state rebuilding, and permission enforcement. There is no option to follow them.
+Symlinks are **preserved as symlinks** when syncing. If a source file is a symlink, the target will be created as a symlink pointing to the same target path. Symlink targets are tracked in the state file and compared on subsequent syncs. Permission enforcement (chmod/chown) skips symlinks, as these operations follow the link target on Linux.
 
 ### Glob overlapping
 

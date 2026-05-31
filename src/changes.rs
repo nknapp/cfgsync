@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 pub struct DiscoveredFile {
     pub rel_path: String,
     pub mtime: i64,
+    pub is_symlink: bool,
+    pub symlink_target: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -143,10 +145,13 @@ pub fn classify(
 
         match (in_source, in_target, in_state) {
             (Some(s), Some(t), Some(state_entry)) => {
-                let src_mod = s.mtime != state_entry.source_mtime;
-                let tgt_mod = t.mtime != state_entry.target_mtime;
+                let src_mod = s.mtime != state_entry.source_mtime
+                    || s.symlink_target != state_entry.symlink_target;
+                let tgt_mod = t.mtime != state_entry.target_mtime
+                    || t.symlink_target != state_entry.symlink_target;
                 if src_mod && tgt_mod {
-                    if !files_identical(&abs_src, &abs_tgt) {
+                    if !files_or_symlinks_identical(&abs_src, &abs_tgt, s.is_symlink, t.is_symlink)
+                    {
                         changes.push(Change::Conflict {
                             group_index,
                             rel_path: rel_path.to_string(),
@@ -213,7 +218,12 @@ pub fn classify(
             }
 
             (Some(_), Some(_), None) => {
-                if !files_identical(&abs_src, &abs_tgt) {
+                if !files_or_symlinks_identical(
+                    &abs_src,
+                    &abs_tgt,
+                    in_source.unwrap().is_symlink,
+                    in_target.unwrap().is_symlink,
+                ) {
                     changes.push(Change::Conflict {
                         group_index,
                         rel_path: rel_path.to_string(),
@@ -230,7 +240,15 @@ pub fn classify(
     Ok(changes)
 }
 
-fn files_identical(a: &Path, b: &Path) -> bool {
+fn files_or_symlinks_identical(a: &Path, b: &Path, a_is_symlink: bool, b_is_symlink: bool) -> bool {
+    if a_is_symlink && b_is_symlink {
+        let target_a = std::fs::read_link(a).ok();
+        let target_b = std::fs::read_link(b).ok();
+        return target_a == target_b;
+    }
+    if a_is_symlink || b_is_symlink {
+        return false;
+    }
     let read_file = |path: &Path| -> Option<Vec<u8>> { std::fs::read(path).ok() };
     match (read_file(a), read_file(b)) {
         (Some(a_contents), Some(b_contents)) => a_contents == b_contents,
@@ -272,11 +290,8 @@ fn scan_dir(
                 eprintln!("[debug]   found {}", path.display());
             }
 
-            if !path.is_file() {
-                continue;
-            }
-            if path.is_symlink() {
-                eprintln!("Warning: skipping symlink '{}'", path.display());
+            let is_symlink = path.is_symlink();
+            if !path.is_file() && !is_symlink {
                 continue;
             }
 
@@ -299,7 +314,7 @@ fn scan_dir(
                 ));
             }
 
-            let metadata = std::fs::metadata(&path)
+            let metadata = std::fs::symlink_metadata(&path)
                 .map_err(|e| format!("Cannot read metadata for '{}': {}", path.display(), e))?;
             let mtime = metadata
                 .modified()
@@ -308,7 +323,25 @@ fn scan_dir(
                 .map_err(|e| format!("mtime before epoch for '{}': {}", path.display(), e))?
                 .as_secs() as i64;
 
-            files.push(DiscoveredFile { rel_path, mtime });
+            let symlink_target = if is_symlink {
+                Some(
+                    std::fs::read_link(&path)
+                        .map_err(|e| {
+                            format!("Cannot read symlink target for '{}': {}", path.display(), e)
+                        })?
+                        .to_string_lossy()
+                        .to_string(),
+                )
+            } else {
+                None
+            };
+
+            files.push(DiscoveredFile {
+                rel_path,
+                mtime,
+                is_symlink,
+                symlink_target,
+            });
         }
     }
     Ok(files)
@@ -449,6 +482,8 @@ mod tests {
                 group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: 1000,
+                is_symlink: false,
+                symlink_target: None,
                 target_mtime: 1000,
             }],
         };
@@ -495,6 +530,8 @@ mod tests {
                 group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: 1000,
+                is_symlink: false,
+                symlink_target: None,
                 target_mtime: 1000,
             }],
         };
@@ -548,6 +585,8 @@ mod tests {
                 group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: 1000,
+                is_symlink: false,
+                symlink_target: None,
                 target_mtime: 1000,
             }],
         };
@@ -583,6 +622,8 @@ mod tests {
                 group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: tgt_mtime,
+                is_symlink: false,
+                symlink_target: None,
                 target_mtime: tgt_mtime,
             }],
         };
@@ -610,6 +651,8 @@ mod tests {
                 group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: src_mtime,
+                is_symlink: false,
+                symlink_target: None,
                 target_mtime: src_mtime,
             }],
         };
@@ -634,6 +677,8 @@ mod tests {
                 group_index: 0,
                 path: "old.conf".to_string(),
                 source_mtime: 100,
+                is_symlink: false,
+                symlink_target: None,
                 target_mtime: 100,
             }],
         };
@@ -670,6 +715,8 @@ mod tests {
                 group_index: 0,
                 path: "app.conf".to_string(),
                 source_mtime: mtime,
+                is_symlink: false,
+                symlink_target: None,
                 target_mtime: mtime,
             }],
         };
@@ -910,12 +957,16 @@ mod tests {
                     group_index: 0,
                     path: "gone1.conf".to_string(),
                     source_mtime: 100,
+                    is_symlink: false,
+                    symlink_target: None,
                     target_mtime: 100,
                 },
                 FileEntry {
                     group_index: 1,
                     path: "gone2.conf".to_string(),
                     source_mtime: 200,
+                    is_symlink: false,
+                    symlink_target: None,
                     target_mtime: 200,
                 },
             ],

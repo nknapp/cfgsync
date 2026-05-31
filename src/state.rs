@@ -17,6 +17,10 @@ pub struct FileEntry {
     pub path: String,
     pub source_mtime: i64,
     pub target_mtime: i64,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_symlink: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symlink_target: Option<String>,
 }
 
 impl State {
@@ -83,12 +87,16 @@ mod tests {
                     path: "etc/nginx.conf".to_string(),
                     source_mtime: 1716634200,
                     target_mtime: 1716634200,
+                    is_symlink: false,
+                    symlink_target: None,
                 },
                 FileEntry {
                     group_index: 0,
                     path: "etc/app.conf".to_string(),
                     source_mtime: 1716634300,
                     target_mtime: 1716634300,
+                    is_symlink: false,
+                    symlink_target: None,
                 },
             ],
         };
@@ -130,6 +138,8 @@ mod tests {
                 path: "test.conf".to_string(),
                 source_mtime: 100,
                 target_mtime: 200,
+                is_symlink: false,
+                symlink_target: None,
             }],
         };
 
@@ -151,12 +161,16 @@ mod tests {
                     path: "nginx.conf".to_string(),
                     source_mtime: 100,
                     target_mtime: 100,
+                    is_symlink: false,
+                    symlink_target: None,
                 },
                 FileEntry {
                     group_index: 1,
                     path: "nginx.conf".to_string(),
                     source_mtime: 200,
                     target_mtime: 200,
+                    is_symlink: false,
+                    symlink_target: None,
                 },
             ],
         };

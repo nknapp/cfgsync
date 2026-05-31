@@ -373,6 +373,29 @@ fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
         })?;
     }
 
+    if src.is_symlink() {
+        let target = std::fs::read_link(src)
+            .map_err(|e| format!("Cannot read symlink target for '{}': {}", src.display(), e))?;
+        if dst.exists() {
+            std::fs::remove_file(dst).map_err(|e| {
+                format!(
+                    "Cannot remove existing file '{}' before creating symlink: {}",
+                    dst.display(),
+                    e
+                )
+            })?;
+        }
+        std::os::unix::fs::symlink(&target, dst).map_err(|e| {
+            format!(
+                "Cannot create symlink '{}' -> '{}': {}",
+                dst.display(),
+                target.display(),
+                e
+            )
+        })?;
+        return Ok(());
+    }
+
     std::fs::copy(src, dst).map_err(|e| {
         format!(
             "Cannot copy '{}' to '{}': {}",
@@ -435,10 +458,7 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
                     }
                 };
 
-                if !abs_path.is_file() {
-                    continue;
-                }
-                if abs_path.is_symlink() {
+                if !abs_path.is_file() && !abs_path.is_symlink() {
                     continue;
                 }
 
@@ -451,16 +471,18 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
                     continue;
                 }
 
-                let src_mtime = file_mtime(&abs_path).unwrap_or(0);
+                let (src_mtime, is_symlink, symlink_target) = file_attrs(&abs_path);
                 let tgt_path = group.target_dir.join(&rel_path);
-                let tgt_mtime = file_mtime(&tgt_path).unwrap_or(0);
+                let (tgt_mtime, _, _) = file_attrs(&tgt_path);
 
-                if src_mtime > 0 || tgt_mtime > 0 {
+                if src_mtime > 0 || tgt_mtime > 0 || is_symlink {
                     state.file.push(FileEntry {
                         group_index,
                         path: rel_path,
                         source_mtime: src_mtime,
                         target_mtime: tgt_mtime,
+                        is_symlink,
+                        symlink_target,
                     });
                 }
             }
@@ -468,11 +490,26 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
     }
 }
 
-fn file_mtime(path: &Path) -> Option<i64> {
-    let metadata = std::fs::metadata(path).ok()?;
-    let modified = metadata.modified().ok()?;
-    let since_epoch = modified.duration_since(std::time::UNIX_EPOCH).ok()?;
-    Some(since_epoch.as_secs() as i64)
+fn file_attrs(path: &Path) -> (i64, bool, Option<String>) {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(_) => return (0, false, None),
+    };
+    let mtime = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let is_symlink = metadata.file_type().is_symlink();
+    let symlink_target = if is_symlink {
+        std::fs::read_link(path)
+            .ok()
+            .map(|p| p.to_string_lossy().to_string())
+    } else {
+        None
+    };
+    (mtime, is_symlink, symlink_target)
 }
 
 fn chown_state_file(state_path: &Path, config_path: &Path) {
@@ -751,11 +788,11 @@ mod tests {
         let dst = dir.path().join("dst.txt");
 
         std::fs::write(&src, "hello world").unwrap();
-        let src_mtime = file_mtime(&src).unwrap();
+        let (src_mtime, _, _) = file_attrs(&src);
 
         copy_file(&src, &dst).unwrap();
 
-        let dst_mtime = file_mtime(&dst).unwrap();
+        let (dst_mtime, _, _) = file_attrs(&dst);
         assert_eq!(src_mtime, dst_mtime);
         assert_eq!(std::fs::read_to_string(&dst).unwrap(), "hello world");
     }
@@ -778,8 +815,8 @@ mod tests {
     }
 
     #[test]
-    fn test_file_mtime_nonexistent() {
+    fn test_file_attrs_nonexistent() {
         let path = Path::new("/does/not/exist");
-        assert_eq!(file_mtime(path), None);
+        assert_eq!(file_attrs(path), (0, false, None));
     }
 }
