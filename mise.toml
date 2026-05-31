@@ -43,5 +43,6 @@ run = [
 run = [
     "cargo build --release",
     "mkdir -p docs",
-    "target/release/cfgsync schema --json >docs/config-schema.json"
+    "target/release/cfgsync schema --json >docs/config-schema.json",
+    "target/release/cfgsync schema  >docs/example.toml"
 ]

@@ -1,10 +1,12 @@
+# $schema: https://raw.githubusercontent.com/nknapp/cfgsync/refs/heads/main/docs/config-schema.json
+
 # cfgsync configuration
 #
 # Each [[sync]] section defines one sync group with its
 # own source directory, target directory, and glob patterns.
 
 [[sync]]
-source = "/home/user/dotfiles"
+source = "./etc-files"
 target = "/etc"
 # owner = "root:root"         # optional group default
 # permissions = "644"          # optional group default (octal string)
