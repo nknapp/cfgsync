@@ -9,11 +9,9 @@ Bidirectional config file sync.
 
 ## Installation
 
-```bash
-cargo install cfgsync
-```
+There are two ways of installing cfgsync:
 
-Or with [mise](https://mise.jdx.dev) (binary with verified provenance):
+Use [mise](https://mise.jdx.dev):
 
 ```bash
 mise use github:nknapp/cfgsync
@@ -21,52 +19,39 @@ mise use github:nknapp/cfgsync
 
 Or download a pre-built binary from the [releases page](https://github.com/nknapp/cfgsync/releases).
 
-## Quick start
-
-1. Create a config file, e.g. `myconfig.toml`:
-
-    ```toml
-    source_dir = "./dotfiles"
-    target_dir = "/etc"
-
-    [[filter]]
-    glob = "**/*.conf"
-    permissions = 0o644
-    owner = "root:root"
-
-    [[filter]]
-    glob = "systemd/system/*.service"
-    permissions = 0o644
-    ```
-
-2. Check what would change:
-
-    ```bash
-    cfgsync status myconfig.toml
-    ```
-
-3. Preview the actual diffs:
-
-    ```bash
-    cfgsync diff myconfig.toml
-    ```
-
-4. Sync:
-
-    ```bash
-    cfgsync sync myconfig.toml
-    ```
-
 ## Usage
 
-```
-cfgsync sync   <CONFIG>  [OPTIONS]
-cfgsync status <CONFIG>
-cfgsync diff   <CONFIG>
-cfgsync schema
+Create a config file, e.g. `myconfig.toml`:
+
+ ```toml
+[[sync]]
+source = "./source"
+target = "./target"
+globs = ["**/*.conf"]
 ```
 
-### Subcommands
+ Check what would change:
+
+```bash
+cfgsync status myconfig.toml
+```
+
+Preview the actual diffs:
+
+```bash
+cfgsync diff myconfig.toml
+```
+
+Sync:
+
+```bash
+cfgsync sync myconfig.toml
+```
+
+### Commands
+
+
+Get help with `cfgsync --help` or `cfgsync <COMMAND> --help`
 
 | Command  | Description |
 |----------|-------------|
@@ -79,10 +64,10 @@ cfgsync schema
 
 ### Options for `sync`
 
-| Flag          | Description |
-|---------------|-------------|
+| Flag                  | Description                                                                |
+|-----------------------|----------------------------------------------------------------------------|
 | `-i`, `--interactive` | Prompt to resolve conflicts interactively (pick source or target version). |
-| `--dry-run`   | Show what would be done without making changes. |
+| `--dry-run`           | Show what would be done without making changes.                            |
 
 ## Configuration
 
@@ -90,18 +75,18 @@ Config files use [TOML](https://toml.io). All relative paths in the config are r
 
 ### Options
 
-| Field        | Required | Type   | Description |
-|--------------|----------|--------|-------------|
-| `source_dir` | yes      | path   | Source directory (e.g. your dotfiles repo). |
-| `target_dir` | yes      | path   | Target directory (e.g. `/etc`, `~/.config`). |
+| Field        | Required | Type   | Description                                             |
+|--------------|----------|--------|---------------------------------------------------------|
+| `source_dir` | yes      | path   | Source directory (e.g. your dotfiles repo).             |
+| `target_dir` | yes      | path   | Target directory (e.g. `/etc`, `~/.config`).            |
 | `[[filter]]` | yes      | array  | One or more filter blocks defining which files to sync. |
 
 ### Filter options
 
-| Field         | Required | Type    | Description |
-|---------------|----------|---------|-------------|
-| `glob`        | yes      | string  | Glob pattern matching file paths relative to source/target (e.g. `**/*.conf`). |
-| `permissions` | no       | int     | Octal Unix permissions to enforce on target files (e.g. `0o644`). |
+| Field         | Required | Type    | Description                                                                                              |
+|---------------|----------|---------|----------------------------------------------------------------------------------------------------------|
+| `glob`        | yes      | string  | Glob pattern matching file paths relative to source/target (e.g. `**/*.conf`).                           |
+| `permissions` | no       | int     | Octal Unix permissions to enforce on target files (e.g. `0o644`).                                        |
 | `owner`       | no       | string  | `user:group` ownership to enforce on target files (e.g. `root:root`). Only applied when running as root. |
 
 ### Example
