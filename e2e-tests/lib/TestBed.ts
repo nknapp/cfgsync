@@ -35,6 +35,27 @@ export class TestBed {
     this.lastRun = await runCfgsync({ cwd: this.testDir, ...runArgs });
   }
 
+  getStdout(): string {
+    if (this.lastRun == null) {
+      throw new Error("Call 'run' before getting stdout");
+    }
+    return this.lastRun.stdout;
+  }
+
+  getStderr(): string {
+    if (this.lastRun == null) {
+      throw new Error("Call 'run' before getting stderr");
+    }
+    return this.lastRun.stderr;
+  }
+
+  getExitCode(): number {
+    if (this.lastRun == null) {
+      throw new Error("Call 'run' before getting exit code");
+    }
+    return this.lastRun.code;
+  }
+
   assertOutput(expectedOutput: ExecReturn) {
     if (this.lastRun == null) {
       throw new Error("Call 'run' before checking output");

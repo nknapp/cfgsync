@@ -1,3 +1,4 @@
+import { getTestDir } from "./lib/setupTestDir.ts";
 import { deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
@@ -18,12 +19,42 @@ Deno.test("diff-conflict-shows-unified-diff", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["diff", "config.toml"] });
+  const testDir = getTestDir(t);
+  await Deno.utime(
+      new URL("source/conflict.txt", testDir),
+      new Date("2026-05-20T13:00:00Z"),
+      new Date("2026-05-20T13:00:00Z"),
+  );
+  await Deno.utime(
+      new URL("target/conflict.txt", testDir),
+      new Date("2026-05-20T15:00:00Z"),
+      new Date("2026-05-20T15:00:00Z"),
+  );
+
+  await testbed.run({ args: ["diff", "config.toml"], env: { TZ: "UTC"} });
   testbed.assertOutput({
     code: 0,
     stderr: "",
     stdout: deindent`
       === conflict.txt (CONFLICT) ===
+      --- ${testDir.pathname}source/conflict.txt${"\t"}2026-05-20 13:00:00.000000000 +0000
+      +++ ${testDir.pathname}target/conflict.txt${"\t"}2026-05-20 15:00:00.000000000 +0000
+      @@ -1,3 +1,3 @@
+       line 1
+       line 2
+      -line 3 source
+      +line 3 target
+    `,
+  });
+
+  await testbed.run({ args: ["diff", "config.toml"], env: { TZ: "Europe/Berlin"} });
+  testbed.assertOutput({
+    code: 0,
+    stderr: "",
+    stdout: deindent`
+      === conflict.txt (CONFLICT) ===
+      --- ${testDir.pathname}source/conflict.txt${"\t"}2026-05-20 15:00:00.000000000 +0200
+      +++ ${testDir.pathname}target/conflict.txt${"\t"}2026-05-20 17:00:00.000000000 +0200
       @@ -1,3 +1,3 @@
        line 1
        line 2

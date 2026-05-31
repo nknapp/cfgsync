@@ -153,7 +153,6 @@ export async function readTestDir(
       const group = idToGroup[stat.gid ?? 1000];
       const mode = stat.mode ?? 0o0000;
       const perms = (mode & 0o7777).toString(8).padStart(4, "0") as TestPerms;
-      console.log(path, stat);
       if (stat.isDirectory) {
         return `${user}:${group} | ${perms} | ${path}/`;
       } else if (stat.isSymlink) {
@@ -179,14 +178,12 @@ export async function* walkDir(
   relativeDir: string = "",
 ): AsyncGenerator<WalkDirResult> {
   const currentDir = new URL(relativeDir, baseDir);
-  console.log(relativeDir);
   for await (const entry of Deno.readDir(currentDir)) {
     const path = relativeDir + entry.name;
     const fullPath = new URL(encodeURI("./" + path), baseDir);
     const stat = await Deno.lstat(fullPath);
     yield { path, fullPath, stat };
     if (stat.isDirectory) {
-      console.log("isDir", path);
       yield* walkDir(baseDir, path + "/");
     }
   }

@@ -45,6 +45,12 @@ pub fn print_diffs(changes: &[Change]) {
 }
 
 fn print_unified_diff(old: &Path, new: &Path) {
+    let old_mtime = format_mtime(old);
+    let new_mtime = format_mtime(new);
+
+    println!("--- {}\t{}", old.display(), old_mtime);
+    println!("+++ {}\t{}", new.display(), new_mtime);
+
     let read = |p: &Path| -> String {
         let mut f = match std::fs::File::open(p) {
             Ok(f) => f,
@@ -63,5 +69,18 @@ fn print_unified_diff(old: &Path, new: &Path) {
 
     for change in udiff.iter_hunks() {
         print!("{}", change);
+    }
+}
+
+fn format_mtime(path: &Path) -> String {
+    match std::fs::metadata(path) {
+        Ok(meta) => match meta.modified() {
+            Ok(time) => {
+                let datetime: chrono::DateTime<chrono::Local> = time.into();
+                datetime.format("%Y-%m-%d %H:%M:%S%.9f %z").to_string()
+            }
+            Err(_) => String::new(),
+        },
+        Err(_) => String::new(),
     }
 }

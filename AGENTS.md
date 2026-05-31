@@ -12,14 +12,14 @@
 
 Always run from the workspace root (`/home/nils/projects/cfgsync`):
 
-| Purpose     | Command                           |
-|-------------|-----------------------------------|
-| Build       | `cargo build --release`           |
-| Test        | `cargo test`                      |
-| Format      | `cargo fmt`                       |
-| Lint        | `cargo clippy -- -D warnings`     |
-| CI (check)  | `mise run ci`                     |
-| Dev (all)   | `mise run format-and-test`    |
+| Purpose     | Command                       |
+|-------------|-------------------------------|
+| Build       | `cargo build --release`       |
+| Test        | `cargo test`                  |
+| Format      | `cargo fmt`                   |
+| Lint        | `cargo clippy -- -D warnings` |
+| CI (check)  | `mise run ci`                 |
+| Dev (all)   | `mise run all-local`          |
 
 Rust toolchain: `1.95` (managed by mise).
 
