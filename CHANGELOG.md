@@ -1,6 +1,13 @@
 # Changelog
 
-## [v0.3.0](https://github.com/nknapp/cfgsync/compare/v0.2.15...d8f0d45e8e064042fffaac477893718520cae6f6) (2026-05-30)
+## [v0.3.1](https://github.com/nknapp/cfgsync/compare/v0.3.0...7d7af7adfb8a2cd69c0af587a7b82635f3f507e1) (2026-05-31)
+
+### Features
+
+* add `--debug` flag to show detailed scan information
+([00cb0be](https://github.com/nknapp/cfgsync/commit/00cb0be9383fdef929e3f77afd4fdeb53f4ab926))
+
+## [v0.3.0](https://github.com/nknapp/cfgsync/compare/v0.2.15...v0.3.0) (2026-05-30)
 
 ### Features
 
