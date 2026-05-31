@@ -17,11 +17,16 @@ run = [
     "cargo build --release",
     "cd e2e-tests && deno fmt",
     "cd e2e-tests && deno lint",
+    "cd e2e-tests && ./run-docker.sh",
+    "echo \"version: $(convco version --bump) ($(convco version --bump --label))\"",
+]
+
+[tasks.run-e2e-variations]
+run = [
     "cd e2e-tests && ./run.sh",
     "cd e2e-tests && ./run-docker.sh",
     "cd e2e-tests && CFG_SYNC=target/releas/cfgsync ./run.sh",
     "cd e2e-tests && CFG_SYNC=target/releas/cfgsync ./run-docker.sh",
-    "echo \"version: $(convco version --bump) ($(convco version --bump --label))\"",
 ]
 
 [tasks.ci-check]
