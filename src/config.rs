@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -101,6 +102,8 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
         .ok_or_else(|| "Config file has no parent directory".to_string())?
         .to_path_buf();
 
+    let owner_home = config_owner_home(config_path)?;
+
     let mut sync_groups = Vec::new();
 
     for group in &config.sync {
@@ -108,8 +111,8 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
             return Err("Each [[sync]] group must have at least one glob".to_string());
         }
 
-        let source_dir = resolve_path(&config_dir, &group.source);
-        let target_dir = resolve_path(&config_dir, &group.target);
+        let source_dir = resolve_path(&config_dir, &expand_tilde(&group.source, &owner_home));
+        let target_dir = resolve_path(&config_dir, &expand_tilde(&group.target, &owner_home));
 
         if !source_dir.is_dir() {
             return Err(format!(
@@ -214,6 +217,26 @@ fn resolve_path(config_dir: &Path, raw: &str) -> PathBuf {
     } else {
         config_dir.join(p)
     }
+}
+
+fn expand_tilde(raw: &str, owner_home: &Path) -> String {
+    if raw == "~" {
+        owner_home.to_string_lossy().to_string()
+    } else if let Some(rest) = raw.strip_prefix("~/") {
+        owner_home.join(rest).to_string_lossy().to_string()
+    } else {
+        raw.to_string()
+    }
+}
+
+fn config_owner_home(config_path: &Path) -> Result<PathBuf, String> {
+    let metadata =
+        std::fs::metadata(config_path).map_err(|e| format!("Cannot stat config file: {}", e))?;
+    let uid = nix::unistd::Uid::from_raw(metadata.uid());
+    let user = nix::unistd::User::from_uid(uid)
+        .map_err(|e| format!("Cannot look up config file owner: {}", e))?
+        .ok_or_else(|| format!("Cannot find user with uid {} (owner of config file)", uid))?;
+    Ok(user.dir)
 }
 
 #[cfg(test)]
