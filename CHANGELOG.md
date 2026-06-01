@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.3.3](https://github.com/nknapp/cfgsync/compare/v0.3.2...be1b9ff9633b9729ca991ff0d4eb2b338f087940) (2026-05-31)
+## [v0.3.4](https://github.com/nknapp/cfgsync/compare/v0.3.3...1b5d83092693e45f1a13b5d78f113ae1b172f9f0) (2026-06-01)
 
-### Fixes
+### Features
+
+* add `--watch` flag to sync command for continuous file watching
+([1b5d830](https://github.com/nknapp/cfgsync/commit/1b5d83092693e45f1a13b5d78f113ae1b172f9f0))
+
+### [v0.3.3](https://github.com/nknapp/cfgsync/compare/v0.3.2...v0.3.3) (2026-05-31)
+
+#### Fixes
 
 * adjust example config to use schema from githubusercontents
 ([be1b9ff](https://github.com/nknapp/cfgsync/commit/be1b9ff9633b9729ca991ff0d4eb2b338f087940))
