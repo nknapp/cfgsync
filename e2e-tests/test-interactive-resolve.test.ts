@@ -1,6 +1,5 @@
 import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
-import type { Step } from "./lib/spawn.ts";
 
 Deno.test("interactive-overwrite-target", async (t) => {
   const testbed = await TestBed.create(t, {
@@ -19,20 +18,20 @@ Deno.test("interactive-overwrite-target", async (t) => {
     ],
   });
 
-  const steps: Step[] = [
-    { match: /Overwrite \[t\]arget\s+Overwrite \[s\]ource\s+\[x\]skip\s+\[q\]uit:/, write: "t\n" },
-  ];
+  const child = testbed.spawn({ args: ["sync", "-i", "config.toml"] });
 
-  await testbed.run({ args: ["sync", "-i", "config.toml"], steps });
+  await child.waitForStderr("Overwrite [t]arget   Overwrite [s]ource   [x]skip  [q]uit:");
+  await child.type("t\n");
+  const { code, stdout } = await child.waitForExit();
 
   assertEquals(
-    testbed.getStdout(),
+    stdout,
     "resolved: conflict.txt (kept source)\n\nsource -> target: 1\n" +
       "target -> source: 0\ndeleted target:   0\ndeleted source:   0\n" +
       "conflicts:        1\n  resolved:       1\n  skipped:        0\n",
   );
 
-  assertEquals(testbed.getExitCode(), 0);
+  assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
@@ -61,20 +60,19 @@ Deno.test("interactive-overwrite-source", async (t) => {
     ],
   });
 
-  const steps: Step[] = [
-    { match: /Overwrite \[t\]arget\s+Overwrite \[s\]ource\s+\[x\]skip\s+\[q\]uit:/, write: "s\n" },
-  ];
+  const child = testbed.spawn({ args: ["sync", "-i", "config.toml"] });
+  await child.waitForStderr("Overwrite [t]arget   Overwrite [s]ource   [x]skip  [q]uit:");
+  await child.type("s\n");
 
-  await testbed.run({ args: ["sync", "-i", "config.toml"], steps });
-
+  const { code, stdout } = await child.waitForExit();
   assertEquals(
-    testbed.getStdout(),
+    stdout,
     "resolved: conflict.txt (kept target)\n\nsource -> target: 0\n" +
       "target -> source: 1\ndeleted target:   0\ndeleted source:   0\n" +
       "conflicts:        1\n  resolved:       1\n  skipped:        0\n",
   );
 
-  assertEquals(testbed.getExitCode(), 0);
+  assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",

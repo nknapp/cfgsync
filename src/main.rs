@@ -5,6 +5,7 @@ mod schema;
 mod state;
 mod status;
 mod sync;
+mod watch;
 
 use clap::{Parser, Subcommand};
 use std::path::Path;
@@ -38,6 +39,9 @@ enum Commands {
         /// Show what would be done without making changes
         #[arg(long)]
         dry_run: bool,
+        /// Watch files and re-sync on changes
+        #[arg(short = 'w', long)]
+        watch: bool,
     },
     /// Show number of changed files in each direction
     Status {
@@ -68,14 +72,30 @@ fn main() {
             config,
             interactive,
             dry_run,
-        } => cmd_sync(&config, interactive, dry_run, cli.verbose, cli.debug),
+            watch,
+        } => cmd_sync(&config, interactive, dry_run, watch, cli.verbose, cli.debug),
         Commands::Status { config, short } => cmd_status(&config, short, cli.verbose, cli.debug),
         Commands::Diff { config } => cmd_diff(&config, cli.verbose, cli.debug),
         Commands::Schema { json } => schema::print_schema(json),
     }
 }
 
-fn cmd_sync(config_path: &Path, interactive: bool, dry_run: bool, verbose: bool, debug: bool) {
+fn cmd_sync(
+    config_path: &Path,
+    interactive: bool,
+    dry_run: bool,
+    watch: bool,
+    verbose: bool,
+    debug: bool,
+) {
+    if watch {
+        if let Err(e) = watch::watch_and_sync(config_path, interactive, dry_run, verbose, debug) {
+            eprintln!("Error: {}", e);
+            process::exit(1);
+        }
+        return;
+    }
+
     let resolved = config::load_config(config_path).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);

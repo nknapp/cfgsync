@@ -1,12 +1,12 @@
 import { readTestDir, setupTestDir, TestSpec } from "./setupTestDir.ts";
 import { RunArgs, runCfgsync } from "./runCfgsync.ts";
 import { assertEquals } from "./assert.ts";
+import { InteractiveChildProcess } from "./spawn.ts";
 
 type ExecReturn = { code: number; stdout: string; stderr: string };
 
 export class TestBed {
   private lastRun?: ExecReturn;
-  private skipped = false;
 
   static async create(t: Deno.TestContext, spec: TestSpec) {
     const dir = await setupTestDir(t, spec);
@@ -27,12 +27,20 @@ export class TestBed {
     await Deno.remove(new URL(relativePath, this.testDir));
   }
 
+  async writeTextFile(relativePath: string, newContents: string) {
+    await Deno.writeTextFile(new URL(relativePath, this.testDir), newContents);
+  }
+
+  async mkdir(relativePath: string) {
+    await Deno.mkdir(new URL(relativePath, this.testDir));
+  }
+
   async run(runArgs: Omit<RunArgs, "cwd">) {
-    if (this.skipped) {
-      this.lastRun = { code: 0, stdout: "", stderr: "" };
-      return;
-    }
-    this.lastRun = await runCfgsync({ cwd: this.testDir, ...runArgs });
+    this.lastRun = await runCfgsync({ cwd: this.testDir, ...runArgs }).waitForExit();
+  }
+
+  spawn(runArgs: Omit<RunArgs, "cwd">): InteractiveChildProcess {
+    return runCfgsync({ cwd: this.testDir, ...runArgs });
   }
 
   getStdout(): string {

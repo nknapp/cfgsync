@@ -17,6 +17,9 @@ export const cfgSync = getFromEnvOrDefault(
   () => getFirstExistingFile(possibleCfgsyncExecutables),
 );
 
+const cfgsyncSource = Deno.env.has("CFGSYNC") ? "$CFGSYNC" : "auto-discovered";
+console.error(`[cfgsync e2e] binary: ${cfgSync}  (source: ${cfgsyncSource})`);
+
 function getFromEnvOrDefault(envVar: string, defaultFn: () => string): string {
   const value = Deno.env.get(envVar);
   if (value != null && value !== "") return value;
