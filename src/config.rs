@@ -70,7 +70,7 @@ pub struct ResolvedSyncGroup {
     pub owner: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResolvedGlob {
     #[allow(dead_code)]
     pub pattern: String,

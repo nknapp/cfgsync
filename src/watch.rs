@@ -1,10 +1,10 @@
 use crate::changes;
-use crate::config;
+use crate::config::{self, ResolvedGlob};
 use crate::state;
 use crate::sync;
 
 use notify::{Event, EventKind, RecursiveMode, Watcher};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -24,17 +24,16 @@ pub fn watch_and_sync(
 
     let resolved = config::load_config(config_path)?;
 
-    let watch_roots: Vec<PathBuf> = {
-        let mut seen = HashSet::new();
-        let mut dirs = Vec::new();
+    let dir_globs: HashMap<PathBuf, Vec<ResolvedGlob>> = {
+        let mut map: HashMap<PathBuf, Vec<ResolvedGlob>> = HashMap::new();
         for group in &resolved.sync_groups {
             for dir in [&group.source_dir, &group.target_dir] {
-                if seen.insert(dir.clone()) {
-                    dirs.push(dir.clone());
-                }
+                map.entry(dir.clone())
+                    .or_default()
+                    .extend(group.globs.clone());
             }
         }
-        dirs
+        map
     };
 
     let (tx, rx) = mpsc::channel();
@@ -52,16 +51,17 @@ pub fn watch_and_sync(
         })
         .map_err(|e| format!("Cannot create file watcher: {}", e))?;
 
-    for root in &watch_roots {
-        watch_tree(&mut watcher, root)
-            .map_err(|e| format!("Cannot watch '{}': {}", root.display(), e))?;
+    for (root, globs) in &dir_globs {
+        watch_tree(&mut watcher, root, root, globs);
         if verbose {
             eprintln!("Watching: {}", root.display());
         }
     }
 
     if !dry_run {
+        eprintln!("Running initial sync!");
         run_sync_cycle(&resolved, false, false, verbose, debug);
+        eprintln!("Done!")
     } else {
         eprintln!("Watching in dry-run mode (no changes will be made)...");
     }
@@ -69,7 +69,7 @@ pub fn watch_and_sync(
     loop {
         match rx.recv() {
             Ok(event) => {
-                handle_new_directories(&mut watcher, &event);
+                handle_new_directories(&mut watcher, &event, &dir_globs);
 
                 if verbose {
                     eprintln!("Change in {:?}", event.paths);
@@ -79,7 +79,7 @@ pub fn watch_and_sync(
                 while Instant::now() < deadline {
                     match rx.recv_timeout(deadline - Instant::now()) {
                         Ok(event) => {
-                            handle_new_directories(&mut watcher, &event);
+                            handle_new_directories(&mut watcher, &event, &dir_globs);
                             if verbose {
                                 eprintln!("Change in {:?}", event.paths);
                             }
@@ -91,6 +91,7 @@ pub fn watch_and_sync(
                     }
                 }
 
+                eprintln!("Changes detected!");
                 run_sync_cycle(&resolved, false, dry_run, verbose, debug);
             }
             Err(mpsc::RecvError) => {
@@ -100,28 +101,105 @@ pub fn watch_and_sync(
     }
 }
 
-fn watch_tree(watcher: &mut notify::RecommendedWatcher, dir: &Path) -> Result<(), notify::Error> {
+fn watch_tree(
+    watcher: &mut notify::RecommendedWatcher,
+    dir: &Path,
+    base_dir: &Path,
+    globs: &[ResolvedGlob],
+) {
     if !dir.is_dir() {
-        return Ok(());
+        return;
     }
-    watcher.watch(dir, RecursiveMode::NonRecursive)?;
+    match watcher.watch(dir, RecursiveMode::NonRecursive) {
+        Ok(()) => {}
+        Err(e) => {
+            eprintln!("Watch: cannot watch '{}': {} (skipping)", dir.display(), e);
+            return;
+        }
+    }
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_dir() && !path.is_symlink() {
-                watch_tree(watcher, &path)?;
+            if path.is_dir()
+                && !path.is_symlink()
+                && let Ok(rel) = path.strip_prefix(base_dir)
+            {
+                let rel_str = rel.to_string_lossy();
+                if should_watch_dir(&rel_str, globs) {
+                    watch_tree(watcher, &path, base_dir, globs);
+                }
             }
         }
     }
-    Ok(())
 }
 
-fn handle_new_directories(watcher: &mut notify::RecommendedWatcher, event: &Event) {
+fn handle_new_directories(
+    watcher: &mut notify::RecommendedWatcher,
+    event: &Event,
+    dir_globs: &HashMap<PathBuf, Vec<ResolvedGlob>>,
+) {
     for path in &event.paths {
         if path.is_dir() {
-            let _ = watch_tree(watcher, path);
+            for (base_dir, globs) in dir_globs {
+                if let Ok(rel) = path.strip_prefix(base_dir) {
+                    let rel_str = rel.to_string_lossy();
+                    if should_watch_dir(&rel_str, globs) {
+                        watch_tree(watcher, path, base_dir, globs);
+                    }
+                    break;
+                }
+            }
         }
     }
+}
+
+fn extract_static_prefix(pattern: &str) -> String {
+    let mut prefix = String::new();
+    for ch in pattern.chars() {
+        if ch == '*' || ch == '?' || ch == '[' {
+            if let Some(last_slash) = prefix.rfind('/') {
+                prefix.truncate(last_slash + 1);
+            } else {
+                prefix.clear();
+            }
+            return prefix;
+        }
+        prefix.push(ch);
+    }
+    if let Some(last_slash) = prefix.rfind('/') {
+        prefix.truncate(last_slash + 1);
+    } else {
+        prefix.clear();
+    }
+    prefix
+}
+
+fn should_watch_dir(rel_path: &str, globs: &[ResolvedGlob]) -> bool {
+    if rel_path.is_empty() {
+        return true;
+    }
+    let rel_with_slash = if rel_path.ends_with('/') {
+        rel_path.to_string()
+    } else {
+        format!("{}/", rel_path)
+    };
+    for glob in globs {
+        let prefix = extract_static_prefix(&glob.pattern);
+        if prefix.is_empty() {
+            if glob.pattern.starts_with("**") {
+                return true;
+            }
+            continue;
+        }
+        let prefix_with_slash = format!("{}/", prefix.trim_end_matches('/'));
+        if prefix_with_slash.starts_with(&rel_with_slash) {
+            return true;
+        }
+        if glob.pattern.contains("**") && rel_with_slash.starts_with(&prefix_with_slash) {
+            return true;
+        }
+    }
+    false
 }
 
 fn run_sync_cycle(

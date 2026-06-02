@@ -5,7 +5,6 @@ export interface Step {
   write: string;
 }
 
-
 export class InteractiveChildProcess {
   child: Deno.ChildProcess;
   stdout: StreamSniffer;
