@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.3.4](https://github.com/nknapp/cfgsync/compare/v0.3.3...1b5d83092693e45f1a13b5d78f113ae1b172f9f0) (2026-06-01)
+## [v0.3.5](https://github.com/nknapp/cfgsync/compare/v0.3.4...5bda4bcc35519591919427eb4307edd9ac191ca7) (2026-06-02)
 
-### Features
+### Fixes
+
+* remove redundant watch_tree invocations in watch mode
+([5bda4bc](https://github.com/nknapp/cfgsync/commit/5bda4bcc35519591919427eb4307edd9ac191ca7))
+
+### [v0.3.4](https://github.com/nknapp/cfgsync/compare/v0.3.3...v0.3.4) (2026-06-01)
+
+#### Features
 
 * add `--watch` flag to sync command for continuous file watching
 ([1b5d830](https://github.com/nknapp/cfgsync/commit/1b5d83092693e45f1a13b5d78f113ae1b172f9f0))
