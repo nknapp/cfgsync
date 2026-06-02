@@ -62,10 +62,6 @@ pub fn watch_and_sync(
 
     if !dry_run {
         run_sync_cycle(&resolved, false, false, verbose, debug);
-
-        for root in &watch_roots {
-            let _ = watch_tree(&mut watcher, root);
-        }
     } else {
         eprintln!("Watching in dry-run mode (no changes will be made)...");
     }
@@ -96,10 +92,6 @@ pub fn watch_and_sync(
                 }
 
                 run_sync_cycle(&resolved, false, dry_run, verbose, debug);
-
-                for root in &watch_roots {
-                    let _ = watch_tree(&mut watcher, root);
-                }
             }
             Err(mpsc::RecvError) => {
                 return Err("Watcher channel closed".to_string());
