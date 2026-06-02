@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.3.5](https://github.com/nknapp/cfgsync/compare/v0.3.4...5bda4bcc35519591919427eb4307edd9ac191ca7) (2026-06-02)
+## [v0.3.6](https://github.com/nknapp/cfgsync/compare/v0.3.5...9fc0dba908aff229e605560ef8691d53fb561bce) (2026-06-03)
 
 ### Fixes
+
+* optimize watch mode to only watch glob-matching directories
+([9fc0dba](https://github.com/nknapp/cfgsync/commit/9fc0dba908aff229e605560ef8691d53fb561bce))
+
+### [v0.3.5](https://github.com/nknapp/cfgsync/compare/v0.3.4...v0.3.5) (2026-06-02)
+
+#### Fixes
 
 * remove redundant watch_tree invocations in watch mode
 ([5bda4bc](https://github.com/nknapp/cfgsync/commit/5bda4bcc35519591919427eb4307edd9ac191ca7))
