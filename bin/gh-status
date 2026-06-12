@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+source .env
+GH_TOKEN="$GITHUB_TOKEN" gh run list
+

@@ -5,7 +5,8 @@
 "github:crate-ci/cargo-release" = "1.1.2"
 "github:convco/convco" = "0.6.4"
 "deno" = "2.8.0"
-yq = "latest"
+yq = "4.53.3"
+gh = "2.94.0"
 
 [tasks.all-local]
 run = [
