@@ -8,10 +8,7 @@
     "github-actions",
     "mise"
   ],
-  "packageRules": [
-    {
-      "matchManagers": ["cargo"],
-      "rangeStrategy": "bump"
-    }
-  ]
+
+  "separateMajorMinor": true
+
 }
