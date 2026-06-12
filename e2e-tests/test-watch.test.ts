@@ -147,7 +147,7 @@ Deno.test("watch-empty-dir", async (t) => {
     await testBed.writeTextFile("source/subdir/new-file.txt", "contents");
 
     await child.waitForStderr("source -> target", { minCount: 1, timeoutMillis: 5000 });
-    await sleep(1000)
+    await sleep(1000);
 
     assertEquals(await testBed.readTestDir(), [
       "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
@@ -189,10 +189,13 @@ Deno.test("do-not-watch-too-much", async (t) => {
     await sleep(1000);
     await testBed.writeTextFile("source/subdir/other-dir/new-file.txt", "contents");
     await sleep(2000);
-    assertEquals(child.stderr.text, deindent`
+    assertEquals(
+      child.stderr.text,
+      deindent`
         Running initial sync!
         Done!
-    `);
+    `,
+    );
   } finally {
     child.stop();
   }

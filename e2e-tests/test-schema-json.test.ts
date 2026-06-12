@@ -29,5 +29,5 @@ Deno.test("schema-json", async (t) => {
   assertEquals(parsed.title, "Config");
   assertEquals(parsed.type, "object");
   assertEquals(parsed.required.includes("sync"), true);
-  assertEquals(typeof parsed.definitions, "object");
+  assertEquals(typeof parsed["$defs"], "object");
 });

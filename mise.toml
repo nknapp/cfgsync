@@ -1,10 +1,10 @@
 [tools]
-"rust" = { version = "1.95", components = "rustfmt,clippy" }
+"rust" = { version = "1.96.0", components = "rustfmt,clippy" }
 "github:rhysd/actionlint" = "1.7.12"
 "github:koalaman/shellcheck" = "0.11.0"
 "github:crate-ci/cargo-release" = "1.1.2"
 "github:convco/convco" = "0.6.4"
-"deno" = "2.8.0"
+"deno" = "2.8.2"
 yq = "4.53.3"
 gh = "2.94.0"
 
