@@ -4,7 +4,7 @@
 "github:koalaman/shellcheck" = "0.11.0"
 "github:crate-ci/cargo-release" = "1.1.2"
 "github:convco/convco" = "0.6.4"
-"deno" = "2.8.3"
+"deno" = "2.8.2"
 yq = "4.53.3"
 gh = "2.94.0"
 
