@@ -28,7 +28,7 @@ jobs:
         run: shasum -a 256 cfgsync-*/*.tar.gz > checksums.txt
 
       - name: Attest artifacts
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             cfgsync-*/*.tar.gz
