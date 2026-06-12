@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.3.6](https://github.com/nknapp/cfgsync/compare/v0.3.5...9fc0dba908aff229e605560ef8691d53fb561bce) (2026-06-03)
+## [v0.4.0](https://github.com/nknapp/cfgsync/compare/v0.3.6...4b0741e68acfd5f6ef2c86f57f806d2978be4c7f) (2026-06-12)
 
-### Fixes
+### Features
+
+* move config file to option parameters
+([ca9cc2b](https://github.com/nknapp/cfgsync/commit/ca9cc2bb3670d3280871c56de16f7b4bf438ee70))
+
+### [v0.3.6](https://github.com/nknapp/cfgsync/compare/v0.3.5...v0.3.6) (2026-06-02)
+
+#### Fixes
 
 * optimize watch mode to only watch glob-matching directories
 ([9fc0dba](https://github.com/nknapp/cfgsync/commit/9fc0dba908aff229e605560ef8691d53fb561bce))
