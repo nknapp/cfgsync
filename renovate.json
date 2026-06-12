@@ -1,9 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "onboarding": false,
-  "onboardingConfig": {},
-  "requireConfig": "optional",
-  "stabilityDays": 3,
+  "minimumReleaseAge": "3 days",
   "enabledManagers": [
     "cargo",
     "deno",

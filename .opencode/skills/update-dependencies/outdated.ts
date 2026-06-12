@@ -1,5 +1,7 @@
 #!/usr/bin/env -S deno run --allow-run --allow-read --allow-env
 
+import ms from "npm:ms";
+
 const WORK_DIR = Deno.cwd();
 
 const PROJECT = WORK_DIR.split("/").filter(Boolean).pop() || "unknown";
@@ -7,14 +9,6 @@ const PROJECT = WORK_DIR.split("/").filter(Boolean).pop() || "unknown";
 type Dep = Record<string, unknown>;
 type Update = Record<string, unknown>;
 type PkgFile = Record<string, unknown>;
-
-const MANAGER_MAP: Record<string, string> = {
-    cargo: "rust",
-    deno: "deno",
-    mise: "mise",
-    "github-actions": "github_actions",
-    dockerfile: "docker",
-};
 
 function loadDotEnv(path: string): void {
     try {
@@ -35,18 +29,16 @@ function loadDotEnv(path: string): void {
     }
 }
 
-async function runRenovate(): Promise<Record<string, unknown> | null> {
+async function runRenovate(): Promise<Record<string, unknown>> {
     const env: Record<string, string> = {
         RENOVATE_LOG_FORMAT: "json",
         LOG_LEVEL: "debug",
     };
-
-    for (const [k, v] of Object.entries(Deno.env.toObject())) {
-        if (v != null) env[k] = v;
-    }
+    const token = Deno.env.get("GITHUB_COM_TOKEN");
+    if (token) env.GITHUB_COM_TOKEN = token;
 
     const cmd = new Deno.Command("npx", {
-        args: ["--yes", "renovate", "--platform=local", "--dry-run=lookup"],
+        args: ["--yes", "renovate", "--platform=local", "--dry-run=full"],
         cwd: WORK_DIR,
         env,
         stdout: "piped",
@@ -61,16 +53,14 @@ async function runRenovate(): Promise<Record<string, unknown> | null> {
             return JSON.parse(line);
         }
     }
-    return null;
+    throw new Error("Renovate did not produce packageFiles output");
 }
 
 function extractOutdated(config: Record<string, unknown>): Record<string, Dep[]> {
     const raw: Record<string, Dep[]> = {};
 
     for (const [manager, files] of Object.entries(config)) {
-        const ecosystem = MANAGER_MAP[manager];
-        if (!ecosystem) continue;
-        if (!raw[ecosystem]) raw[ecosystem] = [];
+        if (!raw[manager]) raw[manager] = [];
 
         for (const pkgFile of (files as PkgFile[])) {
             const deps = pkgFile.deps as Dep[] | undefined;
@@ -82,7 +72,7 @@ function extractOutdated(config: Record<string, unknown>): Record<string, Dep[]>
                 if (dep.skipReason) continue;
 
                 for (const update of updates) {
-                    raw[ecosystem].push({
+                    raw[manager].push({
                         name: dep.depName || dep.packageName,
                         package_file: pkgFile.packageFile || "",
                         current_value: dep.currentValue,
@@ -99,9 +89,9 @@ function extractOutdated(config: Record<string, unknown>): Record<string, Dep[]>
         }
     }
 
-    // Deduplicate by name + new_version and remove empty ecosystems
+    // Deduplicate by name + new_version and remove empty managers
     const result: Record<string, Dep[]> = {};
-    for (const [eco, deps] of Object.entries(raw)) {
+    for (const [manager, deps] of Object.entries(raw)) {
         const seen = new Set<string>();
         const unique: Dep[] = [];
         for (const dep of deps) {
@@ -112,7 +102,7 @@ function extractOutdated(config: Record<string, unknown>): Record<string, Dep[]>
             }
         }
         if (unique.length > 0) {
-            result[eco] = unique;
+            result[manager] = unique;
         }
     }
 
@@ -123,13 +113,23 @@ async function main(): Promise<void> {
     loadDotEnv(`${WORK_DIR}/.env`);
 
     const logEntry = await runRenovate();
+    const raw = extractOutdated(logEntry.config as Record<string, unknown>);
+
+    const renovateConfig = JSON.parse(Deno.readTextFileSync(`${WORK_DIR}/renovate.json`));
+    const ageString = renovateConfig.minimumReleaseAge ?? "0";
+    const ageMs = ms(ageString);
+    const minAgeDays = Math.round(ageMs / (1000 * 60 * 60 * 24));
+
+    const outdated: Record<string, Dep[]> = {};
+    for (const [manager, deps] of Object.entries(raw)) {
+        const filtered = deps.filter((d) => d.version_age_days >= minAgeDays);
+        if (filtered.length > 0) outdated[manager] = filtered;
+    }
 
     const result = {
         project: PROJECT,
         generated_at: new Date().toISOString(),
-        outdated: logEntry
-            ? extractOutdated(logEntry.config as Record<string, unknown>)
-            : {},
+        outdated,
     };
 
     console.log(JSON.stringify(result, null, 2));

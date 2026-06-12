@@ -5,11 +5,21 @@ license: MIT
 compatibility: opencode
 ---
 
+## Goal
+
+**`outdated.ts` must report an empty `outdated` object when the process is complete.** Every dependency
+across all ecosystems (Rust, Deno, Mise, GitHub Actions, Docker) should be at the latest available version
+that passes tests and linters. Version constraints in `Cargo.toml`, `deno.json`, `mise.toml`, etc. must
+be pinned to the actual resolved version so that renovate's lookup sees nothing to upgrade.
+
 ## What I do
 
 I orchestrate updating all dependencies in a cfgsync-style project. I run the discovery script, classify updates
 by ecosystem and severity (minor vs major), check version age, apply minor updates in bulk, then major updates
 one at a time, running tests and linters after each change and committing as I go.
+
+After every batch of changes, re-run `./outdated.ts` to confirm progress toward the goal. At the end,
+the output must show `"outdated": {}`.
 
 ## When to use me
 
