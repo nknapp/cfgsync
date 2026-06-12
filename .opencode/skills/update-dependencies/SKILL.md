@@ -1,6 +1,6 @@
 ---
 name: update-dependencies
-description: Update project dependencies across all ecosystems (Rust, Deno, Mise, GitHub Actions, Docker). Runs bin/check-outdated, upgrades minor versions in bulk, then major versions one-at-a-time with test/lint verification and per-dependency commits.
+description: Update project dependencies across all ecosystems (Rust, Deno, Mise, GitHub Actions, Docker). Runs outdated.ts, upgrades minor versions in bulk, then major versions one-at-a-time with test/lint verification and per-dependency commits.
 license: MIT
 compatibility: opencode
 ---
@@ -23,7 +23,7 @@ Use me when a user says anything like:
 
 ### Phase 0: Discovery
 
-1. Run `./bin/check-outdated` from the project root and capture the JSON output.
+1. Run `./outdated.ts` from the project root (the directory containing `renovate.json`) and capture the JSON output.
 2. Parse the `outdated` object. It has keys: `rust`, `deno`, `mise`, `github_actions`, `docker`.
 3. For each entry in each ecosystem, classify as **minor** or **major**:
 

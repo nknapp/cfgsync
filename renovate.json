@@ -1,0 +1,20 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "onboarding": false,
+  "onboardingConfig": {},
+  "requireConfig": "optional",
+  "stabilityDays": 3,
+  "enabledManagers": [
+    "cargo",
+    "deno",
+    "dockerfile",
+    "github-actions",
+    "mise"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["cargo"],
+      "rangeStrategy": "bump"
+    }
+  ]
+}
