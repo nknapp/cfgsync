@@ -17,7 +17,7 @@ Deno.test("relative-paths", async (t) => {
       "user:user | 0755  | target/",
     ],
   });
-  await testbed.run({ args: ["sync", "subdir/config.toml"] });
+  await testbed.run({ args: ["--config", "subdir/config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0755 | subdir/",

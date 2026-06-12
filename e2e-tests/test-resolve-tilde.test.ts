@@ -34,7 +34,7 @@ async function testSyncToHomeDir(t: Deno.TestContext, { sudo = false } = {}) {
     ],
   });
 
-  await testbed.run({ args: ["sync", "config.toml"], sudo });
+  await testbed.run({ args: ["--config", "config.toml", "sync"], sudo });
 
   testbed.assertOutput({
     code: 0,
@@ -79,7 +79,7 @@ Deno.test({ name: "sync from home dir", ignore: runningOutsideDocker }, async (t
     ],
   });
 
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   testbed.assertOutput({
     code: 0,

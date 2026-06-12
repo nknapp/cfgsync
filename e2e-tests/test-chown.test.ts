@@ -21,7 +21,7 @@ Deno.test({
     ],
   });
 
-  await testbed.run({ args: ["sync", "config.toml"], sudo: true });
+  await testbed.run({ args: ["--config", "config.toml", "sync"], sudo: true });
 
   testbed.assertOutput({
     code: 0,

@@ -22,7 +22,7 @@ Deno.test("watch-sync-on-change", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["sync", "config.toml", "--watch"] });
+  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
   try {
     // Wait for the initial sync to complete
     await child.waitForStderr("source -> target", { timeoutMillis: 5000 });
@@ -60,7 +60,7 @@ Deno.test("watch-sync-on-delete", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["sync", "config.toml", "--watch"] });
+  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
   try {
     // Wait for the initial sync to complete
     await child.waitForStderr("source -> target", { timeoutMillis: 5000 });
@@ -96,7 +96,7 @@ Deno.test("watch-sync-new-file", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["sync", "config.toml", "--watch"] });
+  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
   try {
     await sleep(1000);
     await testBed.writeTextFile("source/new-file.txt", "new file content");
@@ -140,7 +140,7 @@ Deno.test("watch-empty-dir", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["sync", "config.toml", "--watch"] });
+  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
 
   try {
     await sleep(1000);
@@ -183,7 +183,7 @@ Deno.test("do-not-watch-too-much", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["sync", "config.toml", "--watch"] });
+  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
 
   try {
     await sleep(1000);

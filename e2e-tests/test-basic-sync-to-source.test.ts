@@ -17,7 +17,7 @@ Deno.test("basic-sync-to-source", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",

@@ -18,7 +18,7 @@ Deno.test("status-short", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["status", "--short", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`

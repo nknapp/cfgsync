@@ -17,7 +17,7 @@ Deno.test("sync-dry-run", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["sync", "--dry-run", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync", "--dry-run"] });
 
   testbed.assertOutput({
     code: 0,

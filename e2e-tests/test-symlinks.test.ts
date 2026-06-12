@@ -23,7 +23,7 @@ Deno.test("symlinks-are-preserved-during-sync-forward", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
@@ -62,7 +62,7 @@ Deno.test("symlinks-are-preserved-during-sync-backwards", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
@@ -100,12 +100,12 @@ Deno.test("symlink-target-change-is-synced", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   await Deno.remove(`${testDir}source/symlink.txt`);
   await Deno.symlink("two.txt", `${testDir}source/symlink.txt`);
 
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",

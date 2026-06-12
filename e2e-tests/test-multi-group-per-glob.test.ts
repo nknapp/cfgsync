@@ -25,7 +25,7 @@ Deno.test("per-glob-owner-and-permissions", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   testbed.assertOutput({
     code: 0,

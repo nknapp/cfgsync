@@ -18,7 +18,7 @@ Deno.test("conflict-detection", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["status", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "status"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
@@ -31,7 +31,7 @@ Deno.test("conflict-detection", async (t) => {
     stderr: "",
   });
 
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
     code: 1,
     stdout: "",

@@ -18,7 +18,7 @@ Deno.test("interactive-overwrite-target", async (t) => {
     ],
   });
 
-  const child = testbed.spawn({ args: ["sync", "-i", "config.toml"] });
+  const child = testbed.spawn({ args: ["--config", "config.toml", "sync", "-i"] });
 
   await child.waitForStderr("Overwrite [t]arget   Overwrite [s]ource   [x]skip  [q]uit:");
   await child.type("t\n");
@@ -60,7 +60,7 @@ Deno.test("interactive-overwrite-source", async (t) => {
     ],
   });
 
-  const child = testbed.spawn({ args: ["sync", "-i", "config.toml"] });
+  const child = testbed.spawn({ args: ["--config", "config.toml", "sync", "-i"] });
   await child.waitForStderr("Overwrite [t]arget   Overwrite [s]ource   [x]skip  [q]uit:");
   await child.type("s\n");
 

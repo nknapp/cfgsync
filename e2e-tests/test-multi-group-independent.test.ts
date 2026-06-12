@@ -26,7 +26,7 @@ Deno.test("multi-group-independent", async (t) => {
   });
 
   // First sync: both groups copy to target
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
@@ -42,7 +42,7 @@ Deno.test("multi-group-independent", async (t) => {
   });
 
   // Second sync: nothing changed
-  await testbed.run({ args: ["sync", "config.toml"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`

@@ -8,7 +8,6 @@ mod sync;
 mod watch;
 
 use clap::{Parser, Subcommand};
-use std::path::Path;
 use std::path::PathBuf;
 use std::process;
 
@@ -23,6 +22,10 @@ struct Cli {
     #[arg(long, global = true)]
     debug: bool,
 
+    /// Path to the configuration file
+    #[arg(long, global = true)]
+    config: Option<PathBuf>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -31,8 +34,6 @@ struct Cli {
 enum Commands {
     /// Perform bidirectional sync
     Sync {
-        /// Path to the configuration file
-        config: PathBuf,
         /// Resolve conflicts interactively
         #[arg(short, long)]
         interactive: bool,
@@ -45,17 +46,12 @@ enum Commands {
     },
     /// Show number of changed files in each direction
     Status {
-        /// Path to the configuration file
-        config: PathBuf,
         /// Use compact output format
         #[arg(short, long)]
         short: bool,
     },
     /// Show diff for each changed file
-    Diff {
-        /// Path to the configuration file
-        config: PathBuf,
-    },
+    Diff,
     /// Print configuration file schema and example
     Schema {
         /// Output JSON Schema instead of human-readable TOML reference
@@ -64,24 +60,48 @@ enum Commands {
     },
 }
 
+fn require_config(config: &Option<PathBuf>, cmd_name: &str) -> PathBuf {
+    match config {
+        Some(c) => c.clone(),
+        None => {
+            eprintln!(
+                "Error: 'cfgsync --config <path> {}' requires a configuration file.",
+                cmd_name
+            );
+            process::exit(1);
+        }
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
+    match &cli.command {
         Commands::Sync {
-            config,
             interactive,
             dry_run,
             watch,
-        } => cmd_sync(&config, interactive, dry_run, watch, cli.verbose, cli.debug),
-        Commands::Status { config, short } => cmd_status(&config, short, cli.verbose, cli.debug),
-        Commands::Diff { config } => cmd_diff(&config, cli.verbose, cli.debug),
-        Commands::Schema { json } => schema::print_schema(json),
+        } => cmd_sync(
+            require_config(&cli.config, "sync"),
+            *interactive,
+            *dry_run,
+            *watch,
+            cli.verbose,
+            cli.debug,
+        ),
+        Commands::Status { short } => cmd_status(
+            require_config(&cli.config, "status"),
+            *short,
+            cli.verbose,
+            cli.debug,
+        ),
+        Commands::Diff => cmd_diff(require_config(&cli.config, "diff"), cli.verbose, cli.debug),
+        Commands::Schema { json } => schema::print_schema(*json),
     }
 }
 
 fn cmd_sync(
-    config_path: &Path,
+    config_path: PathBuf,
     interactive: bool,
     dry_run: bool,
     watch: bool,
@@ -89,14 +109,14 @@ fn cmd_sync(
     debug: bool,
 ) {
     if watch {
-        if let Err(e) = watch::watch_and_sync(config_path, interactive, dry_run, verbose, debug) {
+        if let Err(e) = watch::watch_and_sync(&config_path, interactive, dry_run, verbose, debug) {
             eprintln!("Error: {}", e);
             process::exit(1);
         }
         return;
     }
 
-    let resolved = config::load_config(config_path).unwrap_or_else(|e| {
+    let resolved = config::load_config(&config_path).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
     });
@@ -118,8 +138,8 @@ fn cmd_sync(
     }
 }
 
-fn cmd_status(config_path: &Path, short: bool, verbose: bool, debug: bool) {
-    let resolved = config::load_config(config_path).unwrap_or_else(|e| {
+fn cmd_status(config_path: PathBuf, short: bool, verbose: bool, debug: bool) {
+    let resolved = config::load_config(&config_path).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
     });
@@ -139,8 +159,8 @@ fn cmd_status(config_path: &Path, short: bool, verbose: bool, debug: bool) {
     status::print_status(&counts, short);
 }
 
-fn cmd_diff(config_path: &Path, verbose: bool, debug: bool) {
-    let resolved = config::load_config(config_path).unwrap_or_else(|e| {
+fn cmd_diff(config_path: PathBuf, verbose: bool, debug: bool) {
+    let resolved = config::load_config(&config_path).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         process::exit(1);
     });
