@@ -18,7 +18,7 @@ Always run from the workspace root (`/home/nils/projects/cfgsync`):
 | Test        | `cargo test`                  |
 | Format      | `cargo fmt`                   |
 | Lint        | `cargo clippy -- -D warnings` |
-| CI (check)  | `mise run ci`                 |
+| CI (check)  | `mise run ci-check`           |
 | Dev (all)   | `mise run all-local`          |
 
 Rust toolchain: `1.95` (managed by mise).
@@ -26,7 +26,7 @@ Rust toolchain: `1.95` (managed by mise).
 After making any code changes, always run:
 
 ```bash
-mise run format-and-test
+mise run all-local
 ```
 
 ## Architecture
