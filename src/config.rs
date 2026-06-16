@@ -11,6 +11,15 @@ pub struct Config {
     pub sync: Vec<SyncGroup>,
 }
 
+#[derive(Debug, Default, Deserialize, Clone, JsonSchema)]
+pub struct HooksConfig {
+    #[schemars(
+        description = "Shell command executed via /bin/sh after files are copied from source to target"
+    )]
+    #[serde(default)]
+    pub after: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Clone, JsonSchema)]
 pub struct SyncGroup {
     #[schemars(description = "Path to the source directory (files are read from here)")]
@@ -28,6 +37,9 @@ pub struct SyncGroup {
     #[schemars(description = "Default owner (user:group) applied to synced files")]
     #[serde(default)]
     pub owner: Option<String>,
+    #[schemars(description = "Hooks to run during sync")]
+    #[serde(default)]
+    pub hooks: HooksConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, JsonSchema)]
@@ -68,6 +80,7 @@ pub struct ResolvedSyncGroup {
     pub permissions: Option<u32>,
     #[allow(dead_code)]
     pub owner: Option<String>,
+    pub hook_after: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -182,6 +195,7 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
             globs,
             permissions: group_perms,
             owner: group.owner.clone(),
+            hook_after: group.hooks.after.clone(),
         });
     }
 
@@ -725,5 +739,91 @@ globs = ["*.conf"]
 
         let resolved = load_config(&config_path).unwrap();
         assert_eq!(resolved.sync_groups[0].permissions, Some(0o755));
+    }
+
+    #[test]
+    fn test_load_config_with_hooks() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src_dir = dir.path().join("source");
+        let tgt_dir = dir.path().join("target");
+        std::fs::create_dir(&src_dir).unwrap();
+        std::fs::create_dir(&tgt_dir).unwrap();
+
+        let config_path = dir.path().join("config.toml");
+        let config_content = format!(
+            r#"[[sync]]
+source = "{}"
+target = "{}"
+globs = ["*.conf"]
+
+[[sync]]
+source = "{}"
+target = "{}"
+hooks = {{ after = "echo hello" }}
+globs = ["*.txt"]
+"#,
+            src_dir.display(),
+            tgt_dir.display(),
+            src_dir.display(),
+            tgt_dir.display()
+        );
+        std::fs::write(&config_path, config_content).unwrap();
+
+        let resolved = load_config(&config_path).unwrap();
+        assert_eq!(resolved.sync_groups.len(), 2);
+        assert_eq!(resolved.sync_groups[0].hook_after, None);
+        assert_eq!(
+            resolved.sync_groups[1].hook_after,
+            Some("echo hello".to_string())
+        );
+    }
+
+    #[test]
+    fn test_load_config_without_hooks() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src_dir = dir.path().join("source");
+        let tgt_dir = dir.path().join("target");
+        std::fs::create_dir(&src_dir).unwrap();
+        std::fs::create_dir(&tgt_dir).unwrap();
+
+        let config_path = dir.path().join("config.toml");
+        let config_content = format!(
+            r#"[[sync]]
+source = "{}"
+target = "{}"
+globs = ["*.conf"]
+"#,
+            src_dir.display(),
+            tgt_dir.display()
+        );
+        std::fs::write(&config_path, config_content).unwrap();
+
+        let resolved = load_config(&config_path).unwrap();
+        assert_eq!(resolved.sync_groups[0].hook_after, None);
+    }
+
+    #[test]
+    fn test_load_config_with_empty_hooks() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src_dir = dir.path().join("source");
+        let tgt_dir = dir.path().join("target");
+        std::fs::create_dir(&src_dir).unwrap();
+        std::fs::create_dir(&tgt_dir).unwrap();
+
+        let config_path = dir.path().join("config.toml");
+        let config_content = format!(
+            r#"[[sync]]
+source = "{}"
+target = "{}"
+hooks = {{}}
+globs = ["*.conf"]
+"#,
+            src_dir.display(),
+            tgt_dir.display()
+        );
+        std::fs::write(&config_path, config_content).unwrap();
+
+        let resolved = load_config(&config_path).unwrap();
+        assert_eq!(resolved.sync_groups[0].hook_after, None);
     }
 }

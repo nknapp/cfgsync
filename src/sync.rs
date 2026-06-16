@@ -2,6 +2,7 @@ use crate::changes::Change;
 use crate::config::ResolvedConfig;
 use crate::state::{FileEntry, State};
 use similar::TextDiff;
+use std::collections::HashSet;
 use std::io::Read;
 use std::path::Path;
 
@@ -13,6 +14,7 @@ struct SyncOutcome {
     skipped_perms: usize,
     conflicts_total: usize,
     conflicts_skipped: usize,
+    hook_failures: usize,
 }
 
 pub fn run(
@@ -50,7 +52,10 @@ pub fn run(
         skipped_perms: 0,
         conflicts_total: conflict_count,
         conflicts_skipped: 0,
+        hook_failures: 0,
     };
+
+    let mut groups_with_copy_to_target: HashSet<usize> = HashSet::new();
 
     for change in &changes {
         match change {
@@ -58,16 +63,19 @@ pub fn run(
                 rel_path,
                 abs_src,
                 abs_tgt,
+                group_index,
                 ..
             } if !interactive => {
                 if dry_run {
                     println!("[dry-run] copy {} -> target", rel_path);
                     outcome.copied_to_target += 1;
+                    groups_with_copy_to_target.insert(*group_index);
                 } else {
                     match copy_file(abs_src, abs_tgt) {
                         Ok(()) => {
                             println!("copied {} -> target", rel_path);
                             outcome.copied_to_target += 1;
+                            groups_with_copy_to_target.insert(*group_index);
                         }
                         Err(e) => {
                             eprintln!(
@@ -184,6 +192,7 @@ pub fn run(
                                         println!("resolved: {} (kept source)", rel_path);
                                         outcome.copied_to_target += 1;
                                         outcome.conflicts_skipped += 1;
+                                        groups_with_copy_to_target.insert(*group_index);
                                     }
                                     Err(e) => {
                                         eprintln!("Warning: skipping '{}': {}", rel_path, e);
@@ -228,6 +237,7 @@ pub fn run(
                     rel_path,
                     abs_src,
                     abs_tgt,
+                    group_index,
                     ..
                 } => {
                     if dry_run {
@@ -237,6 +247,7 @@ pub fn run(
                             Ok(()) => {
                                 println!("copied {} -> target", rel_path);
                                 outcome.copied_to_target += 1;
+                                groups_with_copy_to_target.insert(*group_index);
                             }
                             Err(e) => {
                                 eprintln!(
@@ -333,10 +344,19 @@ pub fn run(
             check_permissions_nonroot(config, &mut outcome);
         }
 
+        // Run hooks for groups that had files copied to target
+        for &group_index in &groups_with_copy_to_target {
+            run_hook_for_group(config, group_index, false, &mut outcome);
+        }
+
         // Rebuild state from current filesystem
         update_state(config, state);
         state.save(&config.state_path)?;
         chown_state_file(&config.state_path, &config.config_path);
+    } else {
+        for &group_index in &groups_with_copy_to_target {
+            run_hook_for_group(config, group_index, true, &mut outcome);
+        }
     }
 
     // Print summary
@@ -357,6 +377,9 @@ pub fn run(
     }
     if outcome.skipped_perms > 0 {
         println!("permission skips: {}", outcome.skipped_perms);
+    }
+    if outcome.hook_failures > 0 {
+        println!("hook failures:    {}", outcome.hook_failures);
     }
 
     Ok(())
@@ -623,6 +646,13 @@ fn enforce_permissions_root(config: &ResolvedConfig, _state: &State) -> Result<(
 }
 
 fn apply_chown(path: &Path, owner_spec: &str) -> Result<(), String> {
+    let (uid, gid) = resolve_owner_uid_gid(owner_spec)?;
+    nix::unistd::chown(path, uid, gid).map_err(|e| format!("chown failed: {}", e))
+}
+
+fn resolve_owner_uid_gid(
+    owner_spec: &str,
+) -> Result<(Option<nix::unistd::Uid>, Option<nix::unistd::Gid>), String> {
     let parts: Vec<&str> = owner_spec.split(':').collect();
     if parts.len() > 2 {
         return Err(format!("Invalid owner format '{}'", owner_spec));
@@ -655,7 +685,7 @@ fn apply_chown(path: &Path, owner_spec: &str) -> Result<(), String> {
         None
     };
 
-    nix::unistd::chown(path, uid, gid).map_err(|e| format!("chown failed: {}", e))
+    Ok((uid, gid))
 }
 
 fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome) {
@@ -730,6 +760,101 @@ fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome)
             }
         }
     }
+}
+
+fn run_hook_for_group(
+    config: &ResolvedConfig,
+    group_index: usize,
+    dry_run: bool,
+    outcome: &mut SyncOutcome,
+) {
+    let group = &config.sync_groups[group_index];
+    let hook_cmd = match &group.hook_after {
+        Some(cmd) if !cmd.trim().is_empty() => cmd.trim(),
+        _ => return,
+    };
+
+    if dry_run {
+        println!("[dry-run] would run hook: {}", hook_cmd);
+        return;
+    }
+
+    if !is_root()
+        && let Some(ref owner) = group.owner
+    {
+        eprintln!(
+            "Warning: skipping hook for sync group {} (owner '{}' requires root)",
+            group_index + 1,
+            owner
+        );
+        return;
+    }
+
+    println!("running hook: {}", hook_cmd);
+
+    match execute_hook(hook_cmd, config, group) {
+        Ok(()) => {}
+        Err(e) => {
+            eprintln!("Warning: hook '{}': {}", hook_cmd, e);
+            outcome.hook_failures += 1;
+        }
+    }
+}
+
+fn execute_hook(
+    hook_cmd: &str,
+    config: &ResolvedConfig,
+    group: &crate::config::ResolvedSyncGroup,
+) -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
+
+    let mut cmd = std::process::Command::new("/bin/sh");
+    cmd.arg("-c").arg(hook_cmd);
+
+    let work_dir = if config.config_dir.as_os_str().is_empty() {
+        std::env::current_dir().map_err(|e| format!("Cannot get current directory: {}", e))?
+    } else {
+        config.config_dir.canonicalize().map_err(|e| {
+            format!(
+                "Cannot resolve config directory '{}': {}",
+                config.config_dir.display(),
+                e
+            )
+        })?
+    };
+    cmd.current_dir(&work_dir);
+
+    if is_root() {
+        let (uid, gid) = if let Some(ref owner_spec) = group.owner {
+            resolve_owner_uid_gid(owner_spec)?
+        } else {
+            let metadata = std::fs::metadata(&config.config_path)
+                .map_err(|e| format!("Cannot stat config file: {}", e))?;
+            use std::os::unix::fs::MetadataExt;
+            let uid = nix::unistd::Uid::from_raw(metadata.uid());
+            let gid = nix::unistd::Gid::from_raw(metadata.gid());
+            (Some(uid), Some(gid))
+        };
+
+        if let Some(uid) = uid {
+            cmd.uid(uid.as_raw());
+        }
+        if let Some(gid) = gid {
+            cmd.gid(gid.as_raw());
+        }
+    }
+
+    let status = cmd
+        .status()
+        .map_err(|e| format!("failed to execute: {}", e))?;
+    if !status.success() {
+        if let Some(code) = status.code() {
+            return Err(format!("exited with code {}", code));
+        } else {
+            return Err("terminated by signal".to_string());
+        }
+    }
+    Ok(())
 }
 
 fn eprint_diff(src: &Path, tgt: &Path) {
@@ -818,5 +943,87 @@ mod tests {
     fn test_file_attrs_nonexistent() {
         let path = Path::new("/does/not/exist");
         assert_eq!(file_attrs(path), (0, false, None));
+    }
+
+    #[test]
+    fn test_execute_hook_true() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let config = make_minimal_config(&dir);
+        let group = make_minimal_group_no_owner(&dir);
+        let result = execute_hook("/bin/true", &config, &group);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_execute_hook_false() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let config = make_minimal_config(&dir);
+        let group = make_minimal_group_no_owner(&dir);
+        let result = execute_hook("/bin/false", &config, &group);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("exited with code"));
+    }
+
+    #[test]
+    fn test_execute_hook_nonexistent_command() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let config = make_minimal_config(&dir);
+        let group = make_minimal_group_no_owner(&dir);
+        let result = execute_hook("/nonexistent/command_xyz_123", &config, &group);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_run_hook_skipped_when_nonroot_with_owner() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let config = make_minimal_config(&dir);
+        let mut group = make_minimal_group_no_owner(&dir);
+        group.owner = Some("root:root".to_string());
+        group.hook_after = Some("touch /should/not/be/created".to_string());
+
+        let resolved = ResolvedConfig {
+            sync_groups: vec![group],
+            ..config
+        };
+
+        let mut outcome = SyncOutcome {
+            copied_to_target: 0,
+            copied_to_source: 0,
+            deleted_from_target: 0,
+            deleted_from_source: 0,
+            skipped_perms: 0,
+            conflicts_total: 0,
+            conflicts_skipped: 0,
+            hook_failures: 0,
+        };
+
+        run_hook_for_group(&resolved, 0, false, &mut outcome);
+        assert_eq!(outcome.hook_failures, 0);
+    }
+
+    fn make_minimal_config(dir: &tempfile::TempDir) -> ResolvedConfig {
+        let config_path = dir.path().join("config.toml");
+        std::fs::write(&config_path, "").unwrap();
+        ResolvedConfig {
+            config_dir: dir.path().to_path_buf(),
+            config_path,
+            sync_groups: vec![],
+            state_path: dir.path().join("state"),
+        }
+    }
+
+    fn make_minimal_group_no_owner(dir: &tempfile::TempDir) -> crate::config::ResolvedSyncGroup {
+        let src = dir.path().join("source");
+        let tgt = dir.path().join("target");
+        std::fs::create_dir(&src).ok();
+        std::fs::create_dir(&tgt).ok();
+        crate::config::ResolvedSyncGroup {
+            source_dir: src,
+            target_dir: tgt,
+            globs: vec![],
+            permissions: None,
+            owner: None,
+            hook_after: None,
+        }
     }
 }

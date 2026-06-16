@@ -10,6 +10,7 @@ source = "./etc-files"
 target = "/etc"
 # owner = "root:root"         # optional group default
 # permissions = "644"          # optional group default (octal string)
+# hooks = { after = "systemctl reload nginx" }   # optional: shell command run via /bin/sh after files are copied to target
 globs = [
     "nginx/*.conf",
     { pattern = "ssh/sshd_config", permissions = "600" },

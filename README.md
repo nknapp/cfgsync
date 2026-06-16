@@ -26,11 +26,16 @@ Or download a pre-built binary from the [releases page](https://github.com/nknap
 
 Create a config file, e.g. `myconfig.toml`:
 
- ```toml
+```toml
 [[sync]]
-source = "./source"
-target = "./target"
-globs = ["**/*.conf"]
+source = "./dotfiles"
+target = "~"
+globs = [
+    ".zshrc",
+    ".wezterm.lua",
+    ".config/nvim/**/*",
+    ".config/hypr/**/*",
+]
 ```
 
 Check what would change:
@@ -85,6 +90,7 @@ the config file. Tilde (`~` and `~/path`) is expanded based on the config file o
 | `globs`       | yes      | array  | One or more glob entries defining which files to sync. Cannot be empty.                                 |
 | `permissions` | no       | string | Default octal permissions as a string (e.g. `"644"`, `"0755"`). Applied to all globs unless overridden. |
 | `owner`       | no       | string | Default `user:group` ownership (e.g. `root:root`). Only enforced when running as root.                  |
+| `hooks.after` | no       | string | Shell command run via `/bin/sh` after files are copied from source to target. See [hooks](#hooks) below. |
 
 ### Glob entry formats
 
@@ -106,23 +112,59 @@ globs = ["**/*.conf"]
 
 ### Example
 
+Sync system configuration files to the root filesystem, and dotfiles to your home directory:
+
 ```toml
 [[sync]]
-source = "./dotfiles"
-target = "/etc"
-permissions = "644"
+source = "./global-config"
+target = "/"
 owner = "root:root"
+hooks = { after = "systemctl daemon-reload" }
 globs = [
-    "**/*.conf",
-    "**/*.service",
-    { pattern = "ssh/sshd_config", permissions = "600" },
+    "etc/keyd/**",
+    "etc/systemd/system/**",
+    "usr/lib/systemd/system-sleep/tb-dock-recover.sh",
 ]
 
 [[sync]]
-source = "~/.config/i3"
-target = "/etc/i3"
-globs = ["**/*"]
+source = "./home-config"
+target = "~"
+globs = [
+    ".zshrc",
+    ".wezterm.lua",
+    ".aliases",
+    ".config/hypr/**/*",
+    ".config/nvim/**/*",
+    ".config/waybar/**/*",
+    ".config/mise/**/*",
+    { pattern = ".ssh/config", permissions = "600" },
+]
 ```
+
+### Hooks
+
+You can configure a shell command to run after files are copied from source to target using the `hooks.after`
+field on a sync group. This is useful for restarting or reloading services when their configuration changes.
+
+```toml
+[[sync]]
+source = "./global-config"
+target = "/"
+owner = "root:root"
+globs = ["etc/systemd/system/**"]
+hooks = { after = "systemctl daemon-reload" }
+```
+
+- The command is run via `/bin/sh -c`.
+- It fires **once per sync cycle** (not per file) when at least one file was copied from source to target.
+- It does **not** fire for files copied from target to source.
+- **When running as root**: the command runs as the group's configured `owner` (if set), or falls back to the
+  config file's owner.
+- **When non-root with `owner` set**: the hook is **skipped** with a warning.
+- **When non-root without `owner`**: the hook runs as the current user.
+- **Dry-run mode**: prints `[dry-run] would run hook: <command>` without executing.
+- **Watch mode**: hooks run automatically on every sync cycle, including the initial sync.
+- Hook failures are **non-fatal** — a warning is printed and sync continues.
 
 ## Algorithm
 
@@ -170,7 +212,8 @@ change). If different → `Conflict`.
 3. If `-i` (interactive): prompt user for each conflict. Options: `[s]ource` (keep source copy), `[t]arget` (keep target
    copy), `[x]skip`, `[q]uit` (abort entire sync). Non-conflict changes are also processed in the interactive path.
 4. Enforce permissions and ownership on target files (root) or warn about mismatches (non-root).
-5. Rebuild state by re-scanning the source directory, save to `.cfgsync.state`.
+5. Run `hooks.after` commands for any sync groups that had files copied to target.
+6. Rebuild state by re-scanning the source directory, save to `.cfgsync.state`.
 6. If root, chown the state file to match the config file's owner.
 
 ### Mtime handling
@@ -259,8 +302,8 @@ A sync group whose globs match zero files is valid and produces no changes. It i
 
 ### Dry-run mode
 
-`--dry-run` skips all filesystem changes, state file writes, and permission enforcement. The summary still prints counts
-as if changes had been applied. Conflicts are still detected and would still abort (unless `-i` is used).
+`--dry-run` skips all filesystem changes, state file writes, permission enforcement, and hook execution. The summary still prints counts
+as if changes had been applied, and hooks are shown as `[dry-run] would run hook: <command>`. Conflicts are still detected and would still abort (unless `-i` is used).
 
 ### Interactive mode
 

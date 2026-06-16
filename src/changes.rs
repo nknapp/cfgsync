@@ -397,6 +397,7 @@ mod tests {
                     globs: vec![make_glob("**/*")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 })
                 .collect(),
             state_path: state_path.to_path_buf(),
@@ -772,6 +773,7 @@ mod tests {
                     globs: vec![make_glob("**/*")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
                     source_dir: src,
@@ -779,6 +781,7 @@ mod tests {
                     globs: vec![make_glob("**/*")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
             ],
             state_path: dir.path().join("state"),
@@ -820,6 +823,7 @@ mod tests {
                     globs: vec![make_glob("file1.*")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
                     source_dir: src2,
@@ -827,6 +831,7 @@ mod tests {
                     globs: vec![make_glob("file2.*")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
             ],
             state_path: dir.path().join("state"),
@@ -867,6 +872,7 @@ mod tests {
                     globs: vec![make_glob("**/*.txt")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
                     source_dir: src.clone(),
@@ -874,6 +880,7 @@ mod tests {
                     globs: vec![make_glob("*.nothing")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
             ],
             state_path: dir.path().join("state"),
@@ -910,6 +917,7 @@ mod tests {
                     globs: vec![make_glob("*.conf")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
                     source_dir: src.clone(),
@@ -917,6 +925,7 @@ mod tests {
                     globs: vec![make_glob("*.txt")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
             ],
             state_path: dir.path().join("state"),
@@ -981,6 +990,7 @@ mod tests {
                     globs: vec![make_glob("**/*")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
                     source_dir: src2,
@@ -988,6 +998,7 @@ mod tests {
                     globs: vec![make_glob("**/*")],
                     permissions: None,
                     owner: None,
+                    hook_after: None,
                 },
             ],
             state_path: dir.path().join("state"),
