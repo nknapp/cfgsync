@@ -21,14 +21,12 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            primary: x86_64-unknown-linux-gnu
-            cross_compile: aarch64-unknown-linux-gnu
-            linux_cross_compile_deps: true
+            primary: x86_64-unknown-linux-musl
+            cross_compile: aarch64-unknown-linux-musl
             e2e_test_command: "./e2e-tests/run-docker.sh"
           - os: macos-latest
             primary: aarch64-apple-darwin
             cross_compile: x86_64-apple-darwin
-            linux_cross_compile_deps: false
             e2e_test_command: "./e2e-tests/run.sh"
     runs-on: ${{ matrix.os }}
     env:
@@ -40,8 +38,6 @@ jobs:
         with:
           ref: ${{ inputs.git_ref }}
       - uses: ./.github/actions/setup
-        with:
-          linux-cross-compile-deps: ${{ matrix.linux_cross_compile_deps }}
       - run: rustup target add "${PRIMARY}" "${CROSS_COMPILE}"
       - run: cargo build --release --target "${PRIMARY}"
       - run: CFGSYNC="target/${PRIMARY}/release/cfgsync" "${E2E_TEST_COMMAND}"

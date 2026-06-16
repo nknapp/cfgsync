@@ -1,6 +1,7 @@
 import NotFound = Deno.errors.NotFound;
 
 const possibleCfgsyncExecutables = [
+  "target/x86_64-unknown-linux-musl/release/cfgsync",
   "target/debug/cfgsync",
   "target/release/cfgsync",
 ] as const;

@@ -17,14 +17,14 @@ Always run from the workspace root (`/home/nils/projects/cfgsync`):
 
 | Purpose    | Command                       |
 |------------|-------------------------------|
-| Build      | `cargo build --release`       |
+| Build      | `cargo build --release --target x86_64-unknown-linux-musl` |
 | Test       | `cargo test`                  |
 | Format     | `cargo fmt`                   |
 | Lint       | `cargo clippy -- -D warnings` |
 | CI (check) | `mise run ci-check`           |
 | Dev (all)  | `mise run all-local`          |
 
-Rust toolchain: `1.95` (managed by mise).
+Rust toolchain: `1.96.0` (managed by mise). The `x86_64-unknown-linux-musl` target is required for static builds (`rustup target add x86_64-unknown-linux-musl`).
 
 ## Verification (mandatory)
 

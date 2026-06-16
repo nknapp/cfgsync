@@ -15,7 +15,7 @@ run = [
     "cargo clippy -- -D warnings",
     "actionlint",
     "cargo test",
-    "cargo build --release",
+    "cargo build --release --target x86_64-unknown-linux-musl",
     "cd e2e-tests && deno fmt",
     "cd e2e-tests && deno lint",
     "cd e2e-tests && ./run-docker.sh",
@@ -42,8 +42,8 @@ run = [
 
 [tasks.update-schema]
 run = [
-    "cargo build --release",
+    "cargo build --release --target x86_64-unknown-linux-musl",
     "mkdir -p docs",
-    "target/release/cfgsync schema --json >docs/config-schema.json",
-    "target/release/cfgsync schema  >docs/example.toml"
+    "target/x86_64-unknown-linux-musl/release/cfgsync schema --json >docs/config-schema.json",
+    "target/x86_64-unknown-linux-musl/release/cfgsync schema  >docs/example.toml"
 ]
