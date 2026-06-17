@@ -1,8 +1,24 @@
 # Changelog
 
-## [v0.4.2](https://github.com/nknapp/cfgsync/compare/v0.4.1...7999aa5a4e5d20ff60652a0aeca93880ac025204) (2026-06-18)
+## [v0.5.0](https://github.com/nknapp/cfgsync/compare/v0.4.2...1161de0ff603571e183701c250921a52d143ff77) (2026-06-18)
 
-### Features
+### ⚠ BREAKING CHANGE
+
+* groups with `owner` configured now always trigger a
+security confirmation (or warning in non-interactive mode), even when
+the config file owner has write access to the target directory.
+
+
+### Fixes
+
+* groups with owner configured always require security confirmation
+([1161de0](https://github.com/nknapp/cfgsync/commit/1161de0ff603571e183701c250921a52d143ff77))
+* tmp
+([36663fe](https://github.com/nknapp/cfgsync/commit/36663fe5152ed6a77b50696a65c85c3ad17e6357))
+
+### [v0.4.2](https://github.com/nknapp/cfgsync/compare/v0.4.1...v0.4.2) (2026-06-17)
+
+#### Features
 
 * security confirmation for privileged write operations
 ([7999aa5](https://github.com/nknapp/cfgsync/commit/7999aa5a4e5d20ff60652a0aeca93880ac025204))
