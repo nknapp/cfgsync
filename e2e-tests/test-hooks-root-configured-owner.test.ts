@@ -1,12 +1,10 @@
 import { assertEquals, deindent, runningOutsideDocker } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
-import { getTestDir } from "./lib/setupTestDir.ts";
 
 Deno.test({
   name: "hook-runs-as-configured-owner",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testDir = getTestDir(t);
   const testbed = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
@@ -23,13 +21,6 @@ Deno.test({
       "user:user | 0755  | target/",
     ],
   });
-
-  const configPath = new URL("config.toml", testDir);
-  await new Deno.Command("sudo", {
-    args: ["chown", "root:root", configPath.pathname],
-    stdout: "null",
-    stderr: "null",
-  }).output();
 
   await testbed.run({ args: ["--config", "config.toml", "sync"], sudo: true });
 

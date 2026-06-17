@@ -69,14 +69,35 @@ pub fn run(
                 group_index,
                 ..
             } if !interactive => {
-                if !bypass && privilege_escalation(config, abs_tgt, false) {
-                    print_security_notice(interactive, &mut security_notice_printed);
-                    eprintln!(
-                        "Security warning: skipping '{}' (privileged write, re-run with -i to confirm)",
-                        rel_path
-                    );
-                    outcome.skipped_perms += 1;
-                    continue;
+                if !bypass {
+                    match security_action(config, *group_index, abs_tgt, false) {
+                        SecurityAction::ErrorSkip => {
+                            eprintln!(
+                                "Error: cannot copy '{}' to target (config file owner lacks write permission)",
+                                rel_path
+                            );
+                            outcome.skipped_perms += 1;
+                            continue;
+                        }
+                        SecurityAction::WarnOrPrompt => {
+                            eprintln!(
+                                "Security warning: skipping '{}' (privileged write, re-run with -i to confirm)",
+                                rel_path
+                            );
+                            eprintln!(
+                                "Security notice: running as root with a config file not owned by root."
+                            );
+                            eprintln!(
+                                "Some operations require privileges the config file owner does not have."
+                            );
+                            eprintln!(
+                                "Re-run with -i/--interactive to confirm each privileged operation, or use a root-owned config."
+                            );
+                            outcome.skipped_perms += 1;
+                            continue;
+                        }
+                        SecurityAction::None => {}
+                    }
                 }
                 if dry_run {
                     println!("[dry-run] copy {} -> target", rel_path);
@@ -134,14 +155,35 @@ pub fn run(
                 group_index,
                 ..
             } if !interactive => {
-                if !bypass && privilege_escalation(config, abs_tgt, true) {
-                    print_security_notice(interactive, &mut security_notice_printed);
-                    eprintln!(
-                        "Security warning: skipping '{}' (privileged write, re-run with -i to confirm)",
-                        rel_path
-                    );
-                    outcome.skipped_perms += 1;
-                    continue;
+                if !bypass {
+                    match security_action(config, *group_index, abs_tgt, true) {
+                        SecurityAction::ErrorSkip => {
+                            eprintln!(
+                                "Error: cannot delete '{}' from target (config file owner lacks write permission)",
+                                rel_path
+                            );
+                            outcome.skipped_perms += 1;
+                            continue;
+                        }
+                        SecurityAction::WarnOrPrompt => {
+                            eprintln!(
+                                "Security warning: skipping '{}' (privileged write, re-run with -i to confirm)",
+                                rel_path
+                            );
+                            eprintln!(
+                                "Security notice: running as root with a config file not owned by root."
+                            );
+                            eprintln!(
+                                "Some operations require privileges the config file owner does not have."
+                            );
+                            eprintln!(
+                                "Re-run with -i/--interactive to confirm each privileged operation, or use a root-owned config."
+                            );
+                            outcome.skipped_perms += 1;
+                            continue;
+                        }
+                        SecurityAction::None => {}
+                    }
                 }
                 if dry_run {
                     println!("[dry-run] delete target/{}", rel_path);
@@ -264,16 +306,37 @@ pub fn run(
                     group_index,
                     ..
                 } => {
-                    if !bypass && privilege_escalation(config, abs_tgt, false) {
-                        print_security_notice(true, &mut security_notice_printed);
-                        match security_prompt(rel_path, abs_src, abs_tgt) {
-                            Ok(true) => {}
-                            Ok(false) => {
-                                eprintln!("  skipped (security): {}", rel_path);
+                    if !bypass {
+                        match security_action(config, *group_index, abs_tgt, false) {
+                            SecurityAction::ErrorSkip => {
+                                eprintln!(
+                                    "Error: cannot copy '{}' to target (config file owner lacks write permission)",
+                                    rel_path
+                                );
                                 outcome.skipped_perms += 1;
                                 continue;
                             }
-                            Err(e) => return Err(e),
+                            SecurityAction::WarnOrPrompt => {
+                                if !security_notice_printed {
+                                    eprintln!(
+                                        "Security notice: running as root with a config file not owned by root."
+                                    );
+                                    eprintln!(
+                                        "Some operations require privileges the config file owner does not have."
+                                    );
+                                    security_notice_printed = true;
+                                }
+                                match security_prompt(rel_path, abs_src, abs_tgt) {
+                                    Ok(true) => {}
+                                    Ok(false) => {
+                                        eprintln!("  skipped (security): {}", rel_path);
+                                        outcome.skipped_perms += 1;
+                                        continue;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                            SecurityAction::None => {}
                         }
                     }
                     if dry_run {
@@ -329,17 +392,39 @@ pub fn run(
                     group_index,
                     ..
                 } => {
-                    if !bypass && privilege_escalation(config, abs_tgt, true) {
-                        print_security_notice(true, &mut security_notice_printed);
-                        let abs_src = config.sync_groups[*group_index].source_dir.join(rel_path);
-                        match security_prompt(rel_path, &abs_src, abs_tgt) {
-                            Ok(true) => {}
-                            Ok(false) => {
-                                eprintln!("  skipped (security): {}", rel_path);
+                    if !bypass {
+                        match security_action(config, *group_index, abs_tgt, true) {
+                            SecurityAction::ErrorSkip => {
+                                eprintln!(
+                                    "Error: cannot delete '{}' from target (config file owner lacks write permission)",
+                                    rel_path
+                                );
                                 outcome.skipped_perms += 1;
                                 continue;
                             }
-                            Err(e) => return Err(e),
+                            SecurityAction::WarnOrPrompt => {
+                                if !security_notice_printed {
+                                    eprintln!(
+                                        "Security notice: running as root with a config file not owned by root."
+                                    );
+                                    eprintln!(
+                                        "Some operations require privileges the config file owner does not have."
+                                    );
+                                    security_notice_printed = true;
+                                }
+                                let abs_src =
+                                    config.sync_groups[*group_index].source_dir.join(rel_path);
+                                match security_prompt(rel_path, &abs_src, abs_tgt) {
+                                    Ok(true) => {}
+                                    Ok(false) => {
+                                        eprintln!("  skipped (security): {}", rel_path);
+                                        outcome.skipped_perms += 1;
+                                        continue;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                            SecurityAction::None => {}
                         }
                     }
                     if dry_run {
@@ -848,7 +933,16 @@ fn run_hook_for_group(
     let security = !bypass && hook_security_needed(config, group_index);
 
     if security {
-        print_security_notice(interactive, security_notice_printed);
+        if !*security_notice_printed {
+            eprintln!("Security notice: running as root with a config file not owned by root.");
+            eprintln!("Some operations require privileges the config file owner does not have.");
+            if !interactive {
+                eprintln!(
+                    "Re-run with -i/--interactive to confirm each privileged operation, or use a root-owned config."
+                );
+            }
+            *security_notice_printed = true;
+        }
         if interactive {
             match security_prompt_hook(hook_cmd) {
                 Ok(true) => {}
@@ -1015,20 +1109,6 @@ fn config_only_writable_by_owner(config_path: &Path) -> bool {
     }
 }
 
-fn print_security_notice(interactive: bool, printed: &mut bool) {
-    if *printed {
-        return;
-    }
-    *printed = true;
-    eprintln!("Security notice: running as root with a config file not owned by root.");
-    eprintln!("Some operations require privileges the config file owner does not have.");
-    if !interactive {
-        eprintln!(
-            "Re-run with -i/--interactive to confirm each privileged operation, or use a root-owned config."
-        );
-    }
-}
-
 fn security_bypass(config: &ResolvedConfig) -> bool {
     if !is_root() {
         return true;
@@ -1127,17 +1207,37 @@ fn hook_security_needed(config: &ResolvedConfig, group_index: usize) -> bool {
     false
 }
 
-fn privilege_escalation(config: &ResolvedConfig, target_path: &Path, is_delete: bool) -> bool {
+enum SecurityAction {
+    None,
+    ErrorSkip,
+    WarnOrPrompt,
+}
+
+fn security_action(
+    config: &ResolvedConfig,
+    group_index: usize,
+    target_path: &Path,
+    is_delete: bool,
+) -> SecurityAction {
     let config_path = &config.config_path;
 
-    if config_owned_by_root(config_path) {
-        return true;
-    }
+    let group = &config.sync_groups[group_index];
+    let has_owner = group.owner.is_some();
 
-    if is_delete {
+    let needs_privilege = if is_delete {
         !config_owner_can_delete(config_path, target_path)
     } else {
         !config_owner_can_touch(config_path, target_path)
+    };
+
+    if !needs_privilege {
+        return SecurityAction::None;
+    }
+
+    if has_owner {
+        SecurityAction::WarnOrPrompt
+    } else {
+        SecurityAction::ErrorSkip
     }
 }
 

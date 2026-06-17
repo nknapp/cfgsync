@@ -69,6 +69,12 @@ async function createDirOrFile(line: string, testDir: URL, configToml: string) {
 
     if (Deno.uid() === 0) {
       await Deno.chown(realPath, uid, gid);
+    } else if (uid !== Deno.uid() || gid !== Deno.gid()) {
+      await new Deno.Command("sudo", {
+        args: ["chown", `${uid}:${gid}`, realPath.pathname],
+        stdout: "null",
+        stderr: "null",
+      }).output();
     }
   }
 }
@@ -130,7 +136,15 @@ export async function setupTestDir(
   try {
     await Deno.remove(testDir, { recursive: true });
   } catch (e) {
-    if (!(e instanceof Deno.errors.NotFound)) throw e;
+    if (e instanceof Deno.errors.PermissionDenied) {
+      await new Deno.Command("sudo", {
+        args: ["rm", "-rf", testDir.pathname],
+        stdout: "null",
+        stderr: "null",
+      }).output();
+    } else if (!(e instanceof Deno.errors.NotFound)) {
+      throw e;
+    }
   }
   await Deno.mkdir(testDir, { recursive: true });
 
