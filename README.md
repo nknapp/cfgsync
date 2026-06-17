@@ -208,13 +208,16 @@ change). If different → `Conflict`.
 ### Sync execution flow
 
 1. If conflicts exist and `-i` is not passed, print them and abort.
-2. Execute copy/delete operations. Individual failures are non-fatal (warnings) — sync continues.
-3. If `-i` (interactive): prompt user for each conflict. Options: `[s]ource` (keep source copy), `[t]arget` (keep target
+2. **Security check**: If running as root with a non-root-owned config file and a root-owned target directory, print a
+   notice and require per-operation confirmation (see [Security confirmation](#security-confirmation) above).
+3. Execute copy/delete operations. Individual failures are non-fatal (warnings) — sync continues.
+4. If `-i` (interactive): prompt user for each conflict. Options: `[s]ource` (keep source copy), `[t]arget` (keep target
    copy), `[x]skip`, `[q]uit` (abort entire sync). Non-conflict changes are also processed in the interactive path.
-4. Enforce permissions and ownership on target files (root) or warn about mismatches (non-root).
-5. Run `hooks.after` commands for any sync groups that had files copied to target.
-6. Rebuild state by re-scanning the source directory, save to `.cfgsync.state`.
-6. If root, chown the state file to match the config file's owner.
+5. Enforce permissions and ownership on target files (root) or warn about mismatches (non-root).
+6. Run `hooks.after` commands for any sync groups that had files copied to target. If the security check is active,
+   each hook also requires confirmation.
+7. Rebuild state by re-scanning the source directory, save to `.cfgsync.state`.
+8. If root, chown the state file to match the config file's owner.
 
 ### Mtime handling
 
@@ -314,6 +317,44 @@ In interactive mode (`-i`):
 - Pressing `q` aborts the entire sync immediately (remaining conflicts are not shown).
 - Pressing `x` (or any other unrecognized input) skips the conflict and decrements the remaining conflict count.
 - Non-conflict changes (copy, delete) are also processed during the interactive loop, with no user prompt.
+
+### Security confirmation
+
+When cfgsync runs as **root** with a config file that does **not** belong to root (or is group/other-writable even if
+root-owned), and the sync target directory is owned by root, each `CopyToTarget` and `DeleteTarget` operation requires
+explicit user confirmation. This prevents a non-root user who can write the config file from tricking root into
+syncing files into root-owned system directories.
+
+The prompt shows a unified diff of the change and offers `[y]es [n]o [q]uit`:
+
+```
+=== Security: syncing to root-owned target: etc/nginx/nginx.conf ===
+@@ -1,5 +1,5 @@
+-(file missing)
++server { ... }
+...
+
+[y]es [n]o [q]uit:
+```
+
+- `y` — proceed with this operation.
+- `n` — skip this operation (no changes made).
+- `q` — abort the entire sync.
+
+The same rules apply to `hooks.after` commands — they also require confirmation when the target is root-owned:
+
+```
+=== Security: running hook on root-owned target ===
+  hook: systemctl reload nginx
+
+[y]es [n]o [q]uit:
+```
+
+The security prompt is **bypassed** only when the config file is:
+- Owned by root (uid 0), **and**
+- Not writable by group or other (mode `0o022` bits clear).
+
+This means a config file like `root:root 0755` skips the prompt, but `root:root 0664` (group-writable) still triggers it.
 
 ### Permissions format
 

@@ -57,6 +57,9 @@ pub fn run(
 
     let mut groups_with_copy_to_target: HashSet<usize> = HashSet::new();
 
+    let bypass = security_bypass(config);
+    let mut security_notice_printed = false;
+
     for change in &changes {
         match change {
             Change::CopyToTarget {
@@ -66,6 +69,15 @@ pub fn run(
                 group_index,
                 ..
             } if !interactive => {
+                if !bypass && privilege_escalation(config, abs_tgt, false) {
+                    print_security_notice(interactive, &mut security_notice_printed);
+                    eprintln!(
+                        "Security warning: skipping '{}' (privileged write, re-run with -i to confirm)",
+                        rel_path
+                    );
+                    outcome.skipped_perms += 1;
+                    continue;
+                }
                 if dry_run {
                     println!("[dry-run] copy {} -> target", rel_path);
                     outcome.copied_to_target += 1;
@@ -117,8 +129,20 @@ pub fn run(
             }
 
             Change::DeleteTarget {
-                rel_path, abs_tgt, ..
+                rel_path,
+                abs_tgt,
+                group_index,
+                ..
             } if !interactive => {
+                if !bypass && privilege_escalation(config, abs_tgt, true) {
+                    print_security_notice(interactive, &mut security_notice_printed);
+                    eprintln!(
+                        "Security warning: skipping '{}' (privileged write, re-run with -i to confirm)",
+                        rel_path
+                    );
+                    outcome.skipped_perms += 1;
+                    continue;
+                }
                 if dry_run {
                     println!("[dry-run] delete target/{}", rel_path);
                 } else {
@@ -240,6 +264,18 @@ pub fn run(
                     group_index,
                     ..
                 } => {
+                    if !bypass && privilege_escalation(config, abs_tgt, false) {
+                        print_security_notice(true, &mut security_notice_printed);
+                        match security_prompt(rel_path, abs_src, abs_tgt) {
+                            Ok(true) => {}
+                            Ok(false) => {
+                                eprintln!("  skipped (security): {}", rel_path);
+                                outcome.skipped_perms += 1;
+                                continue;
+                            }
+                            Err(e) => return Err(e),
+                        }
+                    }
                     if dry_run {
                         println!("[dry-run] copy {} -> target", rel_path);
                     } else {
@@ -288,8 +324,24 @@ pub fn run(
                 }
 
                 Change::DeleteTarget {
-                    rel_path, abs_tgt, ..
+                    rel_path,
+                    abs_tgt,
+                    group_index,
+                    ..
                 } => {
+                    if !bypass && privilege_escalation(config, abs_tgt, true) {
+                        print_security_notice(true, &mut security_notice_printed);
+                        let abs_src = config.sync_groups[*group_index].source_dir.join(rel_path);
+                        match security_prompt(rel_path, &abs_src, abs_tgt) {
+                            Ok(true) => {}
+                            Ok(false) => {
+                                eprintln!("  skipped (security): {}", rel_path);
+                                outcome.skipped_perms += 1;
+                                continue;
+                            }
+                            Err(e) => return Err(e),
+                        }
+                    }
                     if dry_run {
                         println!("[dry-run] delete target/{}", rel_path);
                     } else {
@@ -346,7 +398,15 @@ pub fn run(
 
         // Run hooks for groups that had files copied to target
         for &group_index in &groups_with_copy_to_target {
-            run_hook_for_group(config, group_index, false, &mut outcome);
+            run_hook_for_group(
+                config,
+                group_index,
+                false,
+                &mut outcome,
+                bypass,
+                interactive,
+                &mut security_notice_printed,
+            )?;
         }
 
         // Rebuild state from current filesystem
@@ -355,7 +415,15 @@ pub fn run(
         chown_state_file(&config.state_path, &config.config_path);
     } else {
         for &group_index in &groups_with_copy_to_target {
-            run_hook_for_group(config, group_index, true, &mut outcome);
+            run_hook_for_group(
+                config,
+                group_index,
+                true,
+                &mut outcome,
+                bypass,
+                interactive,
+                &mut security_notice_printed,
+            )?;
         }
     }
 
@@ -767,16 +835,43 @@ fn run_hook_for_group(
     group_index: usize,
     dry_run: bool,
     outcome: &mut SyncOutcome,
-) {
+    bypass: bool,
+    interactive: bool,
+    security_notice_printed: &mut bool,
+) -> Result<(), String> {
     let group = &config.sync_groups[group_index];
     let hook_cmd = match &group.hook_after {
         Some(cmd) if !cmd.trim().is_empty() => cmd.trim(),
-        _ => return,
+        _ => return Ok(()),
     };
+
+    let security = !bypass && hook_security_needed(config, group_index);
+
+    if security {
+        print_security_notice(interactive, security_notice_printed);
+        if interactive {
+            match security_prompt_hook(hook_cmd) {
+                Ok(true) => {}
+                Ok(false) => {
+                    eprintln!("  skipped hook (security): {}", hook_cmd);
+                    outcome.skipped_perms += 1;
+                    return Ok(());
+                }
+                Err(e) => return Err(e),
+            }
+        } else {
+            eprintln!(
+                "Security warning: skipping hook '{}' (privileged hook, re-run with -i to confirm)",
+                hook_cmd
+            );
+            outcome.skipped_perms += 1;
+            return Ok(());
+        }
+    }
 
     if dry_run {
         println!("[dry-run] would run hook: {}", hook_cmd);
-        return;
+        return Ok(());
     }
 
     if !is_root()
@@ -787,7 +882,7 @@ fn run_hook_for_group(
             group_index + 1,
             owner
         );
-        return;
+        return Ok(());
     }
 
     println!("running hook: {}", hook_cmd);
@@ -799,6 +894,8 @@ fn run_hook_for_group(
             outcome.hook_failures += 1;
         }
     }
+
+    Ok(())
 }
 
 fn execute_hook(
@@ -902,6 +999,194 @@ fn prompt_user(_src: &Path, _tgt: &Path) -> Result<String, String> {
     Ok(input.trim().to_lowercase())
 }
 
+fn config_owned_by_root(config_path: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match std::fs::metadata(config_path) {
+        Ok(m) => m.uid() == 0,
+        Err(_) => false,
+    }
+}
+
+fn config_only_writable_by_owner(config_path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    match std::fs::metadata(config_path) {
+        Ok(m) => m.permissions().mode() & 0o022 == 0,
+        Err(_) => false,
+    }
+}
+
+fn print_security_notice(interactive: bool, printed: &mut bool) {
+    if *printed {
+        return;
+    }
+    *printed = true;
+    eprintln!("Security notice: running as root with a config file not owned by root.");
+    eprintln!("Some operations require privileges the config file owner does not have.");
+    if !interactive {
+        eprintln!(
+            "Re-run with -i/--interactive to confirm each privileged operation, or use a root-owned config."
+        );
+    }
+}
+
+fn security_bypass(config: &ResolvedConfig) -> bool {
+    if !is_root() {
+        return true;
+    }
+    config_owned_by_root(&config.config_path) && config_only_writable_by_owner(&config.config_path)
+}
+
+fn config_file_uid(config_path: &Path) -> u32 {
+    use std::os::unix::fs::MetadataExt;
+    match std::fs::metadata(config_path) {
+        Ok(m) => m.uid(),
+        Err(_) => 0,
+    }
+}
+
+fn can_write(config_uid: u32, config_gid: u32, path_uid: u32, path_gid: u32, mode: u32) -> bool {
+    if path_uid == config_uid {
+        (mode & 0o200) != 0
+    } else if path_gid == config_gid {
+        (mode & 0o020) != 0
+    } else {
+        (mode & 0o002) != 0
+    }
+}
+
+fn config_owner_can_touch(config_path: &Path, target_path: &Path) -> bool {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let config_meta = match std::fs::metadata(config_path) {
+        Ok(m) => m,
+        Err(_) => return false,
+    };
+    let config_uid = config_meta.uid();
+    let config_gid = config_meta.gid();
+
+    if let Some(parent) = target_path.parent()
+        && let Ok(parent_meta) = std::fs::metadata(parent)
+        && !can_write(
+            config_uid,
+            config_gid,
+            parent_meta.uid(),
+            parent_meta.gid(),
+            parent_meta.permissions().mode(),
+        )
+    {
+        return false;
+    }
+
+    if let Ok(file_meta) = std::fs::metadata(target_path) {
+        can_write(
+            config_uid,
+            config_gid,
+            file_meta.uid(),
+            file_meta.gid(),
+            file_meta.permissions().mode(),
+        )
+    } else {
+        true
+    }
+}
+
+fn config_owner_can_delete(config_path: &Path, target_path: &Path) -> bool {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let config_meta = match std::fs::metadata(config_path) {
+        Ok(m) => m,
+        Err(_) => return false,
+    };
+    let config_uid = config_meta.uid();
+    let config_gid = config_meta.gid();
+
+    if let Some(parent) = target_path.parent()
+        && let Ok(parent_meta) = std::fs::metadata(parent)
+    {
+        return can_write(
+            config_uid,
+            config_gid,
+            parent_meta.uid(),
+            parent_meta.gid(),
+            parent_meta.permissions().mode(),
+        );
+    }
+    false
+}
+
+fn hook_security_needed(config: &ResolvedConfig, group_index: usize) -> bool {
+    let group = &config.sync_groups[group_index];
+    let Some(ref owner_spec) = group.owner else {
+        return false;
+    };
+
+    let config_uid = config_file_uid(&config.config_path);
+    if let Ok((uid, _)) = resolve_owner_uid_gid(owner_spec)
+        && let Some(uid) = uid
+    {
+        return uid.as_raw() != config_uid;
+    }
+    false
+}
+
+fn privilege_escalation(config: &ResolvedConfig, target_path: &Path, is_delete: bool) -> bool {
+    let config_path = &config.config_path;
+
+    if config_owned_by_root(config_path) {
+        return true;
+    }
+
+    if is_delete {
+        !config_owner_can_delete(config_path, target_path)
+    } else {
+        !config_owner_can_touch(config_path, target_path)
+    }
+}
+
+fn security_prompt(rel_path: &str, abs_src: &Path, abs_tgt: &Path) -> Result<bool, String> {
+    use std::io::Write;
+
+    eprintln!("=== Security: privileged write: {} ===", rel_path);
+    eprint_diff(abs_src, abs_tgt);
+
+    eprint!("\n[y]es [n]o [q]uit: ");
+    std::io::stderr()
+        .flush()
+        .map_err(|e| format!("flush: {}", e))?;
+
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| format!("read: {}", e))?;
+
+    match input.trim().to_lowercase().as_str() {
+        "y" => Ok(true),
+        "q" => Err("Aborted by user due to security confirmation.".to_string()),
+        _ => Ok(false),
+    }
+}
+
+fn security_prompt_hook(hook_cmd: &str) -> Result<bool, String> {
+    use std::io::Write;
+
+    eprintln!("=== Security: privileged hook execution ===");
+    eprintln!("  hook: {}", hook_cmd);
+
+    eprint!("\n[y]es [n]o [q]uit: ");
+    std::io::stderr()
+        .flush()
+        .map_err(|e| format!("flush: {}", e))?;
+
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| format!("read: {}", e))?;
+
+    match input.trim().to_lowercase().as_str() {
+        "y" => Ok(true),
+        "q" => Err("Aborted by user due to security confirmation.".to_string()),
+        _ => Ok(false),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -997,7 +1282,7 @@ mod tests {
             hook_failures: 0,
         };
 
-        run_hook_for_group(&resolved, 0, false, &mut outcome);
+        let _ = run_hook_for_group(&resolved, 0, false, &mut outcome, true, false, &mut false);
         assert_eq!(outcome.hook_failures, 0);
     }
 

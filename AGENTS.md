@@ -3,7 +3,7 @@
 ## Project identity
 
 - **Name**: `cfgsync` (crate name)
-- **Version**: `0.4.0`
+- **Version**: `0.4.1`
 - **Rust edition**: 2024
 - **Description**: Bidirectional config file sync tool. Keeps files in sync between a source directory (e.g.
   version-controlled dotfiles) and a target directory (e.g. `/etc`) using mtime-based state tracking. Supports conflict
@@ -65,9 +65,7 @@ schema_doc.toml  LLM-readable config reference, embedded via include_str!.
 
 - **`Change`** (enum): `CopyToTarget`, `CopyToSource`, `Conflict`, `DeleteTarget`, `DeleteSource`, `Cleanup`
     - `CopyToTarget`/`CopyToSource` carry `abs_src` and `abs_tgt` paths
-    - `Conflict` only carries `rel_path` (no absolute paths — diffs can't be shown)
-    - `DeleteTarget` means: delete from **target** (file gone from source)
-    - `DeleteSource` means: delete from **source** (file gone from target)
+    - `Conflict` does NOT carry `abs_src`/`abs_tgt` (though it now has them). `DeleteTarget` means: delete from **target** (file gone from source). `DeleteSource` means: delete from **source** (file gone from target). Each variant carries `group_index`. `CopyToTarget` also carries `group_index` for hook triggering.
 - **`ResolvedConfig`**: `config_dir`, `source_dir`, `target_dir`, `filters`, `state_path`
 - **`ResolvedFilter`**: `glob` (string), `pattern` (compiled glob `Pattern`), `permissions` (optional `u32` octal),
   `owner` (optional `"user:group"`)
@@ -112,12 +110,14 @@ cargo build --release
 The binary is auto-discovered from `target/release/` or `target/debug/`. Override with the `CFGSYNC` env var. Additional
 arguments are forwarded to `deno test`.
 
-Test files (28 total):
+Test files (34 total):
 `basic-sync-to-target`, `basic-sync-to-source`, `conflict-detection`, `delete-from-target`, `delete-from-source`,
 `permission-warning` (non-root), `unchanged-skip`, `chown`, `copy-to-source-owner`, `diff-conflict`,
 `identical-untracked`, `ignore-non-matching`, `multi-group-independent`, `multi-group-overlap`, `multi-group-owner`,
 `multi-group-per-glob`, `per-glob-no-group-defaults`, `relative-paths`, `schema-json`, `status-short`, `sync-dry-run`,
-`hooks`, `hooks-nonroot-owner`, `hooks-dry-run`, `hooks-watch`, `hooks-unchanged`, `hooks-not-run-on-copy-to-source`.
+`hooks`, `hooks-nonroot-owner`, `hooks-dry-run`, `hooks-watch`, `hooks-unchanged`, `hooks-not-run-on-copy-to-source`,
+`security-root-target-confirm` (7 tests: confirm yes/no/quit, not-triggered-by-root-config, triggered-by-group-writable,
+not-triggered-non-root, hook confirm yes/no/quit).
 
 **Rule**: For every new feature, an e2e test must be added. The e2e test framework should not be changed without good
 reason.
@@ -172,6 +172,11 @@ target_mtime = 1716634200
   target. Runs once per sync cycle (not per file). When running as root, switches to the group's configured owner (or
   config file owner if no owner set). When non-root with owner set, hook is skipped with a warning. Dry-run prints
   `[dry-run] would run hook: ...` without executing. Hook failures are non-fatal (warnings).
+- **Security confirmation**: When running as root with a config file not owned by root (or group/other-writable
+  even if root-owned), and the target directory is root-owned, each `CopyToTarget` and `DeleteTarget` operation
+  as well as each `hooks.after` execution requires interactive confirmation (`[y]es [n]o [q]uit`). The file operations
+  show a unified diff before prompting; hooks show the command. Bypassed only when the config is root-owned AND not
+  group/other-writable (`mode & 0o022 == 0`).
 
 ## Resources
 
