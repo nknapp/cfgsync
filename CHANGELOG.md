@@ -1,6 +1,20 @@
 # Changelog
 
-## [v0.4.0](https://github.com/nknapp/cfgsync/compare/v0.3.6...4b0741e68acfd5f6ef2c86f57f806d2978be4c7f) (2026-06-12)
+## [v0.4.1](https://github.com/nknapp/cfgsync/compare/v0.4.0...0007d4ddac1ea8780b02426ed7740c58fd34a3f8) (2026-06-17)
+
+### Features
+
+* build static executables on Linux
+([cf008dc](https://github.com/nknapp/cfgsync/commit/cf008dcc2238eb316ee112cd818306f4616cf5a9))
+* add "sync.hooks.after" as config option
+([c368f12](https://github.com/nknapp/cfgsync/commit/c368f129506dba24dde9f64c65bbd76b781e063f))
+
+### Fixes
+
+* restore ARM64 musl cross-compilation deps and fix echo -n portability
+([0007d4d](https://github.com/nknapp/cfgsync/commit/0007d4ddac1ea8780b02426ed7740c58fd34a3f8))
+
+## [v0.4.0](https://github.com/nknapp/cfgsync/compare/v0.3.6...v0.4.0) (2026-06-12)
 
 ### Features
 
