@@ -12,7 +12,7 @@ Deno.test("hooks-watch-mode", async (t) => {
       [[sync]]
       source = "./source"
       target = "./target"
-      hooks = { after = "echo -n x >> ./target/hook-ran" }
+      hooks = { after = "printf x >> ./target/hook-ran" }
       globs = ["**/*.txt"]
     `,
     files: [
