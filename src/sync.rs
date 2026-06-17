@@ -1224,6 +1224,10 @@ fn security_action(
     let group = &config.sync_groups[group_index];
     let has_owner = group.owner.is_some();
 
+    if has_owner {
+        return SecurityAction::WarnOrPrompt;
+    }
+
     let needs_privilege = if is_delete {
         !config_owner_can_delete(config_path, target_path)
     } else {
@@ -1234,11 +1238,7 @@ fn security_action(
         return SecurityAction::None;
     }
 
-    if has_owner {
-        SecurityAction::WarnOrPrompt
-    } else {
-        SecurityAction::ErrorSkip
-    }
+    SecurityAction::ErrorSkip
 }
 
 fn security_prompt(rel_path: &str, abs_src: &Path, abs_tgt: &Path) -> Result<bool, String> {
