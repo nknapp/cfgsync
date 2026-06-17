@@ -208,8 +208,9 @@ change). If different → `Conflict`.
 ### Sync execution flow
 
 1. If conflicts exist and `-i` is not passed, print them and abort.
-2. **Security check**: If running as root with a non-root-owned config file and a root-owned target directory, print a
-   notice and require per-operation confirmation (see [Security confirmation](#security-confirmation) above).
+2. **Security check**: If running as root with an untrusted config file, evaluate each operation for privilege
+   escalation: groups with `owner` configured always require confirmation (chown); groups without owner check whether
+   the config file owner has Unix write access to the target path. See [Security confirmation](#security-confirmation).
 3. Execute copy/delete operations. Individual failures are non-fatal (warnings) — sync continues.
 4. If `-i` (interactive): prompt user for each conflict. Options: `[s]ource` (keep source copy), `[t]arget` (keep target
    copy), `[x]skip`, `[q]uit` (abort entire sync). Non-conflict changes are also processed in the interactive path.
@@ -321,40 +322,13 @@ In interactive mode (`-i`):
 ### Security confirmation
 
 When cfgsync runs as **root** with a config file that does **not** belong to root (or is group/other-writable even if
-root-owned), and the sync target directory is owned by root, each `CopyToTarget` and `DeleteTarget` operation requires
-explicit user confirmation. This prevents a non-root user who can write the config file from tricking root into
-syncing files into root-owned system directories.
+root-owned), every operation that writes files as a different owner — or writes to a path the config file owner cannot
+reach — triggers a security check. This prevents a non-root user who can write the config file from tricking root into
+privilege escalation.
 
-The prompt shows a unified diff of the change and offers `[y]es [n]o [q]uit`:
+This makes it save to run cfgsync as root.
 
-```
-=== Security: syncing to root-owned target: etc/nginx/nginx.conf ===
-@@ -1,5 +1,5 @@
--(file missing)
-+server { ... }
-...
-
-[y]es [n]o [q]uit:
-```
-
-- `y` — proceed with this operation.
-- `n` — skip this operation (no changes made).
-- `q` — abort the entire sync.
-
-The same rules apply to `hooks.after` commands — they also require confirmation when the target is root-owned:
-
-```
-=== Security: running hook on root-owned target ===
-  hook: systemctl reload nginx
-
-[y]es [n]o [q]uit:
-```
-
-The security prompt is **bypassed** only when the config file is:
-- Owned by root (uid 0), **and**
-- Not writable by group or other (mode `0o022` bits clear).
-
-This means a config file like `root:root 0755` skips the prompt, but `root:root 0664` (group-writable) still triggers it.
+More details can be found [here](./docs/security.md)
 
 ### Permissions format
 

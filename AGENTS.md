@@ -173,10 +173,13 @@ target_mtime = 1716634200
   config file owner if no owner set). When non-root with owner set, hook is skipped with a warning. Dry-run prints
   `[dry-run] would run hook: ...` without executing. Hook failures are non-fatal (warnings).
 - **Security confirmation**: When running as root with a config file not owned by root (or group/other-writable
-  even if root-owned), and the target directory is root-owned, each `CopyToTarget` and `DeleteTarget` operation
-  as well as each `hooks.after` execution requires interactive confirmation (`[y]es [n]o [q]uit`). The file operations
-  show a unified diff before prompting; hooks show the command. Bypassed only when the config is root-owned AND not
-  group/other-writable (`mode & 0o022 == 0`).
+  even if root-owned), security checks apply per-operation. Groups with an `owner` configured always require
+  `WarnOrPrompt` (chown is always privilege escalation). Groups without an `owner` use `ErrorSkip` — the config
+  owner's Unix write access to the target path is checked; if absent, an error is printed and the file is skipped
+  (no prompt). In interactive mode (`-i`), `WarnOrPrompt` shows a unified diff and prompts `[y]es [n]o [q]uit`;
+  in non-interactive mode it warns and skips. `hooks.after` triggers security when the group's `owner` differs
+  from the config file owner. Bypassed only when the config is root-owned AND not group/other-writable
+  (`mode & 0o022 == 0`).
 
 ## Resources
 
