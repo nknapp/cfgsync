@@ -1,6 +1,13 @@
 # Changelog
 
-## [v0.5.0](https://github.com/nknapp/cfgsync/compare/v0.4.2...1161de0ff603571e183701c250921a52d143ff77) (2026-06-18)
+## [v0.5.1](https://github.com/nknapp/cfgsync/compare/v0.5.0...677b1d6f91748055581a739363d1e77745586726) (2026-07-08)
+
+### Fixes
+
+* show sync status for permissions to be changed.
+([677b1d6](https://github.com/nknapp/cfgsync/commit/677b1d6f91748055581a739363d1e77745586726))
+
+## [v0.5.0](https://github.com/nknapp/cfgsync/compare/v0.4.2...v0.5.0) (2026-06-17)
 
 ### ⚠ BREAKING CHANGE
 
