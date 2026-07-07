@@ -110,14 +110,14 @@ cargo build --release
 The binary is auto-discovered from `target/release/` or `target/debug/`. Override with the `CFGSYNC` env var. Additional
 arguments are forwarded to `deno test`.
 
-Test files (34 total):
+Test files (35 total):
 `basic-sync-to-target`, `basic-sync-to-source`, `conflict-detection`, `delete-from-target`, `delete-from-source`,
-`permission-warning` (non-root), `unchanged-skip`, `chown`, `copy-to-source-owner`, `diff-conflict`,
-`identical-untracked`, `ignore-non-matching`, `multi-group-independent`, `multi-group-overlap`, `multi-group-owner`,
-`multi-group-per-glob`, `per-glob-no-group-defaults`, `relative-paths`, `schema-json`, `status-short`, `sync-dry-run`,
-`hooks`, `hooks-nonroot-owner`, `hooks-dry-run`, `hooks-watch`, `hooks-unchanged`, `hooks-not-run-on-copy-to-source`,
-`security-root-target-confirm` (7 tests: confirm yes/no/quit, not-triggered-by-root-config, triggered-by-group-writable,
-not-triggered-non-root, hook confirm yes/no/quit).
+`permission-warning` (non-root), `status-unchanged-content`, `unchanged-skip`, `chown`, `copy-to-source-owner`,
+`diff-conflict`, `identical-untracked`, `ignore-non-matching`, `multi-group-independent`, `multi-group-overlap`,
+`multi-group-owner`, `multi-group-per-glob`, `per-glob-no-group-defaults`, `relative-paths`, `schema-json`,
+`status-short`, `sync-dry-run`, `hooks`, `hooks-nonroot-owner`, `hooks-dry-run`, `hooks-watch`, `hooks-unchanged`,
+`hooks-not-run-on-copy-to-source`, `security-root-target-confirm` (7 tests: confirm yes/no/quit,
+not-triggered-by-root-config, triggered-by-group-writable, not-triggered-non-root, hook confirm yes/no/quit).
 
 **Rule**: For every new feature, an e2e test must be added. The e2e test framework should not be changed without good
 reason.
@@ -163,6 +163,9 @@ target_mtime = 1716634200
   Non-conflict changes are also processed interactively (duplicated code between interactive and non-interactive paths).
 - **File exists on both sides, never tracked** (`classify`): Compares byte contents. If identical → skip. If different →
   `Conflict`.
+- **Content-based change detection**: When a tracked file's mtime differs on only one side, `classify` compares byte
+  contents before emitting a copy change. If content is identical (e.g., file was touched but not modified), no change
+  is emitted. This prevents `status` and `sync` from showing spurious copy operations.
 - **State rebuilding bug**: If a file matches multiple filters, it may appear **twice** in the rebuilt state (
   `update_state` iterates filters then walkdir entries; `state.file.clear()` is called once at the top, not per-filter).
 - **`skipped_perms` counter**: Tracks both true permission skips AND copy/delete failures — misleading in the summary.

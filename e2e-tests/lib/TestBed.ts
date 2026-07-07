@@ -35,6 +35,11 @@ export class TestBed {
     await Deno.mkdir(new URL(relativePath, this.testDir));
   }
 
+  async setMtime(relativePath: string, mtime: Date) {
+    const path = new URL(relativePath, this.testDir);
+    await Deno.utime(path, mtime, mtime);
+  }
+
   async run(runArgs: Omit<RunArgs, "cwd">) {
     this.lastRun = await runCfgsync({ cwd: this.testDir, ...runArgs }).waitForExit();
   }

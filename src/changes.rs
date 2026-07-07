@@ -1,4 +1,4 @@
-use crate::config::{ResolvedConfig, ResolvedGlob};
+use crate::config::{ResolvedConfig, ResolvedGlob, ResolvedSyncGroup};
 use crate::state::State;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -149,25 +149,40 @@ pub fn classify(
                     || s.symlink_target != state_entry.symlink_target;
                 let tgt_mod = t.mtime != state_entry.target_mtime
                     || t.symlink_target != state_entry.symlink_target;
+                let changes_before = changes.len();
                 if src_mod && tgt_mod {
                     if !files_or_symlinks_identical(&abs_src, &abs_tgt, s.is_symlink, t.is_symlink)
                     {
                         changes.push(Change::Conflict {
                             group_index,
                             rel_path: rel_path.to_string(),
-                            abs_src,
-                            abs_tgt,
+                            abs_src: abs_src.clone(),
+                            abs_tgt: abs_tgt.clone(),
                         });
                     }
-                } else if src_mod {
+                } else if src_mod
+                    && !files_or_symlinks_identical(&abs_src, &abs_tgt, s.is_symlink, t.is_symlink)
+                {
                     changes.push(Change::CopyToTarget {
                         group_index,
                         rel_path: rel_path.to_string(),
-                        abs_src,
-                        abs_tgt,
+                        abs_src: abs_src.clone(),
+                        abs_tgt: abs_tgt.clone(),
                     });
-                } else if tgt_mod {
+                } else if tgt_mod
+                    && !files_or_symlinks_identical(&abs_src, &abs_tgt, s.is_symlink, t.is_symlink)
+                {
                     changes.push(Change::CopyToSource {
+                        group_index,
+                        rel_path: rel_path.to_string(),
+                        abs_src: abs_src.clone(),
+                        abs_tgt: abs_tgt.clone(),
+                    });
+                }
+                if changes.len() == changes_before
+                    && target_permissions_differ(group, rel_path, &abs_tgt)
+                {
+                    changes.push(Change::CopyToTarget {
                         group_index,
                         rel_path: rel_path.to_string(),
                         abs_src,
@@ -225,6 +240,13 @@ pub fn classify(
                     in_target.unwrap().is_symlink,
                 ) {
                     changes.push(Change::Conflict {
+                        group_index,
+                        rel_path: rel_path.to_string(),
+                        abs_src,
+                        abs_tgt,
+                    });
+                } else if target_permissions_differ(group, rel_path, &abs_tgt) {
+                    changes.push(Change::CopyToTarget {
                         group_index,
                         rel_path: rel_path.to_string(),
                         abs_src,
@@ -369,6 +391,33 @@ pub struct ChangeCounts {
     pub conflicts: usize,
     pub delete_target: usize,
     pub delete_source: usize,
+}
+
+fn find_permissions(group: &ResolvedSyncGroup, rel_path: &str) -> Option<u32> {
+    for glob_entry in &group.globs {
+        if let Ok(pattern) =
+            glob::Pattern::new(&group.source_dir.join(&glob_entry.pattern).to_string_lossy())
+            && pattern.matches(&group.source_dir.join(rel_path).to_string_lossy())
+        {
+            return glob_entry.permissions;
+        }
+    }
+    None
+}
+
+fn target_permissions_differ(group: &ResolvedSyncGroup, rel_path: &str, abs_tgt: &Path) -> bool {
+    let Some(expected_mode) = find_permissions(group, rel_path) else {
+        return false;
+    };
+    let Ok(metadata) = std::fs::symlink_metadata(abs_tgt) else {
+        return false;
+    };
+    if metadata.file_type().is_symlink() {
+        return false;
+    }
+    use std::os::unix::fs::PermissionsExt;
+    let actual_mode = metadata.permissions().mode() & 0o777;
+    actual_mode != expected_mode
 }
 
 #[cfg(test)]
