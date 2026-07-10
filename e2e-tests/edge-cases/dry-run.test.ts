@@ -2,7 +2,7 @@ import { assertEquals, deindent } from "../lib/index.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
 Deno.test("dry-run-shows-actions-without-modifying-files", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -40,7 +40,7 @@ Deno.test("dry-run-shows-actions-without-modifying-files", async (t) => {
 });
 
 Deno.test("dry-run-then-real-sync", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

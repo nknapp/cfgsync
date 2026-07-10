@@ -2,7 +2,7 @@ import { assertEquals, deindent } from "../lib/index.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
 Deno.test("symlinks-status-detected", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -30,7 +30,7 @@ Deno.test("symlinks-status-detected", async (t) => {
 });
 
 Deno.test("symlinks-preserved-during-sync", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

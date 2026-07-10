@@ -2,7 +2,7 @@ import { deindent } from "../lib/index.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
 Deno.test("overlapping-globs-status-error", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -34,7 +34,7 @@ Deno.test("overlapping-globs-status-error", async (t) => {
 });
 
 Deno.test("overlapping-globs-sync-error", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

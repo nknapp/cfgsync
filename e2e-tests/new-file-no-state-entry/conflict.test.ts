@@ -1,9 +1,8 @@
 import { assertEquals, deindent } from "../lib/index.ts";
-import { getTestDir } from "../lib/setupTestDir.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
 Deno.test("new-file-conflict", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -33,15 +32,13 @@ Deno.test("new-file-conflict", async (t) => {
   });
 
   // diff: shows unified diff comparing source vs target
-  const testDir = getTestDir(t);
-
   await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
       === file.txt (CONFLICT) ===
-      --- ${testDir.pathname}source/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
-      +++ ${testDir.pathname}target/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
+      --- ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
+      +++ ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
       @@ -1 +1 @@
       -source version
       +target version

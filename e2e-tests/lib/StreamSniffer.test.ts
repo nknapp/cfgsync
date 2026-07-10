@@ -14,15 +14,19 @@ Deno.test("test-waitfor", async () => {
   const writer = stream.writable.getWriter();
 
   await writer.write("so");
+  await flushMicrotasks();
   assertEquals(result, []);
 
   await writer.write("me");
+  await flushMicrotasks();
   assertEquals(result, ["some 1"]);
 
   await writer.write(" text");
+  await flushMicrotasks();
   assertEquals(result, ["some 1", "some-text 1"]);
 
   await writer.write(" some text");
+  await flushMicrotasks();
   assertEquals(result, ["some 1", "some-text 1", "some-text 2"]);
 
   await writer.close();
@@ -71,4 +75,8 @@ Deno.test("test with timeout (2 times)", async () => {
 
 async function wait(timeoutMillis: number) {
   await new Promise((resolve) => setTimeout(resolve, timeoutMillis));
+}
+
+function flushMicrotasks() {
+  return new Promise((resolve) => resolve(undefined));
 }

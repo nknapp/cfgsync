@@ -2,7 +2,7 @@ import { assertEquals, deindent } from "../lib/index.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
 Deno.test("both-exist-copy-to-target", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

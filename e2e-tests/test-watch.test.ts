@@ -7,7 +7,7 @@ async function sleep(ms: number): Promise<void> {
 }
 
 Deno.test("watch-sync-on-change", async (t) => {
-  const testBed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -22,16 +22,16 @@ Deno.test("watch-sync-on-change", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
+  const child = testbed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
   try {
     // Wait for the initial sync to complete
     await child.waitForStderr("source -> target", { timeoutMillis: 5000 });
 
     await sleep(2000);
-    await testBed.writeTextFile("source/file.txt", "modified content");
+    await testbed.writeTextFile("source/file.txt", "modified content");
     await child.waitForStderr("source -> target", { minCount: 2, timeoutMillis: 5000 });
 
-    assertEquals(await testBed.readTestDir(), [
+    assertEquals(await testbed.readTestDir(), [
       "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
       "user:user | 0755 | 0 | source/",
@@ -45,7 +45,7 @@ Deno.test("watch-sync-on-change", async (t) => {
 });
 
 Deno.test("watch-sync-on-delete", async (t) => {
-  const testBed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -60,17 +60,17 @@ Deno.test("watch-sync-on-delete", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
+  const child = testbed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
   try {
     // Wait for the initial sync to complete
     await child.waitForStderr("source -> target", { timeoutMillis: 5000 });
     await sleep(2000);
 
-    await testBed.deleteFile("source/file.txt");
+    await testbed.deleteFile("source/file.txt");
 
     await child.waitForStderr("source -> target", { minCount: 2, timeoutMillis: 5000 });
 
-    assertEquals(await testBed.readTestDir(), [
+    assertEquals(await testbed.readTestDir(), [
       "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
       "user:user | 0755 | 0 | source/",
@@ -82,7 +82,7 @@ Deno.test("watch-sync-on-delete", async (t) => {
 });
 
 Deno.test("watch-sync-new-file", async (t) => {
-  const testBed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -96,17 +96,17 @@ Deno.test("watch-sync-new-file", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
+  const child = testbed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
   try {
     await sleep(1000);
-    await testBed.writeTextFile("source/new-file.txt", "new file content");
-    await testBed.mkdir("source/subdir");
-    await testBed.writeTextFile("source/subdir/new-file-2.txt", "new file content 2");
+    await testbed.writeTextFile("source/new-file.txt", "new file content");
+    await testbed.mkdir("source/subdir");
+    await testbed.writeTextFile("source/subdir/new-file-2.txt", "new file content 2");
     await child.waitForStderr("source -> target", { minCount: 1, timeoutMillis: 5000 });
 
     await sleep(100);
 
-    assertEquals(await testBed.readTestDir(), [
+    assertEquals(await testbed.readTestDir(), [
       "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
       "user:user | 0755 | 0 | source/",
@@ -124,7 +124,7 @@ Deno.test("watch-sync-new-file", async (t) => {
 });
 
 Deno.test("watch-empty-dir", async (t) => {
-  const testBed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -140,16 +140,16 @@ Deno.test("watch-empty-dir", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
+  const child = testbed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
 
   try {
     await sleep(1000);
-    await testBed.writeTextFile("source/subdir/new-file.txt", "contents");
+    await testbed.writeTextFile("source/subdir/new-file.txt", "contents");
 
     await child.waitForStderr("source -> target", { minCount: 1, timeoutMillis: 5000 });
     await sleep(1000);
 
-    assertEquals(await testBed.readTestDir(), [
+    assertEquals(await testbed.readTestDir(), [
       "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
       "user:user | 0755 | 0 | source/",
@@ -165,7 +165,7 @@ Deno.test("watch-empty-dir", async (t) => {
 });
 
 Deno.test("do-not-watch-too-much", async (t) => {
-  const testBed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -183,11 +183,11 @@ Deno.test("do-not-watch-too-much", async (t) => {
     ],
   });
 
-  const child = testBed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
+  const child = testbed.spawn({ args: ["--config", "config.toml", "sync", "--watch"] });
 
   try {
     await sleep(1000);
-    await testBed.writeTextFile("source/subdir/other-dir/new-file.txt", "contents");
+    await testbed.writeTextFile("source/subdir/other-dir/new-file.txt", "contents");
     await sleep(2000);
     assertEquals(
       child.stderr.text,

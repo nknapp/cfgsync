@@ -2,7 +2,7 @@ import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("interactive-overwrite-target", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -44,7 +44,7 @@ Deno.test("interactive-overwrite-target", async (t) => {
 });
 
 Deno.test("interactive-overwrite-source", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

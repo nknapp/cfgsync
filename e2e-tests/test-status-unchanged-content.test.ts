@@ -2,7 +2,7 @@ import { deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("status-unchanged-content", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -48,7 +48,7 @@ Deno.test("status-unchanged-content", async (t) => {
 });
 
 Deno.test("status-unchanged-content-actual-change-detected", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -82,7 +82,7 @@ Deno.test("status-unchanged-content-actual-change-detected", async (t) => {
 });
 
 Deno.test("status-unchanged-content-changed-perms", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

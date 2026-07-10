@@ -2,7 +2,7 @@ import { assertEquals, deindent } from "../lib/index.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
 Deno.test("multi-group-independent-status", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./src1"
@@ -37,7 +37,7 @@ Deno.test("multi-group-independent-status", async (t) => {
 });
 
 Deno.test("multi-group-independent-sync", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./src1"

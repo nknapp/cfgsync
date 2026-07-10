@@ -1,11 +1,8 @@
 import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
-import { getTestDir } from "./lib/setupTestDir.ts";
 
 Deno.test("debug-flag-shows-scan-details", async (t) => {
-  const testDir = getTestDir(t).pathname;
-
-  const testbed = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -44,9 +41,9 @@ Deno.test("debug-flag-shows-scan-details", async (t) => {
       deleted source:   0
     `,
     stderr: deindent`
-      [debug] scanning ${testDir}source with pattern '${testDir}source/**/*.txt'
-      [debug]   found ${testDir}source/file.txt
-      [debug] scanning ${testDir}target with pattern '${testDir}target/**/*.txt'
+      [debug] scanning ${testDir}/source with pattern '${testDir}/source/**/*.txt'
+      [debug]   found ${testDir}/source/file.txt
+      [debug] scanning ${testDir}/target with pattern '${testDir}/target/**/*.txt'
       files visited: 1 (source) + 0 (target) = 1 total
     `,
   });

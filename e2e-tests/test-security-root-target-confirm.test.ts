@@ -6,7 +6,7 @@ Deno.test({
   name: "security-bypass-root-owned-config",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -50,7 +50,7 @@ Deno.test({
 Deno.test({
   name: "security-bypass-non-root",
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -95,7 +95,7 @@ Deno.test({
   name: "security-error-skip-cannot-write-dir",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -141,7 +141,7 @@ Deno.test({
   name: "security-hook-owner-mismatch-yes",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -200,7 +200,7 @@ Deno.test({
   name: "security-hook-owner-mismatch-no",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -259,7 +259,7 @@ Deno.test({
   name: "security-hook-owner-mismatch-quit",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -310,7 +310,7 @@ Deno.test({
   name: "security-hook-no-owner-runs-as-config-owner",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -357,7 +357,7 @@ Deno.test({
   name: "security-warning-non-interactive",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -407,7 +407,7 @@ Deno.test({
   name: "security-prompt-owner-yes",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -460,7 +460,7 @@ Deno.test({
   name: "security-prompt-owner-no",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -511,7 +511,7 @@ Deno.test({
   name: "security-prompt-owner-quit",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

@@ -1,21 +1,34 @@
 import { readTestDir, setupTestDir, TestSpec } from "./setupTestDir.ts";
+import { testBaseDir } from "./env.ts";
 import { RunArgs, runCfgsync } from "./runCfgsync.ts";
 import { assertEquals } from "./assert.ts";
 import { InteractiveChildProcess } from "./spawn.ts";
 
-type ExecReturn = { code: number; stdout: string; stderr: string };
+export type ExecReturn = { code: number; stdout: string; stderr: string };
+
+export type TestSpecOrFn = TestSpec | ((options: { testDir: string }) => TestSpec);
 
 export class TestBed {
   private lastRun?: ExecReturn;
   private currentTime: Date | null = null;
 
-  static async create(t: Deno.TestContext, spec: TestSpec) {
-    const dir = await setupTestDir(t, spec);
+  static getTestDir(t: Deno.TestContext): URL {
+    return new URL(t.name.replace(/\W/g, "_") + "/", testBaseDir);
+  }
+
+  static async create(
+    t: Deno.TestContext,
+    specOrFn: TestSpecOrFn,
+  ): Promise<{ testbed: TestBed; testDir: string }> {
+    const testDirUrl = new URL(t.name.replace(/\W/g, "_") + "/", testBaseDir);
+    const testDir = testDirUrl.pathname.replace(/\/$/, "");
+    const spec = typeof specOrFn === "function" ? specOrFn({ testDir: testDir }) : specOrFn;
+    const dir = await setupTestDir(testDirUrl, spec);
     const bed = new TestBed(spec, dir);
     if (spec.faketime) {
       bed.currentTime = new Date(spec.faketime);
     }
-    return bed;
+    return { testbed: bed, testDir };
   }
 
   constructor(
@@ -42,11 +55,6 @@ export class TestBed {
     const path = new URL(relativePath, this.testDir);
     await Deno.mkdir(path);
     await Deno.utime(path, this.mtime(), this.mtime());
-  }
-
-  async setMtime(relativePath: string, mtime: Date) {
-    const path = new URL(relativePath, this.testDir);
-    await Deno.utime(path, mtime, mtime);
   }
 
   advance(duration: string): void {

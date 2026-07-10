@@ -2,7 +2,7 @@ import { assertEquals } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("schema-json", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: [
       "[[sync]]",
       'source = "./source"',

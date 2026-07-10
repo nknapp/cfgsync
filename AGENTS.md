@@ -47,6 +47,16 @@ When an e2e test fails, the assertion output labels tell you which is which:
 - `ACTUAL:` — the values cfgsync actually returned
 - `[Diff] Actual / Expected` — the structured diff from the assertion library (red `-` = actual, green `+` = expected)
 
+## Test discipline
+
+When `mise run all-local` reports any test failure (unit or e2e), you MUST:
+1. **Identify the root cause** — determine whether it's a genuine regression or a flaky test
+2. **Fix it** — fix the test or the code, whichever is at fault
+3. **Re-run** until all tests pass (0 failures required)
+4. **Never dismiss** a failure as "pre-existing" or "flaky" — either fix it or ask for help if blocked
+
+The all-local command MUST exit with code 0 and zero test failures before you consider the work done.
+
 ## Architecture
 
 ```

@@ -7,7 +7,7 @@ async function sleep(ms: number): Promise<void> {
 }
 
 Deno.test("hooks-watch-mode", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

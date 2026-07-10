@@ -1,15 +1,12 @@
 import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
-import { getTestDir } from "./lib/setupTestDir.ts";
 
 Deno.test("copy data to absolute target path", async (t) => {
-  const absoluteBaseDir = getTestDir(t).pathname.replace(/\/$/, "");
-
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, ({ testDir }) => ({
     configToml: deindent`
       [[sync]]
       source = "./source/"
-      target = "${absoluteBaseDir}/target"
+      target = "${testDir}/target"
       globs = [".subdir/**/*"]
     `,
     files: [
@@ -20,7 +17,7 @@ Deno.test("copy data to absolute target path", async (t) => {
       "user:user | 0644 | 0 | source/.subdir/subsub/new.txt | newfile",
       "user:user | 0755 | 0 | target/",
     ],
-  });
+  }));
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 

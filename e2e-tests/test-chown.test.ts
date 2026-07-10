@@ -5,7 +5,7 @@ Deno.test({
   name: "chown-applied-when-root",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

@@ -1,9 +1,8 @@
 import { assertEquals, deindent } from "../lib/index.ts";
-import { getTestDir } from "../lib/setupTestDir.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
 Deno.test("new-file-copy-to-source", async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -31,8 +30,6 @@ Deno.test("new-file-copy-to-source", async (t) => {
   });
 
   // diff: unified diff showing target content added to (missing) source
-  const testDir = getTestDir(t);
-
   await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
   testbed.assertOutput({
     code: 0,
@@ -40,8 +37,8 @@ Deno.test("new-file-copy-to-source", async (t) => {
     // source file is missing (no timestamp), so construct the expected stdout
     // manually for this section.
     stdout: `=== file.txt (target -> source) ===\n` +
-      `--- ${testDir.pathname}target/file.txt\t2020-01-01 00:00:00.000000000 +0000\n` +
-      `+++ ${testDir.pathname}source/file.txt\t\n` +
+      `--- ${testDir}/target/file.txt\t2020-01-01 00:00:00.000000000 +0000\n` +
+      `+++ ${testDir}/source/file.txt\t\n` +
       `@@ -1 +1 @@\n` +
       `-from target\n` +
       `+(file missing)\n` +

@@ -1,4 +1,3 @@
-import { testBaseDir } from "./env.ts";
 import { invertKeyValues } from "./invertKeyValues.ts";
 
 type TestPath = string;
@@ -163,15 +162,10 @@ async function createNoOwnerAndPerms(
   }
 }
 
-export function getTestDir(t: Deno.TestContext) {
-  return new URL(t.name.replace(/\W/g, "_") + "/", testBaseDir);
-}
-
 export async function setupTestDir(
-  t: Deno.TestContext,
+  testDir: URL,
   spec: TestSpec,
 ): Promise<URL> {
-  const testDir = getTestDir(t);
   try {
     await Deno.remove(testDir, { recursive: true });
   } catch (e) {

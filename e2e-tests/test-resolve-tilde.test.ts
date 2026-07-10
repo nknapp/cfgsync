@@ -19,7 +19,7 @@ Deno.test({ name: "sync to home dir (sudo)", ignore: runningOutsideDocker }, asy
 });
 
 async function testSyncToHomeDir(t: Deno.TestContext, { sudo = false } = {}) {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -63,7 +63,7 @@ async function testSyncToHomeDir(t: Deno.TestContext, { sudo = false } = {}) {
 }
 
 Deno.test({ name: "sync from home dir", ignore: runningOutsideDocker }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"

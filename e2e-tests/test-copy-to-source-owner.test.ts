@@ -5,7 +5,7 @@ Deno.test({
   name: "copy-to-source-respects-config-owner",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const testbed = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
