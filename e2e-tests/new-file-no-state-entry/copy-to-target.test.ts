@@ -2,8 +2,6 @@ import { assertEquals, deindent } from "../lib/index.ts";
 import { getTestDir } from "../lib/setupTestDir.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
-const knownDate = new Date("2020-01-01T00:00:00Z");
-
 Deno.test("new-file-copy-to-target", async (t) => {
   const testbed = await TestBed.create(t, {
     configToml: deindent`
@@ -18,6 +16,7 @@ Deno.test("new-file-copy-to-target", async (t) => {
       "user:user | 0644 | 0 | source/file.txt | hello\n",
       "user:user | 0755 | 0 | target/",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
 
   // status: file only on source side, no state → CopyToTarget
@@ -33,7 +32,6 @@ Deno.test("new-file-copy-to-target", async (t) => {
 
   // diff: unified diff showing source content added to (missing) target
   const testDir = getTestDir(t);
-  await testbed.setMtime("source/file.txt", knownDate);
 
   await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
   testbed.assertOutput({
@@ -52,6 +50,7 @@ Deno.test("new-file-copy-to-target", async (t) => {
   });
 
   // sync: copies source → target, creates state file
+  testbed.advance("1 sec");
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
     code: 0,

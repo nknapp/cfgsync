@@ -7,10 +7,15 @@ type ExecReturn = { code: number; stdout: string; stderr: string };
 
 export class TestBed {
   private lastRun?: ExecReturn;
+  private currentTime: Date | null = null;
 
   static async create(t: Deno.TestContext, spec: TestSpec) {
     const dir = await setupTestDir(t, spec);
-    return new TestBed(spec, dir);
+    const bed = new TestBed(spec, dir);
+    if (spec.faketime) {
+      bed.currentTime = new Date(spec.faketime);
+    }
+    return bed;
   }
 
   constructor(
@@ -40,12 +45,36 @@ export class TestBed {
     await Deno.utime(path, mtime, mtime);
   }
 
+  advance(duration: string): void {
+    if (!this.currentTime) {
+      throw new Error("Cannot advance time: no currentTime was set");
+    }
+    const msMatch = duration.match(/^(\d+)\s*ms$/);
+    const secMatch = duration.match(/^(\d+)\s*sec$/);
+    if (msMatch) {
+      this.currentTime = new Date(this.currentTime.getTime() + parseInt(msMatch[1]));
+    } else if (secMatch) {
+      this.currentTime = new Date(this.currentTime.getTime() + parseInt(secMatch[1]) * 1000);
+    } else {
+      throw new Error(`Invalid duration format: "${duration}". Use "X ms" or "Y sec"`);
+    }
+  }
+
+  private formatFaketime(): string | undefined {
+    if (!this.currentTime) return undefined;
+    return this.currentTime.toISOString().replace("T", " ").slice(0, 19);
+  }
+
   async run(runArgs: Omit<RunArgs, "cwd">) {
-    this.lastRun = await runCfgsync({ cwd: this.testDir, ...runArgs }).waitForExit();
+    this.lastRun = await runCfgsync({
+      cwd: this.testDir,
+      ...runArgs,
+      faketime: this.formatFaketime(),
+    }).waitForExit();
   }
 
   spawn(runArgs: Omit<RunArgs, "cwd">): InteractiveChildProcess {
-    return runCfgsync({ cwd: this.testDir, ...runArgs });
+    return runCfgsync({ cwd: this.testDir, ...runArgs, faketime: this.formatFaketime() });
   }
 
   getStdout(): string {
