@@ -7,15 +7,23 @@ type TestUser = keyof typeof userIdMap;
 type TestGroup = keyof typeof groupIdMap;
 type TestOwner = `${"user" | "root"}:${"user" | "root"}`;
 type TestPerms = `${number | ""}${number}${number}${number}`;
+type TestMtime = string;
 
-type TestFile = `${TestOwner} | ${TestPerms} | ${TestPath} | ${TestContents}`;
-type TestSymlink = `${TestOwner} | ${TestPerms} | ${TestPath} -> ${TestPath}`;
-type TestDir = `${TestOwner} | ${TestPerms} | ${TestPath}/`;
+type TestFile =
+  | `${TestOwner} | ${TestPerms} | ${TestPath} | ${TestContents}`
+  | `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath} | ${TestContents}`;
+type TestSymlink =
+  | `${TestOwner} | ${TestPerms} | ${TestPath} -> ${TestPath}`
+  | `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath} -> ${TestPath}`;
+type TestDir =
+  | `${TestOwner} | ${TestPerms} | ${TestPath}/`
+  | `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath}/`;
 export type TestEntry = TestFile | TestSymlink | TestDir;
 
 export interface TestSpec {
   files: TestEntry[];
   configToml: string;
+  faketime?: string;
 }
 
 const userIdMap = {
@@ -55,16 +63,53 @@ function assertNotNull<T>(
 
 const CONFIG_TOML_PLACEHOLDER = "__CONFIG_TOML__";
 
-async function createDirOrFile(line: string, testDir: URL, configToml: string) {
-  const [owner, perms, path, contents] = line.split(" | ");
+function parseMtimeOffset(mtimeStr: string): number {
+  if (!mtimeStr || mtimeStr === "0") return 0;
+  const msMatch = mtimeStr.match(/^(-?\d+)\s*ms$/);
+  if (msMatch) return parseInt(msMatch[1]);
+  const secMatch = mtimeStr.match(/^(-?\d+)\s*sec$/);
+  if (secMatch) return parseInt(secMatch[1]) * 1000;
+  return 0;
+}
+
+function computeMtime(spec: TestSpec, mtimeStr: string): Date {
+  const offsetMs = parseMtimeOffset(mtimeStr);
+  const base = spec.faketime ? new Date(spec.faketime) : new Date();
+  return new Date(base.getTime() + offsetMs);
+}
+
+async function createDirOrFile(line: string, testDir: URL, spec: TestSpec) {
+  const parts = line.split(" | ");
+  let owner: string, perms: string, mtimeStr: string, path: string, contents: string | undefined;
+
+  if (parts.length === 5) {
+    [owner, perms, mtimeStr, path, contents] = parts;
+  } else if (parts.length === 4) {
+    const fourth = parts[3] as string;
+    if (fourth.endsWith("/") || fourth.includes(" -> ")) {
+      [owner, perms, mtimeStr, path] = parts;
+      contents = undefined;
+    } else {
+      [owner, perms, path, contents] = parts;
+      mtimeStr = "0";
+    }
+  } else {
+    [owner, perms, path] = parts;
+    mtimeStr = "0";
+    contents = undefined;
+  }
+
   assertNotNull(owner, "owner must not be null");
   assertNotNull(perms, "perms must not be null");
   assertNotNull(path, "path must not be null");
   const [user, group] = owner.split(":");
   const uid = userToId(user as TestUser);
   const gid = groupToId(group as TestGroup);
-  const realPath = await createNoOwnerAndPerms(path, testDir, contents, configToml);
-  if (!(await Deno.lstat(realPath)).isSymlink) {
+  const realPath = await createNoOwnerAndPerms(path, testDir, contents, spec.configToml);
+  const isSymlink = (await Deno.lstat(realPath)).isSymlink;
+
+  if (!isSymlink) {
+    await Deno.utime(realPath, computeMtime(spec, mtimeStr), computeMtime(spec, mtimeStr));
     await Deno.chmod(realPath, parseInt(perms, 8));
 
     if (Deno.uid() === 0) {
@@ -149,7 +194,7 @@ export async function setupTestDir(
   await Deno.mkdir(testDir, { recursive: true });
 
   for (const file of spec.files) {
-    await createDirOrFile(file, testDir, spec.configToml);
+    await createDirOrFile(file, testDir, spec);
   }
   return testDir;
 }
@@ -168,16 +213,14 @@ export async function readTestDir(
       const mode = stat.mode ?? 0o0000;
       const perms = (mode & 0o7777).toString(8).padStart(4, "0") as TestPerms;
       if (stat.isDirectory) {
-        return `${user}:${group} | ${perms} | ${path}/`;
+        return `${user}:${group} | ${perms} | 0 | ${path}/`;
       } else if (stat.isSymlink) {
         const linkTarget = await Deno.readLink(fullPath);
-        // For now, we ignore perms for symlinks. On macOS, they are 0755 in the tests, while on Linux, they are 0777
-        // This might matter on macOS. We note this down as known issue for the moment.
-        return `${user}:${group} |      | ${path} -> ${linkTarget}`;
+        return `${user}:${group} |      | 0 | ${path} -> ${linkTarget}`;
       } else {
         const raw = await Deno.readTextFile(fullPath);
         const contents = getContents(raw, configToml, path);
-        return `${user}:${group} | ${perms} | ${path} | ${contents}`;
+        return `${user}:${group} | ${perms} | 0 | ${path} | ${contents}`;
       }
     }),
   );

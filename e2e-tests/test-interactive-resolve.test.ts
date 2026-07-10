@@ -10,11 +10,11 @@ Deno.test("interactive-overwrite-target", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/conflict.txt | source version",
-      "user:user | 0755  | target/",
-      "user:user | 0644  | target/conflict.txt | target version",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/conflict.txt | source version",
+      "user:user | 0755 | 0 | target/",
+      "user:user | 0644 | 0 | target/conflict.txt | target version",
     ],
   });
 
@@ -34,12 +34,12 @@ Deno.test("interactive-overwrite-target", async (t) => {
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/conflict.txt | source version",
-    "user:user | 0755 | target/",
-    "user:user | 0644 | target/conflict.txt | source version",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/conflict.txt | source version",
+    "user:user | 0755 | 0 | target/",
+    "user:user | 0644 | 0 | target/conflict.txt | source version",
   ]);
 });
 
@@ -52,11 +52,11 @@ Deno.test("interactive-overwrite-source", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/conflict.txt | source version",
-      "user:user | 0755  | target/",
-      "user:user | 0644  | target/conflict.txt | target version",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/conflict.txt | source version",
+      "user:user | 0755 | 0 | target/",
+      "user:user | 0644 | 0 | target/conflict.txt | target version",
     ],
   });
 
@@ -75,11 +75,11 @@ Deno.test("interactive-overwrite-source", async (t) => {
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/conflict.txt | target version",
-    "user:user | 0755 | target/",
-    "user:user | 0644 | target/conflict.txt | target version",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/conflict.txt | target version",
+    "user:user | 0755 | 0 | target/",
+    "user:user | 0644 | 0 | target/conflict.txt | target version",
   ]);
 });

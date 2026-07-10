@@ -15,13 +15,13 @@ Deno.test("multi-group-independent-status", async (t) => {
       globs = ["*.txt"]
     `,
     files: [
-      "user:user | 0755 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | src1/",
-      "user:user | 0644 | src1/nginx.conf | server { }",
-      "user:user | 0755 | tgt1/",
-      "user:user | 0755 | src2/",
-      "user:user | 0644 | src2/app.txt | hello world",
-      "user:user | 0755 | tgt2/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | src1/",
+      "user:user | 0644 | 0 | src1/nginx.conf | server { }",
+      "user:user | 0755 | 0 | tgt1/",
+      "user:user | 0755 | 0 | src2/",
+      "user:user | 0644 | 0 | src2/app.txt | hello world",
+      "user:user | 0755 | 0 | tgt2/",
     ],
   });
 
@@ -50,13 +50,13 @@ Deno.test("multi-group-independent-sync", async (t) => {
       globs = ["*.txt"]
     `,
     files: [
-      "user:user | 0755 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | src1/",
-      "user:user | 0644 | src1/nginx.conf | server { }",
-      "user:user | 0755 | tgt1/",
-      "user:user | 0755 | src2/",
-      "user:user | 0644 | src2/app.txt | hello world",
-      "user:user | 0755 | tgt2/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | src1/",
+      "user:user | 0644 | 0 | src1/nginx.conf | server { }",
+      "user:user | 0755 | 0 | tgt1/",
+      "user:user | 0755 | 0 | src2/",
+      "user:user | 0644 | 0 | src2/app.txt | hello world",
+      "user:user | 0755 | 0 | tgt2/",
     ],
   });
 
@@ -76,16 +76,16 @@ Deno.test("multi-group-independent-sync", async (t) => {
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | src1/",
-    "user:user | 0644 | src1/nginx.conf | server { }",
-    "user:user | 0755 | src2/",
-    "user:user | 0644 | src2/app.txt | hello world",
-    "user:user | 0755 | tgt1/",
-    "user:user | 0644 | tgt1/nginx.conf | server { }",
-    "user:user | 0755 | tgt2/",
-    "user:user | 0644 | tgt2/app.txt | hello world",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | src1/",
+    "user:user | 0644 | 0 | src1/nginx.conf | server { }",
+    "user:user | 0755 | 0 | src2/",
+    "user:user | 0644 | 0 | src2/app.txt | hello world",
+    "user:user | 0755 | 0 | tgt1/",
+    "user:user | 0644 | 0 | tgt1/nginx.conf | server { }",
+    "user:user | 0755 | 0 | tgt2/",
+    "user:user | 0644 | 0 | tgt2/app.txt | hello world",
   ]);
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });

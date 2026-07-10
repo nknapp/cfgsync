@@ -10,10 +10,10 @@ Deno.test("delete-from-source", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0755  | target/",
-      "user:user | 0644  | target/delete-me.txt | delete from source",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0755 | 0 | target/",
+      "user:user | 0644 | 0 | target/delete-me.txt | delete from source",
     ],
   });
 
@@ -22,10 +22,10 @@ Deno.test("delete-from-source", async (t) => {
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0755 | target/",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0755 | 0 | target/",
   ]);
   testbed.assertOutput({
     code: 0,

@@ -15,13 +15,13 @@ Deno.test("multi-group-independent", async (t) => {
       globs = ["**/*.conf"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source-a/",
-      "user:user | 0644  | source-a/file.txt | content from group a",
-      "user:user | 0755  | target-a/",
-      "user:user | 0755  | source-b/",
-      "user:user | 0644  | source-b/file.conf | content from group b",
-      "user:user | 0755  | target-b/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source-a/",
+      "user:user | 0644 | 0 | source-a/file.txt | content from group a",
+      "user:user | 0755 | 0 | target-a/",
+      "user:user | 0755 | 0 | source-b/",
+      "user:user | 0644 | 0 | source-b/file.conf | content from group b",
+      "user:user | 0755 | 0 | target-b/",
     ],
   });
 
@@ -55,15 +55,15 @@ Deno.test("multi-group-independent", async (t) => {
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source-a/",
-    "user:user | 0644 | source-a/file.txt | content from group a",
-    "user:user | 0755 | source-b/",
-    "user:user | 0644 | source-b/file.conf | content from group b",
-    "user:user | 0755 | target-a/",
-    "user:user | 0644 | target-a/file.txt | content from group a",
-    "user:user | 0755 | target-b/",
-    "user:user | 0644 | target-b/file.conf | content from group b",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source-a/",
+    "user:user | 0644 | 0 | source-a/file.txt | content from group a",
+    "user:user | 0755 | 0 | source-b/",
+    "user:user | 0644 | 0 | source-b/file.conf | content from group b",
+    "user:user | 0755 | 0 | target-a/",
+    "user:user | 0644 | 0 | target-a/file.txt | content from group a",
+    "user:user | 0755 | 0 | target-b/",
+    "user:user | 0644 | 0 | target-b/file.conf | content from group b",
   ]);
 });

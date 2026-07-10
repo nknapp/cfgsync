@@ -14,10 +14,10 @@ Deno.test({
       owner = "root:root"
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0755  | target/",
-      "user:user | 0644  | target/file.txt | target-only file",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0755 | 0 | target/",
+      "user:user | 0644 | 0 | target/file.txt | target-only file",
     ],
   });
 
@@ -37,11 +37,11 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "root:root | 0644 | source/file.txt | target-only file",
-    "user:user | 0755 | target/",
-    "root:root | 0644 | target/file.txt | target-only file",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "root:root | 0644 | 0 | source/file.txt | target-only file",
+    "user:user | 0755 | 0 | target/",
+    "root:root | 0644 | 0 | target/file.txt | target-only file",
   ]);
 });

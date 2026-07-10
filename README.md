@@ -341,11 +341,8 @@ integers. Leading zeros are accepted. The octal string must contain only digits 
 
 ## Build from source
 
-```bash
-cargo build --release
-```
-
-Rust 1.95+ required.
+- For running tests, "faketime" must be installed (`libfaketime` on arch, `faketime` on Debian)
+- `mise` is used to set up all other tools
 
 ### Known issues
 

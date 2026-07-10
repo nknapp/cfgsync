@@ -16,12 +16,12 @@ Deno.test("per-glob-owner-and-permissions", async (t) => {
       ]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.conf | default perms and owner",
-      "user:user | 0644  | source/override-perms.key | per-glob perms override",
-      "user:user | 0644  | source/override-owner.key | per-glob owner override",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.conf | default perms and owner",
+      "user:user | 0644 | 0 | source/override-perms.key | per-glob perms override",
+      "user:user | 0644 | 0 | source/override-owner.key | per-glob owner override",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 

@@ -14,10 +14,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "root:root | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "root:root | 0755  | target/",
+      "root:root | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "root:root | 0755 | 0 | target/",
     ],
   });
 
@@ -37,12 +37,12 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "root:root | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "root:root | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "root:root | 0755 | target/",
-    "user:user | 0644 | target/file.txt | source content",
+    "root:root | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "root:root | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "root:root | 0755 | 0 | target/",
+    "user:user | 0644 | 0 | target/file.txt | source content",
   ]);
 });
 
@@ -58,10 +58,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -81,12 +81,12 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "user:user | 0755 | target/",
-    "user:user | 0644 | target/file.txt | source content",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "user:user | 0755 | 0 | target/",
+    "user:user | 0644 | 0 | target/file.txt | source content",
   ]);
 });
 
@@ -103,10 +103,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "root:root | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "root:root | 0755 | 0 | target/",
     ],
   });
 
@@ -128,11 +128,11 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "root:root | 0755 | target/",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "root:root | 0755 | 0 | target/",
   ]);
 });
 
@@ -151,10 +151,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -185,13 +185,13 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "root:root | 0644 | hook-ran | root\n",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "user:user | 0755 | target/",
-    "root:root | 0644 | target/file.txt | source content",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "root:root | 0644 | 0 | hook-ran | root\n",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "user:user | 0755 | 0 | target/",
+    "root:root | 0644 | 0 | target/file.txt | source content",
   ]);
 });
 
@@ -210,10 +210,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -245,12 +245,12 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "user:user | 0755 | target/",
-    "root:root | 0644 | target/file.txt | source content",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "user:user | 0755 | 0 | target/",
+    "root:root | 0644 | 0 | target/file.txt | source content",
   ]);
 });
 
@@ -269,10 +269,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -297,11 +297,11 @@ Deno.test({
   assertEquals(code, 1);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "user:user | 0755 | target/",
-    "root:root | 0644 | target/file.txt | source content",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "user:user | 0755 | 0 | target/",
+    "root:root | 0644 | 0 | target/file.txt | source content",
   ]);
 });
 
@@ -319,10 +319,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -342,13 +342,13 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0644 | hook-ran | user\n",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "user:user | 0755 | target/",
-    "user:user | 0644 | target/file.txt | source content",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0644 | 0 | hook-ran | user\n",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "user:user | 0755 | 0 | target/",
+    "user:user | 0644 | 0 | target/file.txt | source content",
   ]);
 });
 
@@ -366,10 +366,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "root:root | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "root:root | 0755 | 0 | target/",
     ],
   });
 
@@ -394,11 +394,11 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "root:root | 0755 | target/",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "root:root | 0755 | 0 | target/",
   ]);
 });
 
@@ -416,10 +416,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -446,12 +446,12 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "user:user | 0755 | target/",
-    "root:root | 0644 | target/file.txt | source content",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "user:user | 0755 | 0 | target/",
+    "root:root | 0644 | 0 | target/file.txt | source content",
   ]);
 });
 
@@ -469,10 +469,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | source content",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | source content",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -498,11 +498,11 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | source content",
-    "user:user | 0755 | target/",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | source content",
+    "user:user | 0755 | 0 | target/",
   ]);
 });
 
@@ -520,10 +520,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/a.txt | content a",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/a.txt | content a",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -557,9 +557,9 @@ Deno.test({
   );
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/a.txt | content a",
-    "user:user | 0755 | target/",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/a.txt | content a",
+    "user:user | 0755 | 0 | target/",
   ]);
 });

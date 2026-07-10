@@ -10,10 +10,10 @@ Deno.test("sync-dry-run", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755  | config.toml | __CONFIG_TOML__",
-      "user:user | 0755  | source/",
-      "user:user | 0644  | source/file.txt | some content",
-      "user:user | 0755  | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | some content",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -34,9 +34,9 @@ Deno.test("sync-dry-run", async (t) => {
 
   // Verify no files were actually copied
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | some content",
-    "user:user | 0755 | target/",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | some content",
+    "user:user | 0755 | 0 | target/",
   ]);
 });

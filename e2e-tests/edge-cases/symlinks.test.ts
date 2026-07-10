@@ -10,11 +10,11 @@ Deno.test("symlinks-status-detected", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 0755 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | source/",
-      "user:user | 0644 | source/file.txt | file content",
-      "user:user |      | source/link.txt -> file.txt",
-      "user:user | 0755 | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | file content",
+      "user:user |      | 0 | source/link.txt -> file.txt",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -38,11 +38,11 @@ Deno.test("symlinks-preserved-during-sync", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 0755 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | source/",
-      "user:user | 0644 | source/file.txt | file content",
-      "user:user |      | source/link.txt -> file.txt",
-      "user:user | 0755 | target/",
+      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 0755 | 0 | source/",
+      "user:user | 0644 | 0 | source/file.txt | file content",
+      "user:user |      | 0 | source/link.txt -> file.txt",
+      "user:user | 0755 | 0 | target/",
     ],
   });
 
@@ -62,13 +62,13 @@ Deno.test("symlinks-preserved-during-sync", async (t) => {
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | source/",
-    "user:user | 0644 | source/file.txt | file content",
-    "user:user |      | source/link.txt -> file.txt",
-    "user:user | 0755 | target/",
-    "user:user | 0644 | target/file.txt | file content",
-    "user:user |      | target/link.txt -> file.txt",
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | 0 | source/",
+    "user:user | 0644 | 0 | source/file.txt | file content",
+    "user:user |      | 0 | source/link.txt -> file.txt",
+    "user:user | 0755 | 0 | target/",
+    "user:user | 0644 | 0 | target/file.txt | file content",
+    "user:user |      | 0 | target/link.txt -> file.txt",
   ]);
 });
