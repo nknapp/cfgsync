@@ -1,16 +1,22 @@
 # Sync Algorithm
 
-This is a description of the algorithm that cfgsync uses to synchronize two directories
+This is a description of the algorithm that cfgsync uses to synchronize two directories. The goal of this algorithm is
+to satisfy the following needs:
 
-## High level overview
+* Changed files should be copied into the other directory (two-way sync)
+* Conflicts should be prompted to the user
+* Even with conflicts, everything that can be synced should be synced.
+
+## High-level overview
 
 `cfgsync` performs the following steps to run the algorithm
 
-1. Load config
-2. Load state
-3. Find and classify changes
-4. Execute changes
-5. Run hooks
+1. [Load config](#1-load-config)
+2. [Load state](#2-load-state)
+3. [Find and classify changes](#3-find-and-classify-files)
+4. [Validate action feasibility](#4-validate-action-feasibility)
+5. [Execute changes](#5-execute-changes)
+6. Run hooks
 
 # 1. Load config
 
@@ -34,36 +40,11 @@ each sync group defines
     * optional expected permission
     * optional expected owner
 
+    
 ## 1a. Permission and owner fallbacks
 
-The files in the source directory always belong to the owner of the config file.
-The permissions are always 755 for directories and 644 for regular files or 755 for files.
+(For details about configuration semantics concerning permissions and owner see [permissions-and-owner](./permissions-and-owner.md#permissions))
 
-Owner and permission for files in the target directory are derived from the config
-and from the source file.
-
-If optional values are missing, the following fallbacks apply: The first existing value is used:
-
-* The perms or owner defined at the glob pattern
-* The perms or owner defined at the sync group
-* base defaults:
-    * owner: the owner of the config file
-    * directory permissions "755"
-    * file permissions: "644" or "755" depending on the source file
-
-For the deviating directories the fallback is similar:
-
-* The value that is defined in the "deviation list"
-* The perms or owner defined at the glob pattern
-* The perms or owner defined at the sync group
-* base defaults:
-    * owner of the source files
-    * "755" for directory permission
-    * "644" for file permissions
-    * TODO: Symlinks?
-
-> Note: Directory permissions and owner are never adjusted in a sync. They are only validated or used when creating
-> new directories (see "Execute changes")
 
 # 2. Load state
 
@@ -76,19 +57,26 @@ It contains
     * path
     * sync_group (for stability, the target directory is used to indicate the sync group)
     * one timestamp of the last sync
-    * a hash of the file (XXH3_128) at the time of the last sync. The hash is based on
-        * the contents of the file in the target directory after the sync
-        * the permission of the file in the target directory after the sync
-        * the owner of the file in the target directory after the sync
+    * a hash of the file (XXH3_128) at the time directly after the last sync.
 
 If there is no state-file yet, every file is assumed to be new.
+
+## 2.1 The state hash
+
+The hash is computed after the sync, when source and target file have the same content.
+The hash is based on
+* the contents of the file
+* the permission of the file in the target directory after the sync, which is the same as the permissions of the source file
+  after applying the [configured mapping rules](./permissions-and-owner.md#permissions)
+* the owner of the file in the target directory after the sync, which is the same as the [configured owner](./permissions-and-owner.md#owner)
+  for the source file.
 
 # 3. Find and classify files
 
 * This step first scans the files matching the globs in the source and target directory as well as the ancestor
   directories.
 * Verify that every source and target file was found by no more than one sync group. If a file is in multiple
-  sync groups write an error message and exit immediately.
+  sync groups, write an error message and exit immediately.
 * The files and directories are paired up by their relative path, so we get this information on every entry (note that
   not all information must be read upfront. It can also be read when needed)
     * source file/dir (if it exists)
@@ -111,8 +99,13 @@ If there is no state-file yet, every file is assumed to be new.
 
 We assume having the following helpers (`file` is either `source` or `target`)
 
-* `is_changed(file)` is an abbreviation for `file.mtime > state.last_sync && file.hash != state.hash`
-* `is_unchanged(file)` is an abbreviation for `file.mtime == state.last_sync || file.hash == state.hash`
+* `is_changed(file)` is an abbreviation for `file.mtime != state.last_sync && file.hash != state.hash`
+  
+> Note: This implementation means that files with a fabricated mtime may lead to falsely skipped files. 
+> However, we do not assume bad intentions here. The major goal is to avoid unnecessary reads of the content
+> We expect most of the files to be unchanged with the same mtime as before. The content hash is only checked to 
+> detect files that have been edited and reverted as "unchanged"
+
 
 ```python
 # Check for new files
@@ -131,30 +124,33 @@ else:
     if source is None and target is None:
         return "DeleteFromState"
     elif source is None:
-        if is_unchanged(target):
+        if not is_changed(target):
             return "DeleteTarget"
         else:
             return "Conflict"
     elif target is None:
-        if is_unchanged(source):
+        if not is_changed(source):
             return "DeleteSource"
         else:
             return "Conflict"
     # Check for changed files
     else:
-        if is_unchanged(source) and is_unchanged(target):
-            return "Skip"
-        elif is_changed(source) and is_unchanged(target):
+        if not is_changed(source) and not is_changed(target):
+            # This should happen for almost all files
+            return "Clean"
+        elif is_changed(source) and not is_changed(target):
             return "CopyToTarget"
-        elif is_changed(target) and is_unchanged(source):
+        elif is_changed(target) and not is_changed(source):
             return "CopyToSource"
-        else source.hash == target.hash:
+        elif source.hash == target.hash:
+            # Both sides made the same change. Adjust state to avoid having to compare the hash on the next run. 
             return "UpdateState"
         else:
-        return "Conflict"
+            return "Conflict"
 ```
 
 # 4. Validate action feasibility
+
 
 Verify that the actions can be executed
 
@@ -181,16 +177,19 @@ Verify that the actions can be executed
     * Check the target file can be deleted
 * `DeleteFromState`:
     * Check that the state file can be written
-* `Skip`
+* `Clean`
     * Nothing to check
 * `Conflict`:
     * Check if any of `CopyToTarget` or `CopyToSource` are feasable.
 
-# 4. Execute changes
 
-### 4.1 Command: `status`
+All failed checks are collected and attached for each file record for use in later steps. 
 
-Show number of files in the following categories
+# 5. Execute changes
+
+### 5.1 Command: `status`
+
+Show the number of files without failed checks the following categories
 
 | Long                   | Short | Count computed via number of     |
 |------------------------|-------|----------------------------------|
@@ -198,12 +197,12 @@ Show number of files in the following categories
 | target to source:      | ←     | `CopyToSource` + `DeleteSource`  |
 | conflict:              | ↯     | `Conflict`                       |
 | state update required: | ↺     | `UpdateState`                    |
-| clean:                 |       | `Skip`                           |
+| clean:                 |       | `Clean`                          |
 
 In the short form, only value `>0` are shown, "clean" is omitted (e.g., 3→ 2← 1↯ ↺2)
 If all files are "clean", show a `✓`.
 
-### 4.2 Command: `diff`:
+### 5.2 Command: `diff`:
 
 For each file show based on the action from step 3:
 
@@ -260,17 +259,43 @@ Where `new-owner` and `new-perms` are the owner and permission valus derived fro
     - Header: `=== <rel_path> (would be deleted from source) ===`
     - Diff: no diff shown
 
+### 5.3 Command: `sync`
 
-### 4.3 Command: `sync`
 
-For each file, perform this action
+For all files marked as `failed`, print a warning, but continue with the operation.
+
+
+
+For all non-failed `Conflict` files, ask the user for a resolution.
+* if cli option `-i` is active:
+    * Show the same diff as in 4.2 (for conflicts))
+    * Show `Overwrite [t]arget   Overwrite [s]ource   [x]skip  [q]uit:`
+    * Based on the users chose set the action to
+        * `t`: `CopyToTarget`,
+        * `s`: `CopyToSource`,
+        * `x`: `Clean`
+        * `q`: Quit the whole application, do not roll back, do not continue
+* else 
+  * Print the following warning and mark all files as `Clean`
+     ```
+    Conflicts detected (N files):
+    <rel_path_1>
+    <rel_path_2>
+    ... 
+    Aborting due to N conflict(s). Use -i/--interactive to resolve.
+    ```
+    
+For each non-failed file, perform the determined action. Because of the checks in [step 4](#4-validate-action-feasibility),
+we expect all actions to pass without errors. If errors happen, revert the file where the error occurred, 
+print an error message, and continue with the next file.
 
 * `UpdateState`
     * Ensure that a state entry for the path exists with the hash.
-    * Update the mtime of both files to the current timestamp and set this time in the state as well
+    * Update the mtime of both files to the newest of both mtimes and set this time in the state as last_sync
 * `CopyToTarget`
+    * Create missing parent directories in the target folder an set the correct owner and permissions   
     * Copy the source file to the target directory
-    * Ensure that permissions and owner match the configured values 
+    * Ensure that permissions and owner match the configured values
       (see [permissions-and-owner](./permissions-and-owner.md)
     * Update the mtime of the target file to match the source file
     * Update the hash in state
@@ -289,24 +314,12 @@ For each file, perform this action
     * Remove the entry from the state file
 * `DeleteFromState`:
     * Remove the entry from the state file
-* `Skip`
+* `Clean`
     * Do nothing
-* `Conflict`:
-    * if cli option `-i` is active:
-      * Show the same diff as in 4.2 (for conflicts))
-      * Show `Overwrite [t]arget   Overwrite [s]ource   [x]skip  [q]uit:`
-      * Perform `CopyToTarget`, `CopyToSource` or nothing, based on the user's choice
-    * else
-      * skip 
 
-If conflicts were found print 
+# 6. Run hooks
 
-```
-Conflicts detected (N files):
-<rel_path_1>
-<rel_path_2>
-...
-Aborting due to N conflict(s). Use -i/--interactive to resolve.
-```
+For every sync group in which a `CopyToTarget` action was executed, the hooks configured in `hooks.after` are executed.
+The hooks are run with the [configured owner](./permissions-and-owner.md#owner) of the sync group.
 
-
+If it is not possible to run the hook as that user, a warning is printed and the hook is not executed.
