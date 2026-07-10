@@ -102,6 +102,7 @@ Deno.test("symlink-target-change-is-synced", async (t) => {
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
+  await new Promise((r) => setTimeout(r, 10));
   await Deno.remove(`${testDir}source/symlink.txt`);
   await Deno.symlink("two.txt", `${testDir}source/symlink.txt`);
 

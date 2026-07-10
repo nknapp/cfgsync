@@ -688,7 +688,7 @@ fn file_attrs(path: &Path) -> (i64, bool, Option<String>) {
         .modified()
         .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_secs() as i64)
+        .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
     let is_symlink = metadata.file_type().is_symlink();
     let symlink_target = if is_symlink {
@@ -702,12 +702,24 @@ fn file_attrs(path: &Path) -> (i64, bool, Option<String>) {
 }
 
 fn compute_file_hash_for_state(path: &Path) -> Option<String> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
     use xxhash_rust::xxh3::xxh3_128;
-    if let Ok(contents) = std::fs::read(path) {
-        let hash = xxh3_128(&contents);
+
+    let metadata = std::fs::symlink_metadata(path).ok()?;
+    if metadata.file_type().is_symlink() {
+        let target = std::fs::read_link(path).ok()?;
+        let hash = xxh3_128(target.to_string_lossy().as_bytes());
         Some(format!("{:x}", hash))
     } else {
-        None
+        let uid = metadata.uid();
+        let mode = metadata.permissions().mode() & 0o777;
+        let contents = std::fs::read(path).ok()?;
+        let input = format!("file:{}:{}:{}", uid, mode, contents.len());
+        let mut hasher = xxhash_rust::xxh3::Xxh3::new();
+        hasher.update(input.as_bytes());
+        hasher.update(&contents);
+        let hash = hasher.digest128();
+        Some(format!("{:x}", hash))
     }
 }
 

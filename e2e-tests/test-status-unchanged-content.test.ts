@@ -103,8 +103,9 @@ Deno.test("status-unchanged-content-changed-perms", async (t) => {
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      source -> target: 1
+      source -> target: 0
       target -> source: 0
+      conflict:         1
     `,
     stderr: "",
   });

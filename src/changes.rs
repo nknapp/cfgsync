@@ -229,7 +229,9 @@ fn classify_entry(
     match in_state {
         None => match (in_source, in_target) {
             (Some(_s), Some(_t)) => {
-                if files_or_symlinks_identical(&src, &tgt, _s.is_symlink, _t.is_symlink) {
+                let src_hash = compute_file_hash(&src, _s.is_symlink, _s.symlink_target.as_deref());
+                let tgt_hash = compute_file_hash(&tgt, _t.is_symlink, _t.symlink_target.as_deref());
+                if src_hash.is_some() && src_hash == tgt_hash {
                     Change::UpdateState {
                         group_index: gi,
                         rel_path: rel,
@@ -359,15 +361,33 @@ fn classify_entry(
 
 fn compute_file_hash(
     path: &Path,
-    _is_symlink: bool,
-    _symlink_target: Option<&str>,
+    is_symlink: bool,
+    symlink_target: Option<&str>,
 ) -> Option<String> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
     use xxhash_rust::xxh3::xxh3_128;
-    if let Ok(contents) = std::fs::read(path) {
-        let hash = xxh3_128(&contents);
-        Some(format!("{:x}", hash))
+
+    if is_symlink {
+        if let Some(target) = symlink_target {
+            let hash = xxh3_128(target.as_bytes());
+            Some(format!("{:x}", hash))
+        } else {
+            None
+        }
     } else {
-        None
+        let metadata = std::fs::symlink_metadata(path).ok()?;
+        let mode = metadata.permissions().mode() & 0o777;
+        let uid = metadata.uid();
+        if let Ok(contents) = std::fs::read(path) {
+            let input = format!("file:{}:{}:{}", uid, mode, contents.len());
+            let mut hasher = xxhash_rust::xxh3::Xxh3::new();
+            hasher.update(input.as_bytes());
+            hasher.update(&contents);
+            let hash = hasher.digest128();
+            Some(format!("{:x}", hash))
+        } else {
+            None
+        }
     }
 }
 
@@ -488,7 +508,7 @@ fn scan_dir(
                 .map_err(|e| format!("Cannot read mtime for '{}': {}", path.display(), e))?
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_err(|e| format!("mtime before epoch for '{}': {}", path.display(), e))?
-                .as_secs() as i64;
+                .as_millis() as i64;
 
             let symlink_target = if is_symlink {
                 Some(
@@ -672,12 +692,12 @@ mod tests {
             file: vec![FileEntry {
                 group_index: 0,
                 path: "app.conf".to_string(),
-                source_mtime: 1000,
+                source_mtime: 1000000,
                 is_symlink: false,
                 symlink_target: None,
                 hash: None,
                 last_sync: None,
-                target_mtime: 1000,
+                target_mtime: 1000000,
             }],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
@@ -722,12 +742,12 @@ mod tests {
             file: vec![FileEntry {
                 group_index: 0,
                 path: "app.conf".to_string(),
-                source_mtime: 1000,
+                source_mtime: 1000000,
                 is_symlink: false,
                 symlink_target: None,
                 hash: None,
                 last_sync: None,
-                target_mtime: 1000,
+                target_mtime: 1000000,
             }],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
@@ -779,12 +799,12 @@ mod tests {
             file: vec![FileEntry {
                 group_index: 0,
                 path: "app.conf".to_string(),
-                source_mtime: 1000,
+                source_mtime: 1000000,
                 is_symlink: false,
                 symlink_target: None,
                 hash: None,
                 last_sync: None,
-                target_mtime: 1000,
+                target_mtime: 1000000,
             }],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
@@ -877,12 +897,12 @@ mod tests {
             file: vec![FileEntry {
                 group_index: 0,
                 path: "old.conf".to_string(),
-                source_mtime: 100,
+                source_mtime: 100000,
                 is_symlink: false,
                 symlink_target: None,
                 hash: None,
                 last_sync: None,
-                target_mtime: 100,
+                target_mtime: 100000,
             }],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
@@ -1194,22 +1214,22 @@ mod tests {
                 FileEntry {
                     group_index: 0,
                     path: "app.conf".to_string(),
-                    source_mtime: 1000,
+                    source_mtime: 1000000,
                     is_symlink: false,
                     symlink_target: None,
                     hash: None,
                     last_sync: None,
-                    target_mtime: 1000,
+                    target_mtime: 1000000,
                 },
                 FileEntry {
                     group_index: 1,
                     path: "gone2.conf".to_string(),
-                    source_mtime: 200,
+                    source_mtime: 200000,
                     is_symlink: false,
                     symlink_target: None,
                     hash: None,
                     last_sync: None,
-                    target_mtime: 200,
+                    target_mtime: 200000,
                 },
             ],
         };
@@ -1299,6 +1319,6 @@ mod tests {
             .unwrap()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_secs() as i64
+            .as_millis() as i64
     }
 }

@@ -89,20 +89,20 @@ mod tests {
                 FileEntry {
                     group_index: 0,
                     path: "etc/nginx.conf".to_string(),
-                    source_mtime: 1716634200,
+                    source_mtime: 1716634200000,
                     hash: None,
                     last_sync: None,
-                    target_mtime: 1716634200,
+                    target_mtime: 1716634200000,
                     is_symlink: false,
                     symlink_target: None,
                 },
                 FileEntry {
                     group_index: 0,
                     path: "etc/app.conf".to_string(),
-                    source_mtime: 1716634300,
+                    source_mtime: 1716634300000,
                     hash: None,
                     last_sync: None,
-                    target_mtime: 1716634300,
+                    target_mtime: 1716634300000,
                     is_symlink: false,
                     symlink_target: None,
                 },
@@ -116,11 +116,11 @@ mod tests {
         let map = parsed.as_map();
         assert_eq!(
             map.get(&(0, "etc/nginx.conf")).unwrap().source_mtime,
-            1716634200
+            1716634200000
         );
         assert_eq!(
             map.get(&(0, "etc/app.conf")).unwrap().source_mtime,
-            1716634300
+            1716634300000
         );
     }
 
@@ -144,10 +144,10 @@ mod tests {
             file: vec![FileEntry {
                 group_index: 0,
                 path: "test.conf".to_string(),
-                source_mtime: 100,
+                source_mtime: 100000,
                 hash: None,
                 last_sync: None,
-                target_mtime: 200,
+                target_mtime: 200000,
                 is_symlink: false,
                 symlink_target: None,
             }],
@@ -157,8 +157,8 @@ mod tests {
         let loaded = State::load(&state_path).unwrap();
         assert_eq!(loaded.file.len(), 1);
         assert_eq!(loaded.file[0].path, "test.conf");
-        assert_eq!(loaded.file[0].source_mtime, 100);
-        assert_eq!(loaded.file[0].target_mtime, 200);
+        assert_eq!(loaded.file[0].source_mtime, 100000);
+        assert_eq!(loaded.file[0].target_mtime, 200000);
     }
 
     #[test]
@@ -169,28 +169,28 @@ mod tests {
                 FileEntry {
                     group_index: 0,
                     path: "nginx.conf".to_string(),
-                    source_mtime: 100,
+                    source_mtime: 100000,
                     hash: None,
                     last_sync: None,
-                    target_mtime: 100,
+                    target_mtime: 100000,
                     is_symlink: false,
                     symlink_target: None,
                 },
                 FileEntry {
                     group_index: 1,
                     path: "nginx.conf".to_string(),
-                    source_mtime: 200,
+                    source_mtime: 200000,
                     hash: None,
                     last_sync: None,
-                    target_mtime: 200,
+                    target_mtime: 200000,
                     is_symlink: false,
                     symlink_target: None,
                 },
             ],
         };
         let map = state.as_map();
-        assert_eq!(map.get(&(0, "nginx.conf")).unwrap().source_mtime, 100);
-        assert_eq!(map.get(&(1, "nginx.conf")).unwrap().source_mtime, 200);
+        assert_eq!(map.get(&(0, "nginx.conf")).unwrap().source_mtime, 100000);
+        assert_eq!(map.get(&(1, "nginx.conf")).unwrap().source_mtime, 200000);
     }
 
     #[test]

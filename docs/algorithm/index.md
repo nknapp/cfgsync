@@ -65,7 +65,7 @@ If there is no state-file yet, every file is assumed to be new.
 
 The hash is computed after the sync, when source and target file have the same content.
 The hash is based on
-* the contents of the file
+* the contents of the file (or the path of the link-target if it is a symlink)
 * the permission of the file in the target directory after the sync, which is the same as the permissions of the source file
   after applying the [configured mapping rules](./permissions-and-owner.md#permissions)
 * the owner of the file in the target directory after the sync, which is the same as the [configured owner](./permissions-and-owner.md#owner)
@@ -74,7 +74,8 @@ The hash is based on
 # 3. Find and classify files
 
 * This step first scans the files matching the globs in the source and target directory as well as the ancestor
-  directories.
+  directories. It uses an efficient glob filtering method that only dives in a directory if there is a chance of it having 
+  files matching the glob.
 * Verify that every source and target file was found by no more than one sync group. If a file is in multiple
   sync groups, write an error message and exit immediately.
 * The files and directories are paired up by their relative path, so we get this information on every entry (note that

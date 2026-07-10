@@ -229,7 +229,23 @@ fn run_sync_cycle(
         return;
     }
 
+    let has_actions = changes.iter().any(|c| {
+        !matches!(
+            c,
+            crate::changes::Change::Clean { .. } | crate::changes::Change::UpdateState { .. }
+        )
+    });
+
+    if !has_actions {
+        return;
+    }
+
     let counts = changes::count_changes(&changes);
+
+    if let Err(e) = sync::run(config, &mut state, changes, interactive, dry_run) {
+        eprintln!("Watch: sync warning: {}", e);
+    }
+
     eprintln!(
         "source -> target: {}  target -> source: {}  deleted target: {}  deleted source: {}  conflicts: {}",
         counts.copy_to_target,
@@ -238,8 +254,4 @@ fn run_sync_cycle(
         counts.delete_source,
         counts.conflicts,
     );
-
-    if let Err(e) = sync::run(config, &mut state, changes, interactive, dry_run) {
-        eprintln!("Watch: sync warning: {}", e);
-    }
 }
