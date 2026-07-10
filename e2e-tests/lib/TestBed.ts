@@ -33,11 +33,15 @@ export class TestBed {
   }
 
   async writeTextFile(relativePath: string, newContents: string) {
-    await Deno.writeTextFile(new URL(relativePath, this.testDir), newContents);
+    const path = new URL(relativePath, this.testDir);
+    await Deno.writeTextFile(path, newContents);
+    await Deno.utime(path, this.mtime(), this.mtime());
   }
 
   async mkdir(relativePath: string) {
-    await Deno.mkdir(new URL(relativePath, this.testDir));
+    const path = new URL(relativePath, this.testDir);
+    await Deno.mkdir(path);
+    await Deno.utime(path, this.mtime(), this.mtime());
   }
 
   async setMtime(relativePath: string, mtime: Date) {
@@ -63,6 +67,10 @@ export class TestBed {
   private formatFaketime(): string | undefined {
     if (!this.currentTime) return undefined;
     return this.currentTime.toISOString().replace("T", " ").slice(0, 19);
+  }
+
+  private mtime(): Date {
+    return this.currentTime ? new Date(this.currentTime) : new Date();
   }
 
   async run(runArgs: Omit<RunArgs, "cwd">) {

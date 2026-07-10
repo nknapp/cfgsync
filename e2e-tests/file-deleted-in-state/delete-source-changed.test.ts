@@ -1,8 +1,6 @@
 import { assertEquals, deindent } from "../lib/index.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
-const pastDate = new Date("2020-01-01T00:00:00Z");
-
 Deno.test("delete-source-changed", async (t) => {
   const testbed = await TestBed.create(t, {
     configToml: deindent`
@@ -18,13 +16,14 @@ Deno.test("delete-source-changed", async (t) => {
       "user:user | 0755 | 0 | target/",
       "user:user | 0644 | 0 | target/file.txt | file content",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
+  testbed.advance("1 sec");
   await testbed.deleteFile("target/file.txt");
   await testbed.writeTextFile("source/file.txt", "different content");
-  await testbed.setMtime("source/file.txt", pastDate);
 
   await testbed.run({ args: ["--config", "config.toml", "status"] });
   testbed.assertOutput({

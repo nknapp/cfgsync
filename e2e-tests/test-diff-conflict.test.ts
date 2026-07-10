@@ -13,23 +13,14 @@ Deno.test("diff-conflict-shows-unified-diff", async (t) => {
     files: [
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
       "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/conflict.txt | line 1\nline 2\nline 3 source\n",
+      "user:user | 0644 | -7200 sec | source/conflict.txt | line 1\nline 2\nline 3 source\n",
       "user:user | 0755 | 0 | target/",
       "user:user | 0644 | 0 | target/conflict.txt | line 1\nline 2\nline 3 target\n",
     ],
+    faketime: "2026-05-20T15:00:00Z",
   });
 
   const testDir = getTestDir(t);
-  await Deno.utime(
-    new URL("source/conflict.txt", testDir),
-    new Date("2026-05-20T13:00:00Z"),
-    new Date("2026-05-20T13:00:00Z"),
-  );
-  await Deno.utime(
-    new URL("target/conflict.txt", testDir),
-    new Date("2026-05-20T15:00:00Z"),
-    new Date("2026-05-20T15:00:00Z"),
-  );
 
   await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
   testbed.assertOutput({

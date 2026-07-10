@@ -1,8 +1,6 @@
 import { deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
-const pastDate = new Date("2020-01-01T00:00:00Z");
-
 Deno.test("status-unchanged-content", async (t) => {
   const testbed = await TestBed.create(t, {
     configToml: deindent`
@@ -18,11 +16,13 @@ Deno.test("status-unchanged-content", async (t) => {
       "user:user | 0755 | 0 | target/",
       "user:user | 0644 | 0 | target/file.txt | same content",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
-  await testbed.setMtime("source/file.txt", pastDate);
+  testbed.advance("1 sec");
+  await testbed.writeTextFile("source/file.txt", "same content");
 
   await testbed.run({ args: ["--config", "config.toml", "status"] });
   testbed.assertOutput({
@@ -62,12 +62,13 @@ Deno.test("status-unchanged-content-actual-change-detected", async (t) => {
       "user:user | 0755 | 0 | target/",
       "user:user | 0644 | 0 | target/file.txt | original content",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
+  testbed.advance("1 sec");
   await testbed.writeTextFile("source/file.txt", "modified content");
-  await testbed.setMtime("source/file.txt", pastDate);
 
   await testbed.run({ args: ["--config", "config.toml", "status"] });
   testbed.assertOutput({
@@ -96,10 +97,10 @@ Deno.test("status-unchanged-content-changed-perms", async (t) => {
       "user:user | 0755 | 0 | target/",
       "user:user | 0600 | 0 | target/file.txt | original content",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
 
   await testbed.run({ args: ["--config", "config.toml", "status"] });
-  await testbed.setMtime("target/file.txt", pastDate);
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
