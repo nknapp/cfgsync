@@ -9,15 +9,9 @@ type TestOwner = `${"user" | "root"}:${"user" | "root"}`;
 type TestPerms = `${number | ""}${number}${number}${number}`;
 type TestMtime = string;
 
-type TestFile =
-  | `${TestOwner} | ${TestPerms} | ${TestPath} | ${TestContents}`
-  | `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath} | ${TestContents}`;
-type TestSymlink =
-  | `${TestOwner} | ${TestPerms} | ${TestPath} -> ${TestPath}`
-  | `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath} -> ${TestPath}`;
-type TestDir =
-  | `${TestOwner} | ${TestPerms} | ${TestPath}/`
-  | `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath}/`;
+type TestFile = `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath} | ${TestContents}`;
+type TestSymlink = `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath} -> ${TestPath}`;
+type TestDir = `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath}/`;
 export type TestEntry = TestFile | TestSymlink | TestDir;
 
 export interface TestSpec {
