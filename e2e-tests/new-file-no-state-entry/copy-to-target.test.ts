@@ -1,0 +1,78 @@
+import { assertEquals, deindent } from "../lib/index.ts";
+import { getTestDir } from "../lib/setupTestDir.ts";
+import { TestBed } from "../lib/TestBed.ts";
+
+const knownDate = new Date("2020-01-01T00:00:00Z");
+
+Deno.test("new-file-copy-to-target", async (t) => {
+  const testbed = await TestBed.create(t, {
+    configToml: deindent`
+      [[sync]]
+      source = "./source"
+      target = "./target"
+      globs = ["**/*.txt"]
+    `,
+    files: [
+      "user:user | 0755  | config.toml | __CONFIG_TOML__",
+      "user:user | 0755  | source/",
+      "user:user | 0644  | source/file.txt | hello\n",
+      "user:user | 0755  | target/",
+    ],
+  });
+
+  // status: file only on source side, no state → CopyToTarget
+  await testbed.run({ args: ["--config", "config.toml", "status"] });
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      source -> target: 1
+      target -> source: 0
+    `,
+    stderr: "",
+  });
+
+  // diff: unified diff showing source content added to (missing) target
+  const testDir = getTestDir(t);
+  await testbed.setMtime("source/file.txt", knownDate);
+
+  await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
+  testbed.assertOutput({
+    code: 0,
+    // deindent's trimEnd() strips the trailing tab on the +++ line when the
+    // target file is missing (no timestamp), so construct the expected stdout
+    // manually for this section.
+    stdout: `=== file.txt (source -> target) ===\n` +
+      `--- ${testDir.pathname}source/file.txt\t2020-01-01 00:00:00.000000000 +0000\n` +
+      `+++ ${testDir.pathname}target/file.txt\t\n` +
+      `@@ -1 +1 @@\n` +
+      `-hello\n` +
+      `+(file missing)\n` +
+      `\\ No newline at end of file`,
+    stderr: "",
+  });
+
+  // sync: copies source → target, creates state file
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      copied file.txt -> target
+
+      source -> target: 1
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
+  });
+
+  // After sync: both files exist with same content, state file created
+  assertEquals(await testbed.readTestDir(), [
+    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 0755 | config.toml | __CONFIG_TOML__",
+    "user:user | 0755 | source/",
+    "user:user | 0644 | source/file.txt | hello\n",
+    "user:user | 0755 | target/",
+    "user:user | 0644 | target/file.txt | hello\n",
+  ]);
+});

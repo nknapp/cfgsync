@@ -30,8 +30,6 @@ Deno.test("status-unchanged-content", async (t) => {
     stdout: deindent`
       source -> target: 0
       target -> source: 0
-      deleted target:   0
-      deleted source:   0
     `,
     stderr: "",
   });
@@ -77,8 +75,6 @@ Deno.test("status-unchanged-content-actual-change-detected", async (t) => {
     stdout: deindent`
       source -> target: 1
       target -> source: 0
-      deleted target:   0
-      deleted source:   0
     `,
     stderr: "",
   });
@@ -109,8 +105,6 @@ Deno.test("status-unchanged-content-changed-perms", async (t) => {
     stdout: deindent`
       source -> target: 1
       target -> source: 0
-      deleted target:   0
-      deleted source:   0
     `,
     stderr: "",
   });

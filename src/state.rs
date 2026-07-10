@@ -21,6 +21,10 @@ pub struct FileEntry {
     pub is_symlink: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub symlink_target: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_sync: Option<i64>,
 }
 
 impl State {
@@ -86,6 +90,8 @@ mod tests {
                     group_index: 0,
                     path: "etc/nginx.conf".to_string(),
                     source_mtime: 1716634200,
+                    hash: None,
+                    last_sync: None,
                     target_mtime: 1716634200,
                     is_symlink: false,
                     symlink_target: None,
@@ -94,6 +100,8 @@ mod tests {
                     group_index: 0,
                     path: "etc/app.conf".to_string(),
                     source_mtime: 1716634300,
+                    hash: None,
+                    last_sync: None,
                     target_mtime: 1716634300,
                     is_symlink: false,
                     symlink_target: None,
@@ -137,6 +145,8 @@ mod tests {
                 group_index: 0,
                 path: "test.conf".to_string(),
                 source_mtime: 100,
+                hash: None,
+                last_sync: None,
                 target_mtime: 200,
                 is_symlink: false,
                 symlink_target: None,
@@ -160,6 +170,8 @@ mod tests {
                     group_index: 0,
                     path: "nginx.conf".to_string(),
                     source_mtime: 100,
+                    hash: None,
+                    last_sync: None,
                     target_mtime: 100,
                     is_symlink: false,
                     symlink_target: None,
@@ -168,6 +180,8 @@ mod tests {
                     group_index: 1,
                     path: "nginx.conf".to_string(),
                     source_mtime: 200,
+                    hash: None,
+                    last_sync: None,
                     target_mtime: 200,
                     is_symlink: false,
                     symlink_target: None,

@@ -11,6 +11,21 @@ pub struct Config {
     pub sync: Vec<SyncGroup>,
 }
 
+#[derive(Debug, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum PermissionPreset {
+    #[schemars(description = "source 644→600, 755→600 (most restrictive)")]
+    Private,
+    #[schemars(description = "source 644→664, 755→775")]
+    Shared,
+    #[schemars(description = "source 644→660, 755→770")]
+    Group,
+    #[schemars(description = "source 644→640, 755→750")]
+    GroupRead,
+    #[schemars(description = "source 644→644, 755→755 (default, no change)")]
+    Public,
+}
+
 #[derive(Debug, Default, Deserialize, Clone, JsonSchema)]
 pub struct HooksConfig {
     #[schemars(
@@ -34,12 +49,37 @@ pub struct SyncGroup {
     #[schemars(description = "Default permissions as an octal string (e.g. \"644\", \"755\")")]
     #[serde(default)]
     pub permissions: Option<String>,
+    #[schemars(description = "Default file-permission preset applied to regular files in target")]
+    #[serde(default)]
+    pub file_perms: Option<PermissionPreset>,
+    #[schemars(
+        description = "Default directory-permission preset applied to directories in target"
+    )]
+    #[serde(default)]
+    pub dir_perms: Option<PermissionPreset>,
     #[schemars(description = "Default owner (user:group) applied to synced files")]
     #[serde(default)]
     pub owner: Option<String>,
     #[schemars(description = "Hooks to run during sync")]
     #[serde(default)]
     pub hooks: HooksConfig,
+    #[schemars(
+        description = "Deviating directories with expected permissions/owner for validation"
+    )]
+    #[serde(default)]
+    pub deviating: Vec<DeviatingEntry>,
+}
+
+#[derive(Debug, Deserialize, Clone, JsonSchema)]
+pub struct DeviatingEntry {
+    #[schemars(description = "Path to a directory (no glob) with expected permissions/owner")]
+    pub path: String,
+    #[schemars(description = "Optional expected permission for the directory")]
+    #[serde(default)]
+    pub permissions: Option<String>,
+    #[schemars(description = "Optional expected owner for the directory")]
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, JsonSchema)]
@@ -56,6 +96,12 @@ pub enum GlobEntry {
         #[schemars(description = "Optional octal permission override for this glob")]
         #[serde(default)]
         permissions: Option<String>,
+        #[schemars(description = "Optional file-permission preset override for this glob")]
+        #[serde(default)]
+        file_perms: Option<PermissionPreset>,
+        #[schemars(description = "Optional directory-permission preset override for this glob")]
+        #[serde(default)]
+        dir_perms: Option<PermissionPreset>,
         #[schemars(description = "Optional owner override for this glob (user:group)")]
         #[serde(default)]
         owner: Option<String>,
@@ -79,7 +125,13 @@ pub struct ResolvedSyncGroup {
     #[allow(dead_code)]
     pub permissions: Option<u32>,
     #[allow(dead_code)]
+    pub file_perms: Option<PermissionPreset>,
+    #[allow(dead_code)]
+    pub dir_perms: Option<PermissionPreset>,
+    #[allow(dead_code)]
     pub owner: Option<String>,
+    #[allow(dead_code)]
+    pub deviating: Vec<ResolvedDeviatingEntry>,
     pub hook_after: Option<String>,
 }
 
@@ -88,6 +140,20 @@ pub struct ResolvedGlob {
     #[allow(dead_code)]
     pub pattern: String,
     pub permissions: Option<u32>,
+    #[allow(dead_code)]
+    pub file_perms: Option<PermissionPreset>,
+    #[allow(dead_code)]
+    pub dir_perms: Option<PermissionPreset>,
+    pub owner: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolvedDeviatingEntry {
+    #[allow(dead_code)]
+    pub path: PathBuf,
+    #[allow(dead_code)]
+    pub permissions: Option<u32>,
+    #[allow(dead_code)]
     pub owner: Option<String>,
 }
 
@@ -165,16 +231,24 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
             .globs
             .iter()
             .map(|entry| {
-                let (pattern, perms, owner) = match entry {
-                    GlobEntry::Simple(p) => (p.clone(), None, None),
+                let (pattern, perms, file_perms, dir_perms, owner) = match entry {
+                    GlobEntry::Simple(p) => (p.clone(), None, None, None, None),
                     GlobEntry::Detailed {
                         pattern,
                         permissions,
+                        file_perms: fp,
+                        dir_perms: dp,
                         owner,
                     } => {
                         let entry_perms =
                             permissions.as_deref().map(parse_permissions).transpose()?;
-                        (pattern.clone(), entry_perms, owner.clone())
+                        (
+                            pattern.clone(),
+                            entry_perms,
+                            fp.clone(),
+                            dp.clone(),
+                            owner.clone(),
+                        )
                     }
                 };
 
@@ -184,7 +258,27 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
                 Ok(ResolvedGlob {
                     pattern,
                     permissions: perms.or(group_perms),
+                    file_perms: file_perms.or(group.file_perms.clone()),
+                    dir_perms: dir_perms.or(group.dir_perms.clone()),
                     owner: owner.or_else(|| group.owner.clone()),
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        let deviating: Vec<ResolvedDeviatingEntry> = group
+            .deviating
+            .iter()
+            .map(|entry| {
+                let perms = entry
+                    .permissions
+                    .as_deref()
+                    .map(parse_permissions)
+                    .transpose()?;
+                let path = resolve_path(&config_dir, &expand_tilde(&entry.path, &owner_home));
+                Ok(ResolvedDeviatingEntry {
+                    path,
+                    permissions: perms,
+                    owner: entry.owner.clone(),
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -194,7 +288,10 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
             target_dir,
             globs,
             permissions: group_perms,
+            file_perms: group.file_perms.clone(),
+            dir_perms: group.dir_perms.clone(),
             owner: group.owner.clone(),
+            deviating,
             hook_after: group.hooks.after.clone(),
         });
     }

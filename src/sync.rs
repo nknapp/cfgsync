@@ -14,6 +14,8 @@ struct SyncOutcome {
     skipped_perms: usize,
     conflicts_total: usize,
     conflicts_skipped: usize,
+    #[allow(dead_code)]
+    updated_state: usize,
     hook_failures: usize,
 }
 
@@ -52,6 +54,7 @@ pub fn run(
         skipped_perms: 0,
         conflicts_total: conflict_count,
         conflicts_skipped: 0,
+        updated_state: 0,
         hook_failures: 0,
     };
 
@@ -226,7 +229,10 @@ pub fn run(
                 }
             }
 
-            Change::Cleanup { .. } => {}
+            Change::DeleteFromState { .. }
+            | Change::Clean { .. }
+            | Change::UpdateState { .. }
+            | Change::Failed { .. } => {}
 
             _ => {}
         }
@@ -468,7 +474,10 @@ pub fn run(
                     }
                 }
 
-                Change::Cleanup { .. } => {}
+                Change::DeleteFromState { .. }
+                | Change::Clean { .. }
+                | Change::UpdateState { .. }
+                | Change::Failed { .. } => {}
             }
         }
     }
@@ -652,6 +661,8 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
                 let (tgt_mtime, _, _) = file_attrs(&tgt_path);
 
                 if src_mtime > 0 || tgt_mtime > 0 || is_symlink {
+                    let hash = compute_file_hash_for_state(&abs_path);
+                    let last_sync = Some(src_mtime.max(tgt_mtime));
                     state.file.push(FileEntry {
                         group_index,
                         path: rel_path,
@@ -659,6 +670,8 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
                         target_mtime: tgt_mtime,
                         is_symlink,
                         symlink_target,
+                        hash,
+                        last_sync,
                     });
                 }
             }
@@ -686,6 +699,16 @@ fn file_attrs(path: &Path) -> (i64, bool, Option<String>) {
         None
     };
     (mtime, is_symlink, symlink_target)
+}
+
+fn compute_file_hash_for_state(path: &Path) -> Option<String> {
+    use xxhash_rust::xxh3::xxh3_128;
+    if let Ok(contents) = std::fs::read(path) {
+        let hash = xxh3_128(&contents);
+        Some(format!("{:x}", hash))
+    } else {
+        None
+    }
 }
 
 fn chown_state_file(state_path: &Path, config_path: &Path) {
@@ -1379,6 +1402,7 @@ mod tests {
             skipped_perms: 0,
             conflicts_total: 0,
             conflicts_skipped: 0,
+            updated_state: 0,
             hook_failures: 0,
         };
 
@@ -1407,7 +1431,10 @@ mod tests {
             target_dir: tgt,
             globs: vec![],
             permissions: None,
+            file_perms: None,
+            dir_perms: None,
             owner: None,
+            deviating: vec![],
             hook_after: None,
         }
     }

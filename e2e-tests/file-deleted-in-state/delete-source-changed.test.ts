@@ -1,7 +1,9 @@
-import { assertEquals, deindent } from "./lib/index.ts";
-import { TestBed } from "./lib/TestBed.ts";
+import { assertEquals, deindent } from "../lib/index.ts";
+import { TestBed } from "../lib/TestBed.ts";
 
-Deno.test("conflict-detection", async (t) => {
+const pastDate = new Date("2020-01-01T00:00:00Z");
+
+Deno.test("delete-source-changed", async (t) => {
   const testbed = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
@@ -12,11 +14,17 @@ Deno.test("conflict-detection", async (t) => {
     files: [
       "user:user | 0755  | config.toml | __CONFIG_TOML__",
       "user:user | 0755  | source/",
-      "user:user | 0644  | source/conflict.txt | source version",
+      "user:user | 0644  | source/file.txt | file content",
       "user:user | 0755  | target/",
-      "user:user | 0644  | target/conflict.txt | target version",
+      "user:user | 0644  | target/file.txt | file content",
     ],
   });
+
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
+
+  await testbed.deleteFile("target/file.txt");
+  await testbed.writeTextFile("source/file.txt", "different content");
+  await testbed.setMtime("source/file.txt", pastDate);
 
   await testbed.run({ args: ["--config", "config.toml", "status"] });
   testbed.assertOutput({
@@ -35,16 +43,16 @@ Deno.test("conflict-detection", async (t) => {
     stdout: "",
     stderr: deindent`
       Conflicts detected (1 files):
-        conflict.txt
+        file.txt
       Error: Aborting due to 1 conflict(s). Use -i/--interactive to resolve.
     `,
   });
 
   assertEquals(await testbed.readTestDir(), [
+    "user:user | 0644 | config.cfgsync.state | CFGSYNC_STATE",
     "user:user | 0755 | config.toml | __CONFIG_TOML__",
     "user:user | 0755 | source/",
-    "user:user | 0644 | source/conflict.txt | source version",
+    "user:user | 0644 | source/file.txt | different content",
     "user:user | 0755 | target/",
-    "user:user | 0644 | target/conflict.txt | target version",
   ]);
 });

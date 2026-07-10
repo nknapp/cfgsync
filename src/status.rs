@@ -9,12 +9,29 @@ pub fn print_status(counts: &ChangeCounts, short: bool) {
 }
 
 fn print_status_long(counts: &ChangeCounts) {
-    println!("source -> target: {}", counts.copy_to_target);
-    println!("target -> source: {}", counts.copy_to_source);
-    println!("deleted target:   {}", counts.delete_target);
-    println!("deleted source:   {}", counts.delete_source);
+    println!(
+        "source -> target: {}",
+        counts.copy_to_target + counts.delete_target
+    );
+    println!(
+        "target -> source: {}",
+        counts.copy_to_source + counts.delete_source
+    );
     if counts.conflicts > 0 {
-        println!("conflicts:        {}", counts.conflicts);
+        println!("conflict:         {}", counts.conflicts);
+    }
+    if counts.update_state > 0 {
+        println!("state update:     {}", counts.update_state);
+    }
+    if counts.clean == 0
+        && counts.copy_to_target == 0
+        && counts.copy_to_source == 0
+        && counts.delete_target == 0
+        && counts.delete_source == 0
+        && counts.conflicts == 0
+        && counts.update_state == 0
+    {
+        println!("all clean");
     }
 }
 
@@ -30,6 +47,9 @@ fn print_status_short(counts: &ChangeCounts) {
     }
     if counts.conflicts > 0 {
         parts.push(format!("{}↯", counts.conflicts));
+    }
+    if counts.update_state > 0 {
+        parts.push(format!("↺{}", counts.update_state));
     }
     if parts.is_empty() {
         println!("✓");

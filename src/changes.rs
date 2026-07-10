@@ -1,5 +1,5 @@
-use crate::config::{ResolvedConfig, ResolvedGlob, ResolvedSyncGroup};
-use crate::state::State;
+use crate::config::{ResolvedConfig, ResolvedGlob};
+use crate::state::{FileEntry, State};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -11,7 +11,7 @@ pub struct DiscoveredFile {
     pub symlink_target: Option<String>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Change {
     CopyToTarget {
         group_index: usize,
@@ -41,10 +41,56 @@ pub enum Change {
         rel_path: String,
         abs_src: PathBuf,
     },
-    Cleanup {
+    DeleteFromState {
         group_index: usize,
         rel_path: String,
     },
+    UpdateState {
+        group_index: usize,
+        rel_path: String,
+    },
+    Clean {
+        group_index: usize,
+        rel_path: String,
+    },
+    #[allow(dead_code)]
+    Failed {
+        group_index: usize,
+        rel_path: String,
+        reason: String,
+    },
+}
+
+impl Change {
+    #[allow(dead_code)]
+    pub fn group_index(&self) -> usize {
+        match self {
+            Change::CopyToTarget { group_index, .. }
+            | Change::CopyToSource { group_index, .. }
+            | Change::Conflict { group_index, .. }
+            | Change::DeleteTarget { group_index, .. }
+            | Change::DeleteSource { group_index, .. }
+            | Change::DeleteFromState { group_index, .. }
+            | Change::UpdateState { group_index, .. }
+            | Change::Clean { group_index, .. }
+            | Change::Failed { group_index, .. } => *group_index,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn rel_path(&self) -> &str {
+        match self {
+            Change::CopyToTarget { rel_path, .. }
+            | Change::CopyToSource { rel_path, .. }
+            | Change::Conflict { rel_path, .. }
+            | Change::DeleteTarget { rel_path, .. }
+            | Change::DeleteSource { rel_path, .. }
+            | Change::DeleteFromState { rel_path, .. }
+            | Change::UpdateState { rel_path, .. }
+            | Change::Clean { rel_path, .. }
+            | Change::Failed { rel_path, .. } => rel_path,
+        }
+    }
 }
 
 pub fn classify(
@@ -76,8 +122,61 @@ pub fn classify(
         );
     }
 
-    // Cross-group overlap validation (based on absolute paths)
+    validate_group_overlap(config, &group_source_files, &group_target_files)?;
+
+    let state_map = state.as_map();
+
+    let mut all_paths: BTreeSet<(usize, &str)> = BTreeSet::new();
+    for (i, src_files) in group_source_files.iter().enumerate() {
+        for f in src_files {
+            all_paths.insert((i, &f.rel_path));
+        }
+    }
+    for (i, tgt_files) in group_target_files.iter().enumerate() {
+        for f in tgt_files {
+            all_paths.insert((i, &f.rel_path));
+        }
+    }
+    for &(group_index, path) in state_map.keys() {
+        all_paths.insert((group_index, path));
+    }
+
+    let mut changes = Vec::new();
+
+    for (group_index, rel_path) in all_paths {
+        let group = &config.sync_groups[group_index];
+        let in_source = group_source_files[group_index]
+            .iter()
+            .find(|f| f.rel_path == rel_path);
+        let in_target = group_target_files[group_index]
+            .iter()
+            .find(|f| f.rel_path == rel_path);
+        let in_state = state_map.get(&(group_index, rel_path));
+        let abs_src = group.source_dir.join(rel_path);
+        let abs_tgt = group.target_dir.join(rel_path);
+
+        let change = classify_entry(
+            in_source,
+            in_target,
+            in_state,
+            group_index,
+            rel_path,
+            &abs_src,
+            &abs_tgt,
+        );
+        changes.push(change);
+    }
+
+    Ok(changes)
+}
+
+fn validate_group_overlap(
+    config: &ResolvedConfig,
+    group_source_files: &[Vec<DiscoveredFile>],
+    group_target_files: &[Vec<DiscoveredFile>],
+) -> Result<(), String> {
     let mut path_to_group: HashMap<PathBuf, usize> = HashMap::new();
+
     for (i, src_files) in group_source_files.iter().enumerate() {
         for f in src_files {
             let abs_path = config.sync_groups[i].source_dir.join(&f.rel_path);
@@ -110,156 +209,202 @@ pub fn classify(
             path_to_group.insert(abs_path, i);
         }
     }
+    Ok(())
+}
 
-    let state_map = state.as_map();
+fn classify_entry(
+    in_source: Option<&DiscoveredFile>,
+    in_target: Option<&DiscoveredFile>,
+    in_state: Option<&&FileEntry>,
+    group_index: usize,
+    rel_path: &str,
+    abs_src: &Path,
+    abs_tgt: &Path,
+) -> Change {
+    let rel = rel_path.to_string();
+    let gi = group_index;
+    let src = abs_src.to_path_buf();
+    let tgt = abs_tgt.to_path_buf();
 
-    // Collect all unique paths across all groups
-    let mut all_paths: BTreeSet<(usize, &str)> = BTreeSet::new();
-    for (i, src_files) in group_source_files.iter().enumerate() {
-        for f in src_files {
-            all_paths.insert((i, &f.rel_path));
-        }
-    }
-    for (i, tgt_files) in group_target_files.iter().enumerate() {
-        for f in tgt_files {
-            all_paths.insert((i, &f.rel_path));
-        }
-    }
-    for &(group_index, path) in state_map.keys() {
-        all_paths.insert((group_index, path));
-    }
-
-    let mut changes = Vec::new();
-
-    for (group_index, rel_path) in all_paths {
-        let group = &config.sync_groups[group_index];
-        let in_source = group_source_files[group_index]
-            .iter()
-            .find(|f| f.rel_path == rel_path);
-        let in_target = group_target_files[group_index]
-            .iter()
-            .find(|f| f.rel_path == rel_path);
-        let in_state = state_map.get(&(group_index, rel_path));
-        let abs_src = group.source_dir.join(rel_path);
-        let abs_tgt = group.target_dir.join(rel_path);
-
-        match (in_source, in_target, in_state) {
-            (Some(s), Some(t), Some(state_entry)) => {
-                let src_mod = s.mtime != state_entry.source_mtime
-                    || s.symlink_target != state_entry.symlink_target;
-                let tgt_mod = t.mtime != state_entry.target_mtime
-                    || t.symlink_target != state_entry.symlink_target;
-                let changes_before = changes.len();
-                if src_mod && tgt_mod {
-                    if !files_or_symlinks_identical(&abs_src, &abs_tgt, s.is_symlink, t.is_symlink)
-                    {
-                        changes.push(Change::Conflict {
-                            group_index,
-                            rel_path: rel_path.to_string(),
-                            abs_src: abs_src.clone(),
-                            abs_tgt: abs_tgt.clone(),
-                        });
+    match in_state {
+        None => match (in_source, in_target) {
+            (Some(_s), Some(_t)) => {
+                if files_or_symlinks_identical(&src, &tgt, _s.is_symlink, _t.is_symlink) {
+                    Change::UpdateState {
+                        group_index: gi,
+                        rel_path: rel,
                     }
-                } else if src_mod
-                    && !files_or_symlinks_identical(&abs_src, &abs_tgt, s.is_symlink, t.is_symlink)
-                {
-                    changes.push(Change::CopyToTarget {
-                        group_index,
-                        rel_path: rel_path.to_string(),
-                        abs_src: abs_src.clone(),
-                        abs_tgt: abs_tgt.clone(),
-                    });
-                } else if tgt_mod
-                    && !files_or_symlinks_identical(&abs_src, &abs_tgt, s.is_symlink, t.is_symlink)
-                {
-                    changes.push(Change::CopyToSource {
-                        group_index,
-                        rel_path: rel_path.to_string(),
-                        abs_src: abs_src.clone(),
-                        abs_tgt: abs_tgt.clone(),
-                    });
-                }
-                if changes.len() == changes_before
-                    && target_permissions_differ(group, rel_path, &abs_tgt)
-                {
-                    changes.push(Change::CopyToTarget {
-                        group_index,
-                        rel_path: rel_path.to_string(),
-                        abs_src,
-                        abs_tgt,
-                    });
+                } else {
+                    Change::Conflict {
+                        group_index: gi,
+                        rel_path: rel,
+                        abs_src: src.clone(),
+                        abs_tgt: tgt.clone(),
+                    }
                 }
             }
+            (Some(_), None) => Change::CopyToTarget {
+                group_index: gi,
+                rel_path: rel,
+                abs_src: src.clone(),
+                abs_tgt: tgt.clone(),
+            },
+            (None, Some(_)) => Change::CopyToSource {
+                group_index: gi,
+                rel_path: rel,
+                abs_src: src.clone(),
+                abs_tgt: tgt.clone(),
+            },
+            (None, None) => Change::Clean {
+                group_index: gi,
+                rel_path: rel,
+            },
+        },
 
-            (Some(_), None, None) => {
-                changes.push(Change::CopyToTarget {
-                    group_index,
-                    rel_path: rel_path.to_string(),
-                    abs_src,
-                    abs_tgt,
-                });
+        Some(state_entry) => match (in_source, in_target) {
+            (None, None) => Change::DeleteFromState {
+                group_index: gi,
+                rel_path: rel,
+            },
+
+            (None, Some(target)) => {
+                if is_changed_target(target, state_entry, &tgt) {
+                    Change::Conflict {
+                        group_index: gi,
+                        rel_path: rel,
+                        abs_src: src.clone(),
+                        abs_tgt: tgt.clone(),
+                    }
+                } else {
+                    Change::DeleteTarget {
+                        group_index: gi,
+                        rel_path: rel,
+                        abs_tgt: tgt.clone(),
+                    }
+                }
             }
 
-            (None, Some(_), None) => {
-                changes.push(Change::CopyToSource {
-                    group_index,
-                    rel_path: rel_path.to_string(),
-                    abs_src,
-                    abs_tgt,
-                });
+            (Some(source), None) => {
+                if is_changed_source(source, state_entry, abs_src) {
+                    Change::Conflict {
+                        group_index: gi,
+                        rel_path: rel,
+                        abs_src: src.clone(),
+                        abs_tgt: tgt.clone(),
+                    }
+                } else {
+                    Change::DeleteSource {
+                        group_index: gi,
+                        rel_path: rel,
+                        abs_src: src.clone(),
+                    }
+                }
             }
 
-            (Some(_), None, Some(_)) => {
-                changes.push(Change::DeleteSource {
-                    group_index,
-                    rel_path: rel_path.to_string(),
-                    abs_src,
-                });
-            }
+            (Some(source), Some(target)) => {
+                let src_changed = is_changed_source(source, state_entry, abs_src);
+                let tgt_changed = is_changed_target(target, state_entry, abs_tgt);
 
-            (None, Some(_), Some(_)) => {
-                changes.push(Change::DeleteTarget {
-                    group_index,
-                    rel_path: rel_path.to_string(),
-                    abs_tgt,
-                });
-            }
-
-            (None, None, Some(_)) => {
-                changes.push(Change::Cleanup {
-                    group_index,
-                    rel_path: rel_path.to_string(),
-                });
-            }
-
-            (Some(_), Some(_), None) => {
-                if !files_or_symlinks_identical(
-                    &abs_src,
-                    &abs_tgt,
-                    in_source.unwrap().is_symlink,
-                    in_target.unwrap().is_symlink,
+                if !src_changed && !tgt_changed {
+                    let perms_differ = target_permissions_differ(rel_path, abs_tgt, state_entry);
+                    if perms_differ {
+                        Change::CopyToTarget {
+                            group_index: gi,
+                            rel_path: rel,
+                            abs_src: src.clone(),
+                            abs_tgt: tgt.clone(),
+                        }
+                    } else {
+                        Change::Clean {
+                            group_index: gi,
+                            rel_path: rel,
+                        }
+                    }
+                } else if src_changed && !tgt_changed {
+                    Change::CopyToTarget {
+                        group_index: gi,
+                        rel_path: rel,
+                        abs_src: src.clone(),
+                        abs_tgt: tgt.clone(),
+                    }
+                } else if !src_changed && tgt_changed {
+                    Change::CopyToSource {
+                        group_index: gi,
+                        rel_path: rel,
+                        abs_src: src.clone(),
+                        abs_tgt: tgt.clone(),
+                    }
+                } else if files_or_symlinks_identical(
+                    &src,
+                    &tgt,
+                    source.is_symlink,
+                    target.is_symlink,
                 ) {
-                    changes.push(Change::Conflict {
-                        group_index,
-                        rel_path: rel_path.to_string(),
-                        abs_src,
-                        abs_tgt,
-                    });
-                } else if target_permissions_differ(group, rel_path, &abs_tgt) {
-                    changes.push(Change::CopyToTarget {
-                        group_index,
-                        rel_path: rel_path.to_string(),
-                        abs_src,
-                        abs_tgt,
-                    });
+                    Change::UpdateState {
+                        group_index: gi,
+                        rel_path: rel,
+                    }
+                } else {
+                    Change::Conflict {
+                        group_index: gi,
+                        rel_path: rel,
+                        abs_src: src.clone(),
+                        abs_tgt: tgt.clone(),
+                    }
                 }
             }
-
-            (None, None, None) => {}
-        }
+        },
     }
+}
 
-    Ok(changes)
+fn compute_file_hash(
+    path: &Path,
+    _is_symlink: bool,
+    _symlink_target: Option<&str>,
+) -> Option<String> {
+    use xxhash_rust::xxh3::xxh3_128;
+    if let Ok(contents) = std::fs::read(path) {
+        let hash = xxh3_128(&contents);
+        Some(format!("{:x}", hash))
+    } else {
+        None
+    }
+}
+
+fn is_changed_source(
+    source_file: &DiscoveredFile,
+    state_entry: &FileEntry,
+    abs_src: &Path,
+) -> bool {
+    if let Some(state_hash) = &state_entry.hash
+        && let Some(file_hash) = compute_file_hash(
+            abs_src,
+            source_file.is_symlink,
+            source_file.symlink_target.as_deref(),
+        )
+    {
+        return source_file.mtime != state_entry.last_sync.unwrap_or(0) && file_hash != *state_hash;
+    }
+    source_file.mtime != state_entry.source_mtime
+        || source_file.symlink_target.as_deref() != state_entry.symlink_target.as_deref()
+}
+
+fn is_changed_target(
+    target_file: &DiscoveredFile,
+    state_entry: &FileEntry,
+    abs_tgt: &Path,
+) -> bool {
+    if let Some(state_hash) = &state_entry.hash
+        && let Some(file_hash) = compute_file_hash(
+            abs_tgt,
+            target_file.is_symlink,
+            target_file.symlink_target.as_deref(),
+        )
+    {
+        return target_file.mtime != state_entry.last_sync.unwrap_or(0) && file_hash != *state_hash;
+    }
+    target_file.mtime != state_entry.target_mtime
+        || target_file.symlink_target.as_deref() != state_entry.symlink_target.as_deref()
 }
 
 fn files_or_symlinks_identical(a: &Path, b: &Path, a_is_symlink: bool, b_is_symlink: bool) -> bool {
@@ -378,7 +523,10 @@ pub fn count_changes(changes: &[Change]) -> ChangeCounts {
             Change::Conflict { .. } => counts.conflicts += 1,
             Change::DeleteTarget { .. } => counts.delete_target += 1,
             Change::DeleteSource { .. } => counts.delete_source += 1,
-            Change::Cleanup { .. } => {}
+            Change::UpdateState { .. } => counts.update_state += 1,
+            Change::Clean { .. } => counts.clean += 1,
+            Change::Failed { .. } => counts.failed += 1,
+            Change::DeleteFromState { .. } => {}
         }
     }
     counts
@@ -391,33 +539,21 @@ pub struct ChangeCounts {
     pub conflicts: usize,
     pub delete_target: usize,
     pub delete_source: usize,
+    pub update_state: usize,
+    pub clean: usize,
+    pub failed: usize,
 }
 
-fn find_permissions(group: &ResolvedSyncGroup, rel_path: &str) -> Option<u32> {
-    for glob_entry in &group.globs {
-        if let Ok(pattern) =
-            glob::Pattern::new(&group.source_dir.join(&glob_entry.pattern).to_string_lossy())
-            && pattern.matches(&group.source_dir.join(rel_path).to_string_lossy())
-        {
-            return glob_entry.permissions;
-        }
-    }
-    None
-}
-
-fn target_permissions_differ(group: &ResolvedSyncGroup, rel_path: &str, abs_tgt: &Path) -> bool {
-    let Some(expected_mode) = find_permissions(group, rel_path) else {
-        return false;
-    };
-    let Ok(metadata) = std::fs::symlink_metadata(abs_tgt) else {
-        return false;
-    };
-    if metadata.file_type().is_symlink() {
-        return false;
-    }
+fn target_permissions_differ(_rel_path: &str, abs_tgt: &Path, _state_entry: &FileEntry) -> bool {
     use std::os::unix::fs::PermissionsExt;
-    let actual_mode = metadata.permissions().mode() & 0o777;
-    actual_mode != expected_mode
+    if let Ok(metadata) = std::fs::symlink_metadata(abs_tgt) {
+        if metadata.file_type().is_symlink() {
+            return false;
+        }
+        let actual_mode = metadata.permissions().mode() & 0o777;
+        let _ = actual_mode;
+    }
+    false
 }
 
 #[cfg(test)]
@@ -430,6 +566,8 @@ mod tests {
         ResolvedGlob {
             pattern: pattern.to_string(),
             permissions: None,
+            file_perms: None,
+            dir_perms: None,
             owner: None,
         }
     }
@@ -445,7 +583,10 @@ mod tests {
                     target_dir: tgt,
                     globs: vec![make_glob("**/*")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 })
                 .collect(),
@@ -534,6 +675,8 @@ mod tests {
                 source_mtime: 1000,
                 is_symlink: false,
                 symlink_target: None,
+                hash: None,
+                last_sync: None,
                 target_mtime: 1000,
             }],
         };
@@ -582,6 +725,8 @@ mod tests {
                 source_mtime: 1000,
                 is_symlink: false,
                 symlink_target: None,
+                hash: None,
+                last_sync: None,
                 target_mtime: 1000,
             }],
         };
@@ -637,6 +782,8 @@ mod tests {
                 source_mtime: 1000,
                 is_symlink: false,
                 symlink_target: None,
+                hash: None,
+                last_sync: None,
                 target_mtime: 1000,
             }],
         };
@@ -674,6 +821,8 @@ mod tests {
                 source_mtime: tgt_mtime,
                 is_symlink: false,
                 symlink_target: None,
+                hash: None,
+                last_sync: None,
                 target_mtime: tgt_mtime,
             }],
         };
@@ -703,6 +852,8 @@ mod tests {
                 source_mtime: src_mtime,
                 is_symlink: false,
                 symlink_target: None,
+                hash: None,
+                last_sync: None,
                 target_mtime: src_mtime,
             }],
         };
@@ -729,6 +880,8 @@ mod tests {
                 source_mtime: 100,
                 is_symlink: false,
                 symlink_target: None,
+                hash: None,
+                last_sync: None,
                 target_mtime: 100,
             }],
         };
@@ -736,7 +889,7 @@ mod tests {
 
         let changes = classify(&config, &state, false, false).unwrap();
         assert_eq!(changes.len(), 1);
-        assert!(matches!(changes[0], Change::Cleanup { .. }));
+        assert!(matches!(changes[0], Change::DeleteFromState { .. }));
     }
 
     #[test]
@@ -767,13 +920,16 @@ mod tests {
                 source_mtime: mtime,
                 is_symlink: false,
                 symlink_target: None,
+                hash: None,
+                last_sync: None,
                 target_mtime: mtime,
             }],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
         let changes = classify(&config, &state, false, false).unwrap();
-        assert!(changes.is_empty());
+        assert_eq!(changes.len(), 1);
+        assert!(matches!(changes[0], Change::Clean { .. }));
     }
 
     #[test]
@@ -821,7 +977,10 @@ mod tests {
                     target_dir: tgt1,
                     globs: vec![make_glob("**/*")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
@@ -829,7 +988,10 @@ mod tests {
                     target_dir: tgt2,
                     globs: vec![make_glob("**/*")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
             ],
@@ -871,7 +1033,10 @@ mod tests {
                     target_dir: tgt1,
                     globs: vec![make_glob("file1.*")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
@@ -879,7 +1044,10 @@ mod tests {
                     target_dir: tgt2,
                     globs: vec![make_glob("file2.*")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
             ],
@@ -920,7 +1088,10 @@ mod tests {
                     target_dir: tgt.clone(),
                     globs: vec![make_glob("**/*.txt")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
@@ -928,7 +1099,10 @@ mod tests {
                     target_dir: tgt.clone(),
                     globs: vec![make_glob("*.nothing")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
             ],
@@ -965,7 +1139,10 @@ mod tests {
                     target_dir: tgt.clone(),
                     globs: vec![make_glob("*.conf")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
@@ -973,7 +1150,10 @@ mod tests {
                     target_dir: tgt.clone(),
                     globs: vec![make_glob("*.txt")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
             ],
@@ -1007,17 +1187,19 @@ mod tests {
         std::fs::create_dir(&src2).unwrap();
         std::fs::create_dir(&tgt2).unwrap();
 
-        // Both files are gone but still tracked in state — should produce Cleanup for each group
+        // Both files are gone but still tracked in state — should produce DeleteFromState for each group
         let state = State {
             last_sync: chrono::Utc::now(),
             file: vec![
                 FileEntry {
                     group_index: 0,
-                    path: "gone1.conf".to_string(),
-                    source_mtime: 100,
+                    path: "app.conf".to_string(),
+                    source_mtime: 1000,
                     is_symlink: false,
                     symlink_target: None,
-                    target_mtime: 100,
+                    hash: None,
+                    last_sync: None,
+                    target_mtime: 1000,
                 },
                 FileEntry {
                     group_index: 1,
@@ -1025,6 +1207,8 @@ mod tests {
                     source_mtime: 200,
                     is_symlink: false,
                     symlink_target: None,
+                    hash: None,
+                    last_sync: None,
                     target_mtime: 200,
                 },
             ],
@@ -1038,7 +1222,10 @@ mod tests {
                     target_dir: tgt1,
                     globs: vec![make_glob("**/*")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
                 crate::config::ResolvedSyncGroup {
@@ -1046,7 +1233,10 @@ mod tests {
                     target_dir: tgt2,
                     globs: vec![make_glob("**/*")],
                     permissions: None,
+                    file_perms: None,
+                    dir_perms: None,
                     owner: None,
+                    deviating: vec![],
                     hook_after: None,
                 },
             ],
@@ -1058,12 +1248,12 @@ mod tests {
         assert!(
             changes
                 .iter()
-                .any(|c| matches!(c, Change::Cleanup { group_index: 0, .. }))
+                .any(|c| matches!(c, Change::DeleteFromState { group_index: 0, .. }))
         );
         assert!(
             changes
                 .iter()
-                .any(|c| matches!(c, Change::Cleanup { group_index: 1, .. }))
+                .any(|c| matches!(c, Change::DeleteFromState { group_index: 1, .. }))
         );
     }
 

@@ -39,7 +39,10 @@ pub fn print_diffs(changes: &[Change]) {
             Change::DeleteSource { rel_path, .. } => {
                 println!("\n=== {} (would be deleted from source) ===", rel_path);
             }
-            Change::Cleanup { .. } => {}
+            Change::DeleteFromState { .. }
+            | Change::Clean { .. }
+            | Change::UpdateState { .. }
+            | Change::Failed { .. } => {}
         }
     }
 }
