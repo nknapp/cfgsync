@@ -6,6 +6,12 @@ const possibleCfgsyncExecutables = [
   "target/release/cfgsync",
 ] as const;
 
+const possibleFaketimeExecutables = [
+  "target/x86_64-unknown-linux-musl/release/cfgsync-faketime",
+  "target/debug/cfgsync-faketime",
+  "target/release/cfgsync-faketime",
+] as const;
+
 const projectDir = new URL("../..", import.meta.url);
 
 export const testBaseDir = new URL(
@@ -17,6 +23,8 @@ export const cfgSync = getFromEnvOrDefault(
   "CFGSYNC",
   () => getFirstExistingFile(possibleCfgsyncExecutables),
 );
+
+export const cfgSyncFaketime = getFirstExistingFile(possibleFaketimeExecutables);
 
 const cfgsyncSource = Deno.env.get("CFGSYNC") ? "$CFGSYNC" : "auto-discovered";
 console.error(`[cfgsync e2e] binary: ${cfgSync}  (source: ${cfgsyncSource})`);

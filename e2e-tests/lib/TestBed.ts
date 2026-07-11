@@ -18,7 +18,7 @@ class FakeTime {
     this.writeFakeTimeFile();
   }
 
-  private writeFakeTimeFile() {
+  writeFakeTimeFile() {
     Deno.writeTextFileSync(this.file, String(this.now.getTime()));
   }
 
@@ -32,13 +32,13 @@ class FakeTime {
     } else {
       throw new Error(`Invalid duration format: "${duration}". Use "X ms" or "Y sec"`);
     }
+    this.writeFakeTimeFile();
   }
 }
 
 export class TestBed {
   private lastRun?: ExecReturn;
   private faketime: FakeTime | null = null;
-  private faketimeFile?: string;
 
   static async create(
     t: Deno.TestContext,
@@ -94,7 +94,7 @@ export class TestBed {
     this.lastRun = await runCfgsync({
       cwd: this.testDir,
       ...runArgs,
-      faketimeFile: this.faketimeFile,
+      faketimeFile: this.faketime?.file,
     }).waitForExit();
   }
 
@@ -109,7 +109,7 @@ export class TestBed {
     return runCfgsync({
       cwd: this.testDir,
       ...runArgs,
-      faketimeFile: this.faketimeFile,
+      faketimeFile: this.faketime?.file,
     });
   }
 

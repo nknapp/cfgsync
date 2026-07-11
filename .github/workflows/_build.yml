@@ -39,6 +39,7 @@ jobs:
           ref: ${{ inputs.git_ref }}
       - uses: ./.github/actions/setup
       - run: rustup target add "${PRIMARY}" "${CROSS_COMPILE}"
+      - run: cargo build --release --target "${PRIMARY}"
       - run: cargo build --release --target "${PRIMARY}" --features faketime
         if: inputs.run_e2e_tests
       - run: CFGSYNC="target/${PRIMARY}/release/cfgsync" "${E2E_TEST_COMMAND}"

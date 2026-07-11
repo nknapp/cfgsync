@@ -198,3 +198,4 @@ target_mtime = 1716634200
 
 - Config schema: `cfgsync schema` or read `src/schema_doc.toml`
 - Help: `cfgsync --help`, `cfgsync sync --help`, `cfgsync status --help`, `cfgsync diff --help`
+- GitHub CLI: Use `gh` to get logs from GitHub workflow runs (e.g., `gh run list`, `gh run view`).
