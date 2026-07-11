@@ -26,6 +26,20 @@ Always run from the workspace root (`/home/nils/projects/cfgsync`):
 
 Rust toolchain: `1.96.0` (managed by mise). The `x86_64-unknown-linux-musl` target is required for static builds (`rustup target add x86_64-unknown-linux-musl`).
 
+## Git workflow
+
+**Never commit or push directly to `main`.** All changes must go through branches and pull requests.
+
+When making changes, follow this branch-based workflow:
+
+1. **Create a branch** — use a descriptive name (e.g. `feat/add-watch-mode`, `fix/state-rebuild-dup`).
+2. **Work on the branch** — make all changes there.
+3. **Commit** all changes to the branch. Write concise commit messages matching the repo's conventional commit style.
+4. **Push** the branch to origin.
+5. **Create a PR** — use `gh pr create` to open a pull request.
+
+Run `mise run all-local` before pushing to ensure everything passes.
+
 ## Verification (mandatory)
 
 After making any code changes, you MUST run the full verification as a single command:
