@@ -2,7 +2,7 @@ use crate::config::{ResolvedConfig, ResolvedGlob};
 use crate::state::{FileEntry, State};
 use chrono::DateTime;
 use std::collections::{BTreeSet, HashMap, HashSet};
-use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -259,7 +259,8 @@ fn classify_entry(
                     compute_file_hash(abs_src, _s.is_symlink, _s.symlink_target.as_deref());
                 let tgt_hash =
                     compute_file_hash(abs_tgt, _t.is_symlink, _t.symlink_target.as_deref());
-                if src_hash.is_some() && src_hash == tgt_hash {
+                let perms_equal = file_perms_match(abs_src, abs_tgt);
+                if src_hash.is_some() && src_hash == tgt_hash && perms_equal {
                     Change::UpdateState {
                         group_index: gi,
                         rel_path: rel,
@@ -413,6 +414,21 @@ fn is_changed(file: &DiscoveredFile, abs_path: &Path, state_entry: &FileEntry) -
     file_hash != state_entry.hash
 }
 
+fn file_perms_match(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    let meta_a = std::fs::symlink_metadata(a);
+    let meta_b = std::fs::symlink_metadata(b);
+    match (meta_a, meta_b) {
+        (Ok(ma), Ok(mb)) => {
+            if ma.file_type().is_symlink() || mb.file_type().is_symlink() {
+                return true;
+            }
+            (ma.permissions().mode() & 0o777) == (mb.permissions().mode() & 0o777)
+        }
+        _ => false,
+    }
+}
+
 fn compute_file_hash(
     path: &Path,
     is_symlink: bool,
@@ -428,15 +444,8 @@ fn compute_file_hash(
             None
         }
     } else {
-        let metadata = std::fs::symlink_metadata(path).ok()?;
-        let mode = metadata.permissions().mode() & 0o777;
-        let uid = metadata.uid();
         if let Ok(contents) = std::fs::read(path) {
-            let input = format!("file:{}:{}:{}", uid, mode, contents.len());
-            let mut hasher = xxhash_rust::xxh3::Xxh3::new();
-            hasher.update(input.as_bytes());
-            hasher.update(&contents);
-            let hash = hasher.digest128();
+            let hash = xxh3_128(&contents);
             Some(format!("{:x}", hash))
         } else {
             None
