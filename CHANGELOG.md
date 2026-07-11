@@ -1,8 +1,26 @@
 # Changelog
 
-## [v0.5.1](https://github.com/nknapp/cfgsync/compare/v0.5.0...677b1d6f91748055581a739363d1e77745586726) (2026-07-08)
+## [v0.6.0](https://github.com/nknapp/cfgsync/compare/v0.5.1...eb0d234c6511a7142d5d1815e6956c7038e8ef6b) (2026-07-11)
+
+### Features
+
+* Implement new configuration scheme
+([49bd0bc](https://github.com/nknapp/cfgsync/commit/49bd0bc9b6c98ea3f39a712ea20d01056f990ecb))
+* dir_permissions and using hashes for comparison
+([641168d](https://github.com/nknapp/cfgsync/commit/641168dc9a9542340ec93546689daaa32a4e562f))
 
 ### Fixes
+
+* compute file hash from contents only per updated spec
+([2de5ea2](https://github.com/nknapp/cfgsync/commit/2de5ea219b9c015ad7b2b3b51d3527a3e78cef9d))
+* make e2e binary discovery cross-platform (macOS support)
+([a3cf64d](https://github.com/nknapp/cfgsync/commit/a3cf64d2c62d1fce3adb61f4f69c47caf3e6b073))
+* include perms and owner in content hash
+([e0d6373](https://github.com/nknapp/cfgsync/commit/e0d63736ed036b3bdb4a8f7b0b310efc5e6f38a7))
+
+### [v0.5.1](https://github.com/nknapp/cfgsync/compare/v0.5.0...v0.5.1) (2026-07-07)
+
+#### Fixes
 
 * show sync status for permissions to be changed.
 ([677b1d6](https://github.com/nknapp/cfgsync/commit/677b1d6f91748055581a739363d1e77745586726))
