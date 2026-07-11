@@ -783,7 +783,6 @@ fn resolve_file_owner(path: &Path, group: &crate::config::ResolvedSyncGroup) -> 
 }
 
 fn compute_file_hash_for_state(path: &Path) -> Option<String> {
-    use std::os::unix::fs::{MetadataExt, PermissionsExt};
     use xxhash_rust::xxh3::xxh3_128;
 
     let metadata = std::fs::symlink_metadata(path).ok()?;
@@ -792,14 +791,8 @@ fn compute_file_hash_for_state(path: &Path) -> Option<String> {
         let hash = xxh3_128(target.to_string_lossy().as_bytes());
         Some(format!("{:x}", hash))
     } else {
-        let uid = metadata.uid();
-        let mode = metadata.permissions().mode() & 0o777;
         let contents = std::fs::read(path).ok()?;
-        let input = format!("file:{}:{}:{}", uid, mode, contents.len());
-        let mut hasher = xxhash_rust::xxh3::Xxh3::new();
-        hasher.update(input.as_bytes());
-        hasher.update(&contents);
-        let hash = hasher.digest128();
+        let hash = xxh3_128(&contents);
         Some(format!("{:x}", hash))
     }
 }
