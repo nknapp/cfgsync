@@ -47,7 +47,12 @@ Run `mise run all-local` before pushing to ensure everything passes.
 
 **After pushing, verify the PR is still open.** If it was merged, stop and inform the user — a new branch will be needed.
 
-**After pushing, verify CI is passing.** Use `gh run watch` to wait for the workflow to complete, then inspect failures with `gh run view <id> --job <job-id> --log` if needed.
+**After pushing, verify CI is passing.** Wait a few seconds for the workflow to start, then use `gh run watch` to wait for completion. Inspect failures with `gh run view <id> --job <job-id> --log` if needed.
+
+```bash
+sleep 5
+gh run watch $(gh run list --branch $(git branch --show-current) --limit 1 --json databaseId --jq '.[0].databaseId')
+```
 
 ## Verification (mandatory)
 
