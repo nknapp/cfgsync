@@ -2,12 +2,16 @@ import NotFound = Deno.errors.NotFound;
 
 const possibleCfgsyncExecutables = [
   "target/x86_64-unknown-linux-musl/release/cfgsync",
+  "target/aarch64-apple-darwin/release/cfgsync",
+  "target/x86_64-apple-darwin/release/cfgsync",
   "target/debug/cfgsync",
   "target/release/cfgsync",
 ] as const;
 
 const possibleFaketimeExecutables = [
   "target/x86_64-unknown-linux-musl/release/cfgsync-faketime",
+  "target/aarch64-apple-darwin/release/cfgsync-faketime",
+  "target/x86_64-apple-darwin/release/cfgsync-faketime",
   "target/debug/cfgsync-faketime",
   "target/release/cfgsync-faketime",
 ] as const;
