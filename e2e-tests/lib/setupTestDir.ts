@@ -100,9 +100,19 @@ async function createDirOrFile(line: string, testDir: URL, spec: TestSpec) {
   const gid = groupToId(group as TestGroup);
   const realPath = await createNoOwnerAndPerms(path, testDir, contents, spec.configToml);
   const isSymlink = (await Deno.lstat(realPath)).isSymlink;
+  const mtime = computeMtime(spec, mtimeStr);
+
+  if (isSymlink) {
+    await new Deno.Command("touch", {
+      args: ["-h", "-d", mtime.toISOString(), realPath.pathname],
+      stdout: "null",
+      stderr: "null",
+    }).output();
+  } else {
+    await Deno.utime(realPath, mtime, mtime);
+  }
 
   if (!isSymlink) {
-    await Deno.utime(realPath, computeMtime(spec, mtimeStr), computeMtime(spec, mtimeStr));
     await Deno.chmod(realPath, parseInt(perms, 8));
 
     if (Deno.uid() === 0) {

@@ -132,7 +132,9 @@ version = "0.5.1"
 dependencies = [
  "chrono",
  "clap",
+ "faketime",
  "glob",
+ "libc",
  "nix",
  "notify",
  "pretty_assertions",
@@ -238,6 +240,16 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "faketime"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdcfc2bfe63c760bba09679ed6cb3a001d409c5195b4490dced0dc0aa800582b"
+dependencies = [
+ "js-sys",
+ "tempfile",
 ]
 
 [[package]]

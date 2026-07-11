@@ -578,6 +578,8 @@ fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
                 e
             )
         })?;
+        #[cfg(feature = "faketime")]
+        crate::time::set_symlink_mtime(dst, crate::time::now());
         return Ok(());
     }
 
@@ -613,7 +615,7 @@ fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
 }
 
 fn update_state(config: &ResolvedConfig, state: &mut State) {
-    state.last_sync = chrono::Utc::now();
+    state.last_sync = crate::time::now();
     state.file.clear();
 
     let mut seen = std::collections::HashSet::new();

@@ -1,7 +1,7 @@
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    sudo unzip curl ca-certificates faketime \
+    sudo unzip curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh

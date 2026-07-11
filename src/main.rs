@@ -5,6 +5,7 @@ mod schema;
 mod state;
 mod status;
 mod sync;
+mod time;
 mod watch;
 
 use clap::{Parser, Subcommand};

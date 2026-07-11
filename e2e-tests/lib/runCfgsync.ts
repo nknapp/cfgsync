@@ -6,38 +6,30 @@ export interface RunArgs {
   cwd: URL;
   sudo?: boolean;
   env?: Record<string, string>;
-  faketime?: string;
+  faketimeFile?: string;
 }
 
 export function runCfgsync(
-  { args, cwd, sudo, env, faketime }: RunArgs,
+  { args, cwd, sudo, env, faketimeFile }: RunArgs,
 ): InteractiveChildProcess {
-  let cmd: string;
-  let realArgs: string[];
+  const cmdAndArgs: string[] = [cfgSync, ...args];
+  const mergedEnv: Record<string, string> = { ...env };
 
-  if (faketime) {
-    if (sudo) {
-      cmd = "sudo";
-      realArgs = ["faketime", faketime, cfgSync, ...args];
-    } else {
-      cmd = "faketime";
-      realArgs = [faketime, cfgSync, ...args];
-    }
-  } else if (sudo) {
-    cmd = "sudo";
-    realArgs = [cfgSync, ...args];
-  } else {
-    cmd = cfgSync;
-    realArgs = args;
+  if (faketimeFile) {
+    mergedEnv["FAKETIME"] = faketimeFile;
   }
 
+  if (sudo) {
+    cmdAndArgs.unshift("sudo");
+  }
+  const [cmd, ...realArgs] = cmdAndArgs;
   const command = new Deno.Command(cmd, {
     args: realArgs,
     stdin: "piped",
     stdout: "piped",
     stderr: "piped",
     cwd: cwd.pathname,
-    env,
+    env: mergedEnv,
   });
   return new InteractiveChildProcess(command);
 }

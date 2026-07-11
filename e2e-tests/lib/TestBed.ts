@@ -8,13 +8,37 @@ export type ExecReturn = { code: number; stdout: string; stderr: string };
 
 export type TestSpecOrFn = TestSpec | ((options: { testDir: string }) => TestSpec);
 
+class FakeTime {
+  file: string;
+  now: Date;
+
+  constructor(now: Date) {
+    this.now = now;
+    this.file = Deno.makeTempFileSync({ prefix: "cfgsync-faketime-" });
+    this.writeFakeTimeFile();
+  }
+
+  private writeFakeTimeFile() {
+    Deno.writeTextFileSync(this.file, String(this.now.getTime()));
+  }
+
+  advance(duration: string): void {
+    const msMatch = duration.match(/^(\d+)\s*ms$/);
+    const secMatch = duration.match(/^(\d+)\s*sec$/);
+    if (msMatch) {
+      this.now = new Date(this.now.getTime() + parseInt(msMatch[1]));
+    } else if (secMatch) {
+      this.now = new Date(this.now.getTime() + parseInt(secMatch[1]) * 1000);
+    } else {
+      throw new Error(`Invalid duration format: "${duration}". Use "X ms" or "Y sec"`);
+    }
+  }
+}
+
 export class TestBed {
   private lastRun?: ExecReturn;
-  private currentTime: Date | null = null;
-
-  static getTestDir(t: Deno.TestContext): URL {
-    return new URL(t.name.replace(/\W/g, "_") + "/", testBaseDir);
-  }
+  private faketime: FakeTime | null = null;
+  private faketimeFile?: string;
 
   static async create(
     t: Deno.TestContext,
@@ -26,7 +50,7 @@ export class TestBed {
     const dir = await setupTestDir(testDirUrl, spec);
     const bed = new TestBed(spec, dir);
     if (spec.faketime) {
-      bed.currentTime = new Date(spec.faketime);
+      bed.faketime = new FakeTime(new Date(spec.faketime));
     }
     return { testbed: bed, testDir };
   }
@@ -51,46 +75,42 @@ export class TestBed {
     await Deno.utime(path, this.mtime(), this.mtime());
   }
 
+  async readTextFile(relativePath: string): Promise<string> {
+    const path = new URL(relativePath, this.testDir);
+    return await Deno.readTextFile(path);
+  }
+
   async mkdir(relativePath: string) {
     const path = new URL(relativePath, this.testDir);
     await Deno.mkdir(path);
     await Deno.utime(path, this.mtime(), this.mtime());
   }
 
-  advance(duration: string): void {
-    if (!this.currentTime) {
-      throw new Error("Cannot advance time: no currentTime was set");
-    }
-    const msMatch = duration.match(/^(\d+)\s*ms$/);
-    const secMatch = duration.match(/^(\d+)\s*sec$/);
-    if (msMatch) {
-      this.currentTime = new Date(this.currentTime.getTime() + parseInt(msMatch[1]));
-    } else if (secMatch) {
-      this.currentTime = new Date(this.currentTime.getTime() + parseInt(secMatch[1]) * 1000);
-    } else {
-      throw new Error(`Invalid duration format: "${duration}". Use "X ms" or "Y sec"`);
-    }
-  }
-
-  private formatFaketime(): string | undefined {
-    if (!this.currentTime) return undefined;
-    return this.currentTime.toISOString().replace("T", " ").slice(0, 19);
-  }
-
   private mtime(): Date {
-    return this.currentTime ? new Date(this.currentTime) : new Date();
+    return this.faketime?.now ?? new Date();
   }
 
   async run(runArgs: Omit<RunArgs, "cwd">) {
     this.lastRun = await runCfgsync({
       cwd: this.testDir,
       ...runArgs,
-      faketime: this.formatFaketime(),
+      faketimeFile: this.faketimeFile,
     }).waitForExit();
   }
 
+  advance(duration: string) {
+    if (!this.faketime) {
+      throw new Error("Cannot advance time: no fakeTime was set");
+    }
+    this.faketime.advance(duration);
+  }
+
   spawn(runArgs: Omit<RunArgs, "cwd">): InteractiveChildProcess {
-    return runCfgsync({ cwd: this.testDir, ...runArgs, faketime: this.formatFaketime() });
+    return runCfgsync({
+      cwd: this.testDir,
+      ...runArgs,
+      faketimeFile: this.faketimeFile,
+    });
   }
 
   getStdout(): string {
