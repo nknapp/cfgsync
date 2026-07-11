@@ -67,7 +67,7 @@ Then it has a table of files containing the following data.
 
 * `group` - the target directory of the group this file belongs to (in order to identify the group)
 * `path` - the relative path of the file within the group's base directory
-* `hash` - the content hash of the file at the time of the last sync (or the path of the link-target if it is a symlink)
+* `hash` - the XXH3_128 hash of the file contents at the time of the last sync (or the path of the link-target if it is a symlink)
 * `perms` - the applied permissions of the target file at the time of the last sync, which is the same as the
   permissions of the source file after applying the [configured mapping rules](./permissions-and-owner.md#permissions)
 * `owner` - the applied owner of the target file at the time of the last sync which is the same as
@@ -96,17 +96,6 @@ perms = "644"
 owner = "user:user"
 mtime = "2026-07-11T00:12:16.665Z"
 ```
-
-The hash is computed after the sync, when source and target file have the same content.
-The hash is based on
-
-* the contents of the file
-* the permission of the file in the target directory after the sync, which is the same as the permissions of the source
-  file
-  after applying the [configured mapping rules](./permissions-and-owner.md#permissions)
-* the owner of the file in the target directory after the sync, which is the same as
-  the [configured owner](./permissions-and-owner.md#owner)
-  for the source file.
 
 # 3. Find and classify files
 
