@@ -408,9 +408,10 @@ If it is not possible to run the hook as that user, a warning is printed and the
   action can actually be performed before execution (write permissions on state file, parent directory creation, correct
   permissions/owner on existing parent directories, file writability, ability to set owner, etc.). This step is not
   implemented — the code goes directly from classification (step 3) to execution (step 5).
-- **Permission preset mappings**: The `PermissionPreset` enum (`private`, `shared`, `group`, `group-read`, `public`) is
-  deserialized from config and stored in `ResolvedGlob` as `file_perms` and `dir_perms`, but the mapping logic (e.g.,
-  644 → 600 for `private`) is never applied at runtime. Only raw octal `permissions` fields are used.
+- **Permission preset `dir_perms` and reverse mapping**: The `PermissionPreset` enum and `map_permissions()` are
+  implemented and applied for `file_perms` at runtime (in `enforce_permissions_root` and `check_permissions_nonroot`).
+  However, `dir_perms` is never applied — directories get no permission enforcement. Additionally, the reverse mapping
+  for `CopyToSource` (deriving source-side 644/755 from configured target perms) is not implemented.
 - **Deviating directories validation**: The `deviating` field on sync groups is deserialized from config and stored in
   `ResolvedSyncGroup`, but the expected permissions and owner for these directories are never checked or enforced at
   runtime.
