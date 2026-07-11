@@ -1,8 +1,8 @@
 import { assertEquals, deindent } from "./lib/index.ts";
-import { TestBed } from "./lib/TestBed.ts";
+import { hash, TestBed } from "./lib/TestBed.ts";
 
 Deno.test("state-file-structure-after-sync", async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, testDir, username, groupname } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -29,33 +29,29 @@ Deno.test("state-file-structure-after-sync", async (t) => {
     last_sync = "2026-05-20T15:00:00Z"
 
     [[file]]
-    group = "TARGET_ABS"
+    group = "${testDir}/target"
     path = "file.txt"
-    hash = "404d463254077143e09d7ae4ea7f4b2"
+    hash = "${hash("hello")}"
     perms = "644"
-    owner = "user:user"
+    owner = "${username}:${groupname}"
     mtime = "2026-05-20T15:00:00.000Z"
 
     [[file]]
-    group = "TARGET_ABS"
+    group = "${testDir}/target"
     path = "link.txt"
-    hash = "334786b6e9f5ba82ec18e5f50f5d9b13"
+    hash = "${hash("file.txt")}"
     perms = "0"
     owner = ""
     mtime = "2026-05-20T15:00:00.000Z"
 
     [[file]]
-    group = "TARGET_ABS"
+    group = "${testDir}/target"
     path = "subdir/nested.txt"
-    hash = "5b73c721e0c7fe27b3ef8ae8bfe589c6"
+    hash = "${hash("nested content")}"
     perms = "644"
-    owner = "user:user"
+    owner = "${username}:${groupname}"
     mtime = "2026-05-20T15:00:00.000Z"
   `;
 
-  const actual = stateToml.replace(
-    /group = ".*"/g,
-    'group = "TARGET_ABS"',
-  );
-  assertEquals(actual.trim(), expected.trim());
+  assertEquals(stateToml, expected);
 });

@@ -3,10 +3,26 @@ import { testBaseDir } from "./env.ts";
 import { RunArgs, runCfgsync } from "./runCfgsync.ts";
 import { assertEquals } from "./assert.ts";
 import { InteractiveChildProcess } from "./spawn.ts";
+import { XXH3_128 } from "xxh3-ts";
+import { Buffer } from "node:buffer";
 
 export type ExecReturn = { code: number; stdout: string; stderr: string };
 
 export type TestSpecOrFn = TestSpec | ((options: { testDir: string }) => TestSpec);
+
+export function hash(content: string): string {
+  return XXH3_128(Buffer.from(content)).toString(16);
+}
+
+function getUserInfo(): { username: string; groupname: string } {
+  const username = new TextDecoder().decode(
+    new Deno.Command("id", { args: ["-nu"] }).outputSync().stdout,
+  ).trim();
+  const groupname = new TextDecoder().decode(
+    new Deno.Command("id", { args: ["-ng"] }).outputSync().stdout,
+  ).trim();
+  return { username, groupname };
+}
 
 class FakeTime {
   file: string;
@@ -43,7 +59,7 @@ export class TestBed {
   static async create(
     t: Deno.TestContext,
     specOrFn: TestSpecOrFn,
-  ): Promise<{ testbed: TestBed; testDir: string }> {
+  ): Promise<{ testbed: TestBed; testDir: string; username: string; groupname: string }> {
     const testDirUrl = new URL(t.name.replace(/\W/g, "_") + "/", testBaseDir);
     const testDir = testDirUrl.pathname.replace(/\/$/, "");
     const spec = typeof specOrFn === "function" ? specOrFn({ testDir: testDir }) : specOrFn;
@@ -52,7 +68,8 @@ export class TestBed {
     if (spec.faketime) {
       bed.faketime = new FakeTime(new Date(spec.faketime));
     }
-    return { testbed: bed, testDir };
+    const { username, groupname } = getUserInfo();
+    return { testbed: bed, testDir, username, groupname };
   }
 
   constructor(
