@@ -408,9 +408,6 @@ If it is not possible to run the hook as that user, a warning is printed and the
   action can actually be performed before execution (write permissions on state file, parent directory creation, correct
   permissions/owner on existing parent directories, file writability, ability to set owner, etc.). This step is not
   implemented — the code goes directly from classification (step 3) to execution (step 5).
-- **Hash includes permissions and owner**: Section 2.1 describes the state hash as computed from file contents,
-  permissions, and owner. The current implementation (`compute_file_hash` in `changes.rs:356` and
-  `compute_file_hash_for_state` in `sync.rs:703`) computes XXH3_128 over file contents only.
 - **Permission preset mappings**: The `PermissionPreset` enum (`private`, `shared`, `group`, `group-read`, `public`) is
   deserialized from config and stored in `ResolvedGlob` as `file_perms` and `dir_perms`, but the mapping logic (e.g.,
   644 → 600 for `private`) is never applied at runtime. Only raw octal `permissions` fields are used.
