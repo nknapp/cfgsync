@@ -1,6 +1,18 @@
 # Changelog
 
-## [v0.6.0](https://github.com/nknapp/cfgsync/compare/v0.5.1...eb0d234c6511a7142d5d1815e6956c7038e8ef6b) (2026-07-11)
+## [v0.6.1](https://github.com/nknapp/cfgsync/compare/v0.6.0...561912adef13f01cd40ec9e6f12a7de3c830c0e9) (2026-07-11)
+
+### Features
+
+* add version preview job to PR workflow
+([d04fce4](https://github.com/nknapp/cfgsync/commit/d04fce4625caf31c1535acfe59b1bef97e820f2b))
+
+### Fixes
+
+* use grouped redirect and fetch-tags in version-preview
+([561912a](https://github.com/nknapp/cfgsync/commit/561912adef13f01cd40ec9e6f12a7de3c830c0e9))
+
+## [v0.6.0](https://github.com/nknapp/cfgsync/compare/v0.5.1...v0.6.0) (2026-07-11)
 
 ### Features
 
