@@ -60,7 +60,7 @@ mise run all-local
 
 - Every new feature must include an e2e test
 - All CI checks must pass before merging
-- PRs are squash-merged into `main`
+- PRs are rebase-merged into `main`
 
 ## GitHub token
 
