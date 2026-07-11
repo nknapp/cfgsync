@@ -11,6 +11,34 @@ jobs:
       - uses: ./.github/actions/setup
       - run: mise run ci-check
 
+  version-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Preview next version and changelog
+        run: |
+          LEVEL=$(convco version --bump --label)
+          NEXT=$(convco version --bump)
+
+          echo "## Version Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$LEVEL" = "release" ]; then
+            echo "No version bump needed (no changes since last release)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Bump level:** \`${LEVEL}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Next version:** \`${NEXT}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Changelog" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            convco changelog --unreleased >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   build:
     uses: ./.github/workflows/_build.yml
     with:
