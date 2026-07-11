@@ -29,31 +29,33 @@ Deno.test("state-file-structure-after-sync", async (t) => {
     last_sync = "2026-05-20T15:00:00Z"
 
     [[file]]
-    group_index = 0
+    group = "TARGET_ABS"
     path = "file.txt"
-    source_mtime = 1779289200000
-    target_mtime = 1779289200000
     hash = "404d463254077143e09d7ae4ea7f4b2"
-    last_sync = 1779289200000
+    perms = "644"
+    owner = "user:user"
+    mtime = "2026-05-20T15:00:00.000Z"
 
     [[file]]
-    group_index = 0
+    group = "TARGET_ABS"
     path = "link.txt"
-    source_mtime = 1779289200000
-    target_mtime = 1779289200000
-    is_symlink = true
-    symlink_target = "file.txt"
     hash = "334786b6e9f5ba82ec18e5f50f5d9b13"
-    last_sync = 1779289200000
+    perms = "0"
+    owner = ""
+    mtime = "2026-05-20T15:00:00.000Z"
 
     [[file]]
-    group_index = 0
+    group = "TARGET_ABS"
     path = "subdir/nested.txt"
-    source_mtime = 1779289200000
-    target_mtime = 1779289200000
     hash = "5b73c721e0c7fe27b3ef8ae8bfe589c6"
-    last_sync = 1779289200000
+    perms = "644"
+    owner = "user:user"
+    mtime = "2026-05-20T15:00:00.000Z"
   `;
 
-  assertEquals(stateToml.trim(), expected.trim());
+  const actual = stateToml.replace(
+    /group = ".*"/g,
+    'group = "TARGET_ABS"',
+  );
+  assertEquals(actual.trim(), expected.trim());
 });

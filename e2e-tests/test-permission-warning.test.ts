@@ -8,7 +8,7 @@ Deno.test("permission-warning", async (t) => {
       source = "./source"
       target = "./target"
       globs = ["**/*.conf"]
-      permissions = "600"
+      file_perms = "private"
     `,
     files: [
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",

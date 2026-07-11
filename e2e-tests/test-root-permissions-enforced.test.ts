@@ -10,7 +10,7 @@ Deno.test({
       [[sync]]
       source = "./source"
       target = "./target"
-      permissions = "600"
+      file_perms = "private"
       globs = ["**/*.conf"]
     `,
     files: [

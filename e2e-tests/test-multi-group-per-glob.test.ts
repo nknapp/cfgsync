@@ -8,11 +8,11 @@ Deno.test("per-glob-owner-and-permissions", async (t) => {
       source = "./source"
       target = "./target"
       owner = "root:root"
-      permissions = "644"
+      file_perms = "public"
       globs = [
           "*.conf",
-          { pattern = "override-perms.key", permissions = "600" },
-          { pattern = "override-owner.key", permissions = "644", owner = "nobody:nogroup" },
+          { pattern = "override-perms.key", file_perms = "private" },
+          { pattern = "override-owner.key", file_perms = "public", owner = "nobody:nogroup" },
       ]
     `,
     files: [

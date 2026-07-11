@@ -1,6 +1,7 @@
 use crate::changes::Change;
 use crate::config::ResolvedConfig;
 use crate::state::{FileEntry, State};
+use chrono::DateTime;
 use similar::TextDiff;
 use std::collections::HashSet;
 use std::io::Read;
@@ -621,6 +622,8 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
     let mut seen = std::collections::HashSet::new();
 
     for (group_index, group) in config.sync_groups.iter().enumerate() {
+        let group_path = group.target_dir.to_string_lossy().to_string();
+
         for glob_entry in &group.globs {
             let pattern_str = group
                 .source_dir
@@ -658,22 +661,31 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
                     continue;
                 }
 
-                let (src_mtime, is_symlink, symlink_target) = file_attrs(&abs_path);
+                let (src_mtime, is_symlink, _symlink_target) = file_attrs(&abs_path);
                 let tgt_path = group.target_dir.join(&rel_path);
                 let (tgt_mtime, _, _) = file_attrs(&tgt_path);
 
                 if src_mtime > 0 || tgt_mtime > 0 || is_symlink {
                     let hash = compute_file_hash_for_state(&abs_path);
-                    let last_sync = Some(src_mtime.max(tgt_mtime));
+                    let hash_str = hash.unwrap_or_default();
+                    let perms = resolve_file_perms(&abs_path, group);
+                    let owner = resolve_file_owner(&abs_path, group);
+                    let mtime_val = src_mtime.max(tgt_mtime);
+                    let mtime_str = if mtime_val > 0 {
+                        DateTime::from_timestamp_millis(mtime_val)
+                            .map(|dt| dt.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
+                            .unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+
                     state.file.push(FileEntry {
-                        group_index,
+                        group: group_path.clone(),
                         path: rel_path,
-                        source_mtime: src_mtime,
-                        target_mtime: tgt_mtime,
-                        is_symlink,
-                        symlink_target,
-                        hash,
-                        last_sync,
+                        hash: hash_str,
+                        perms,
+                        owner,
+                        mtime: mtime_str,
                     });
                 }
             }
@@ -701,6 +713,73 @@ fn file_attrs(path: &Path) -> (i64, bool, Option<String>) {
         None
     };
     (mtime, is_symlink, symlink_target)
+}
+
+fn resolve_file_perms(path: &Path, group: &crate::config::ResolvedSyncGroup) -> String {
+    use std::os::unix::fs::PermissionsExt;
+    if let Ok(metadata) = std::fs::symlink_metadata(path) {
+        if metadata.file_type().is_symlink() {
+            return "0".to_string();
+        }
+        let actual_mode = metadata.permissions().mode() & 0o777;
+        let src_str = path.to_string_lossy();
+        for glob_entry in &group.globs {
+            if glob_entry.file_perms.is_none() {
+                continue;
+            }
+            let pattern_str = group
+                .source_dir
+                .join(&glob_entry.pattern)
+                .to_string_lossy()
+                .to_string();
+            if let Ok(pattern) = glob::Pattern::new(&pattern_str)
+                && pattern.matches(&src_str)
+            {
+                return format!("{:o}", actual_mode);
+            }
+        }
+        return format!("{:o}", actual_mode);
+    }
+    "0".to_string()
+}
+
+fn resolve_file_owner(path: &Path, group: &crate::config::ResolvedSyncGroup) -> String {
+    use std::os::unix::fs::MetadataExt;
+    if let Ok(metadata) = std::fs::symlink_metadata(path) {
+        if metadata.file_type().is_symlink() {
+            return String::new();
+        }
+        let src_str = path.to_string_lossy();
+        for glob_entry in &group.globs {
+            if glob_entry.owner.is_none() {
+                continue;
+            }
+            let pattern_str = group
+                .source_dir
+                .join(&glob_entry.pattern)
+                .to_string_lossy()
+                .to_string();
+            if let Ok(pattern) = glob::Pattern::new(&pattern_str)
+                && pattern.matches(&src_str)
+                && let Some(ref owner_spec) = glob_entry.owner
+            {
+                return owner_spec.clone();
+            }
+        }
+        let uid = metadata.uid();
+        let gid = metadata.gid();
+        if let (Some(user), Some(group)) = (
+            nix::unistd::User::from_uid(nix::unistd::Uid::from_raw(uid))
+                .ok()
+                .flatten(),
+            nix::unistd::Group::from_gid(nix::unistd::Gid::from_raw(gid))
+                .ok()
+                .flatten(),
+        ) {
+            return format!("{}:{}", user.name, group.name);
+        }
+    }
+    String::new()
 }
 
 fn compute_file_hash_for_state(path: &Path) -> Option<String> {
@@ -773,7 +852,7 @@ fn enforce_permissions_root(config: &ResolvedConfig, _state: &State) -> Result<(
     for group in &config.sync_groups {
         for glob_entry in &group.globs {
             let has_perm_requirements =
-                glob_entry.permissions.is_some() || glob_entry.owner.is_some();
+                glob_entry.file_perms.is_some() || glob_entry.owner.is_some();
             if !has_perm_requirements {
                 continue;
             }
@@ -813,10 +892,18 @@ fn enforce_permissions_root(config: &ResolvedConfig, _state: &State) -> Result<(
                     Err(_) => continue,
                 };
 
-                if let Some(mode) = glob_entry.permissions {
-                    let perms = std::fs::Permissions::from_mode(mode);
-                    if let Err(e) = std::fs::set_permissions(&abs_path, perms) {
-                        eprintln!("Warning: cannot chmod '{}' to {:o}: {}", rel_path, mode, e);
+                if let Some(ref preset) = glob_entry.file_perms {
+                    let src_path = group.source_dir.join(&rel_path);
+                    if let Ok(src_meta) = std::fs::symlink_metadata(&src_path) {
+                        let src_perms = src_meta.permissions().mode() & 0o777;
+                        let target_mode = preset.map_permissions(src_perms);
+                        let perms = std::fs::Permissions::from_mode(target_mode);
+                        if let Err(e) = std::fs::set_permissions(&abs_path, perms) {
+                            eprintln!(
+                                "Warning: cannot chmod '{}' to {:o}: {}",
+                                rel_path, target_mode, e
+                            );
+                        }
                     }
                 }
 
@@ -884,7 +971,7 @@ fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome)
     for group in &config.sync_groups {
         for glob_entry in &group.globs {
             let has_perm_requirements =
-                glob_entry.permissions.is_some() || glob_entry.owner.is_some();
+                glob_entry.file_perms.is_some() || glob_entry.owner.is_some();
             if !has_perm_requirements {
                 continue;
             }
@@ -924,16 +1011,21 @@ fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome)
                     Err(_) => continue,
                 };
 
-                if let Some(mode) = glob_entry.permissions
+                if let Some(ref preset) = glob_entry.file_perms
                     && let Ok(metadata) = std::fs::metadata(&abs_path)
                 {
-                    let current_mode = metadata.permissions().mode() & 0o777;
-                    if current_mode != mode {
-                        eprintln!(
-                            "Permission warning: '{}' has 0o{:o}, should be 0o{:o} (run as root to fix)",
-                            rel_path, current_mode, mode
-                        );
-                        outcome.skipped_perms += 1;
+                    let src_path = group.source_dir.join(&rel_path);
+                    if let Ok(src_meta) = std::fs::symlink_metadata(&src_path) {
+                        let src_perms = src_meta.permissions().mode() & 0o777;
+                        let target_mode = preset.map_permissions(src_perms);
+                        let current_mode = metadata.permissions().mode() & 0o777;
+                        if current_mode != target_mode {
+                            eprintln!(
+                                "Permission warning: '{}' has 0o{:o}, should be 0o{:o} (run as root to fix)",
+                                rel_path, current_mode, target_mode
+                            );
+                            outcome.skipped_perms += 1;
+                        }
                     }
                 }
 
@@ -1444,7 +1536,6 @@ mod tests {
             source_dir: src,
             target_dir: tgt,
             globs: vec![],
-            permissions: None,
             file_perms: None,
             dir_perms: None,
             owner: None,

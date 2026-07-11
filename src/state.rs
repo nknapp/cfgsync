@@ -12,19 +12,12 @@ pub struct State {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileEntry {
-    #[serde(default)]
-    pub group_index: usize,
+    pub group: String,
     pub path: String,
-    pub source_mtime: i64,
-    pub target_mtime: i64,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub is_symlink: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub symlink_target: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hash: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_sync: Option<i64>,
+    pub hash: String,
+    pub perms: String,
+    pub owner: String,
+    pub mtime: String,
 }
 
 impl State {
@@ -57,10 +50,10 @@ impl State {
             .map_err(|e| format!("Cannot write state file '{}': {}", path.display(), e))
     }
 
-    pub fn as_map(&self) -> HashMap<(usize, &str), &FileEntry> {
+    pub fn as_map(&self) -> HashMap<(&str, &str), &FileEntry> {
         self.file
             .iter()
-            .map(|e| ((e.group_index, e.path.as_str()), e))
+            .map(|e| ((e.group.as_str(), e.path.as_str()), e))
             .collect()
     }
 }
@@ -87,24 +80,20 @@ mod tests {
                 .to_utc(),
             file: vec![
                 FileEntry {
-                    group_index: 0,
+                    group: "./target".to_string(),
                     path: "etc/nginx.conf".to_string(),
-                    source_mtime: 1716634200000,
-                    hash: None,
-                    last_sync: None,
-                    target_mtime: 1716634200000,
-                    is_symlink: false,
-                    symlink_target: None,
+                    hash: "abc123".to_string(),
+                    perms: "644".to_string(),
+                    owner: "root:root".to_string(),
+                    mtime: "2026-05-25T10:30:00.000Z".to_string(),
                 },
                 FileEntry {
-                    group_index: 0,
+                    group: "./target".to_string(),
                     path: "etc/app.conf".to_string(),
-                    source_mtime: 1716634300000,
-                    hash: None,
-                    last_sync: None,
-                    target_mtime: 1716634300000,
-                    is_symlink: false,
-                    symlink_target: None,
+                    hash: "def456".to_string(),
+                    perms: "600".to_string(),
+                    owner: "nobody:nogroup".to_string(),
+                    mtime: "2026-05-25T10:30:00.000Z".to_string(),
                 },
             ],
         };
@@ -115,12 +104,12 @@ mod tests {
         assert_eq!(parsed.file.len(), 2);
         let map = parsed.as_map();
         assert_eq!(
-            map.get(&(0, "etc/nginx.conf")).unwrap().source_mtime,
-            1716634200000
+            map.get(&("./target", "etc/nginx.conf")).unwrap().perms,
+            "644"
         );
         assert_eq!(
-            map.get(&(0, "etc/app.conf")).unwrap().source_mtime,
-            1716634300000
+            map.get(&("./target", "etc/app.conf")).unwrap().owner,
+            "nobody:nogroup"
         );
     }
 
@@ -142,14 +131,12 @@ mod tests {
                 .unwrap()
                 .to_utc(),
             file: vec![FileEntry {
-                group_index: 0,
+                group: "./target".to_string(),
                 path: "test.conf".to_string(),
-                source_mtime: 100000,
-                hash: None,
-                last_sync: None,
-                target_mtime: 200000,
-                is_symlink: false,
-                symlink_target: None,
+                hash: "abc123".to_string(),
+                perms: "644".to_string(),
+                owner: "user:user".to_string(),
+                mtime: "2026-05-25T10:30:00.000Z".to_string(),
             }],
         };
 
@@ -157,8 +144,10 @@ mod tests {
         let loaded = State::load(&state_path).unwrap();
         assert_eq!(loaded.file.len(), 1);
         assert_eq!(loaded.file[0].path, "test.conf");
-        assert_eq!(loaded.file[0].source_mtime, 100000);
-        assert_eq!(loaded.file[0].target_mtime, 200000);
+        assert_eq!(loaded.file[0].hash, "abc123");
+        assert_eq!(loaded.file[0].perms, "644");
+        assert_eq!(loaded.file[0].owner, "user:user");
+        assert_eq!(loaded.file[0].mtime, "2026-05-25T10:30:00.000Z");
     }
 
     #[test]
@@ -167,43 +156,46 @@ mod tests {
             last_sync: Utc::now(),
             file: vec![
                 FileEntry {
-                    group_index: 0,
+                    group: "./target1".to_string(),
                     path: "nginx.conf".to_string(),
-                    source_mtime: 100000,
-                    hash: None,
-                    last_sync: None,
-                    target_mtime: 100000,
-                    is_symlink: false,
-                    symlink_target: None,
+                    hash: "abc".to_string(),
+                    perms: "600".to_string(),
+                    owner: "root:root".to_string(),
+                    mtime: "2026-05-25T10:30:00.000Z".to_string(),
                 },
                 FileEntry {
-                    group_index: 1,
+                    group: "./target2".to_string(),
                     path: "nginx.conf".to_string(),
-                    source_mtime: 200000,
-                    hash: None,
-                    last_sync: None,
-                    target_mtime: 200000,
-                    is_symlink: false,
-                    symlink_target: None,
+                    hash: "def".to_string(),
+                    perms: "644".to_string(),
+                    owner: "user:user".to_string(),
+                    mtime: "2026-05-25T10:30:00.000Z".to_string(),
                 },
             ],
         };
         let map = state.as_map();
-        assert_eq!(map.get(&(0, "nginx.conf")).unwrap().source_mtime, 100000);
-        assert_eq!(map.get(&(1, "nginx.conf")).unwrap().source_mtime, 200000);
+        assert_eq!(map.get(&("./target1", "nginx.conf")).unwrap().perms, "600");
+        assert_eq!(map.get(&("./target2", "nginx.conf")).unwrap().perms, "644");
     }
 
     #[test]
-    fn test_old_state_without_group_index() {
-        let toml_str = r#"last_sync = "2026-05-25T10:30:00Z"
+    fn test_old_state_returns_error() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let state_path = dir.path().join("config.state");
+        std::fs::write(
+            &state_path,
+            r#"last_sync = "2026-05-25T10:30:00Z"
 
 [[file]]
+group_index = 0
 path = "old.conf"
 source_mtime = 100
 target_mtime = 100
-"#;
-        let parsed: State = toml::from_str(toml_str).unwrap();
-        assert_eq!(parsed.file.len(), 1);
-        assert_eq!(parsed.file[0].group_index, 0);
+"#,
+        )
+        .unwrap();
+
+        let result = State::load(&state_path);
+        assert!(result.is_err(), "old state format should produce an error");
     }
 }

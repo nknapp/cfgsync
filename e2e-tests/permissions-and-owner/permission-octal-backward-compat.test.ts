@@ -1,14 +1,14 @@
 import { assertEquals, deindent } from "../lib/index.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
-Deno.test("permission-octal-backward-compat", async (t) => {
+Deno.test("file-perms-public-no-change", async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
       target = "./target"
       globs = ["**/*.conf"]
-      permissions = "644"
+      file_perms = "public"
     `,
     files: [
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",

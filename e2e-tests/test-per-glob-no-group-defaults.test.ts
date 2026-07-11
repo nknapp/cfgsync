@@ -8,7 +8,7 @@ Deno.test("per-glob-no-group-defaults", async (t) => {
       source = "./source"
       target = "./target"
       globs = [
-          { pattern = "file-with-perms.conf", permissions = "600" },
+          { pattern = "file-with-perms.conf", file_perms = "private" },
           { pattern = "file-with-owner.conf", owner = "root:root" },
           { pattern = "file-no-defaults.conf" },
       ]

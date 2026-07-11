@@ -11,7 +11,7 @@ pub struct Config {
     pub sync: Vec<SyncGroup>,
 }
 
-#[derive(Debug, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum PermissionPreset {
     #[schemars(description = "source 644→600, 755→600 (most restrictive)")]
@@ -24,6 +24,37 @@ pub enum PermissionPreset {
     GroupRead,
     #[schemars(description = "source 644→644, 755→755 (default, no change)")]
     Public,
+}
+
+impl PermissionPreset {
+    pub fn map_permissions(&self, source_mode: u32) -> u32 {
+        let owner_perm = source_mode & 0o700;
+        match self {
+            PermissionPreset::Private => 0o600,
+            PermissionPreset::Shared => {
+                if owner_perm == 0o700 {
+                    0o775
+                } else {
+                    0o664
+                }
+            }
+            PermissionPreset::Group => {
+                if owner_perm == 0o700 {
+                    0o770
+                } else {
+                    0o660
+                }
+            }
+            PermissionPreset::GroupRead => {
+                if owner_perm == 0o700 {
+                    0o750
+                } else {
+                    0o640
+                }
+            }
+            PermissionPreset::Public => source_mode,
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Clone, JsonSchema)]
@@ -46,9 +77,6 @@ pub struct SyncGroup {
     )]
     #[serde(default)]
     pub globs: Vec<GlobEntry>,
-    #[schemars(description = "Default permissions as an octal string (e.g. \"644\", \"755\")")]
-    #[serde(default)]
-    pub permissions: Option<String>,
     #[schemars(description = "Default file-permission preset applied to regular files in target")]
     #[serde(default)]
     pub file_perms: Option<PermissionPreset>,
@@ -93,9 +121,6 @@ pub enum GlobEntry {
     Detailed {
         #[schemars(description = "The glob pattern (e.g. \"**/*.conf\")")]
         pattern: String,
-        #[schemars(description = "Optional octal permission override for this glob")]
-        #[serde(default)]
-        permissions: Option<String>,
         #[schemars(description = "Optional file-permission preset override for this glob")]
         #[serde(default)]
         file_perms: Option<PermissionPreset>,
@@ -123,8 +148,6 @@ pub struct ResolvedSyncGroup {
     pub target_dir: PathBuf,
     pub globs: Vec<ResolvedGlob>,
     #[allow(dead_code)]
-    pub permissions: Option<u32>,
-    #[allow(dead_code)]
     pub file_perms: Option<PermissionPreset>,
     #[allow(dead_code)]
     pub dir_perms: Option<PermissionPreset>,
@@ -139,8 +162,6 @@ pub struct ResolvedSyncGroup {
 pub struct ResolvedGlob {
     #[allow(dead_code)]
     pub pattern: String,
-    pub permissions: Option<u32>,
-    #[allow(dead_code)]
     pub file_perms: Option<PermissionPreset>,
     #[allow(dead_code)]
     pub dir_perms: Option<PermissionPreset>,
@@ -221,35 +242,18 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
             )
         })?;
 
-        let group_perms = group
-            .permissions
-            .as_deref()
-            .map(parse_permissions)
-            .transpose()?;
-
         let globs: Vec<ResolvedGlob> = group
             .globs
             .iter()
             .map(|entry| {
-                let (pattern, perms, file_perms, dir_perms, owner) = match entry {
-                    GlobEntry::Simple(p) => (p.clone(), None, None, None, None),
+                let (pattern, file_perms, dir_perms, owner) = match entry {
+                    GlobEntry::Simple(p) => (p.clone(), None, None, None),
                     GlobEntry::Detailed {
                         pattern,
-                        permissions,
                         file_perms: fp,
                         dir_perms: dp,
                         owner,
-                    } => {
-                        let entry_perms =
-                            permissions.as_deref().map(parse_permissions).transpose()?;
-                        (
-                            pattern.clone(),
-                            entry_perms,
-                            fp.clone(),
-                            dp.clone(),
-                            owner.clone(),
-                        )
-                    }
+                    } => (pattern.clone(), fp.clone(), dp.clone(), owner.clone()),
                 };
 
                 glob::Pattern::new(&pattern)
@@ -257,7 +261,6 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
 
                 Ok(ResolvedGlob {
                     pattern,
-                    permissions: perms.or(group_perms),
                     file_perms: file_perms.or(group.file_perms.clone()),
                     dir_perms: dir_perms.or(group.dir_perms.clone()),
                     owner: owner.or_else(|| group.owner.clone()),
@@ -287,7 +290,6 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
             source_dir,
             target_dir,
             globs,
-            permissions: group_perms,
             file_perms: group.file_perms.clone(),
             dir_perms: group.dir_perms.clone(),
             owner: group.owner.clone(),
@@ -405,7 +407,7 @@ globs = ["*.conf"]
     }
 
     #[test]
-    fn test_load_config_with_permissions_and_owner() {
+    fn test_load_config_with_file_perms_and_owner() {
         let dir = tempfile::TempDir::new().unwrap();
         let src_dir = dir.path().join("source");
         let tgt_dir = dir.path().join("target");
@@ -418,10 +420,10 @@ globs = ["*.conf"]
 source = "{}"
 target = "{}"
 owner = "root:root"
-permissions = "644"
+file_perms = "private"
 globs = [
     "**/*.service",
-    {{ pattern = "ssh/sshd_config", permissions = "600" }},
+    {{ pattern = "ssh/sshd_config", file_perms = "public" }},
 ]
 "#,
             src_dir.display(),
@@ -431,17 +433,17 @@ globs = [
 
         let resolved = load_config(&config_path).unwrap();
         let group = &resolved.sync_groups[0];
-        assert_eq!(group.permissions, Some(0o644));
+        assert!(matches!(group.file_perms, Some(PermissionPreset::Private)));
         assert_eq!(group.owner.as_deref(), Some("root:root"));
 
         let g0 = &group.globs[0];
         assert_eq!(g0.pattern, "**/*.service");
-        assert_eq!(g0.permissions, Some(0o644));
+        assert!(matches!(g0.file_perms, Some(PermissionPreset::Private)));
         assert_eq!(g0.owner.as_deref(), Some("root:root"));
 
         let g1 = &group.globs[1];
         assert_eq!(g1.pattern, "ssh/sshd_config");
-        assert_eq!(g1.permissions, Some(0o600));
+        assert!(matches!(g1.file_perms, Some(PermissionPreset::Public)));
         assert_eq!(g1.owner.as_deref(), Some("root:root"));
     }
 
@@ -587,9 +589,9 @@ globs = ["*.conf", "*.txt"]
 source = "{}"
 target = "{}"
 owner = "root:root"
-permissions = "644"
+file_perms = "private"
 globs = [
-    {{ pattern = "secret.key", permissions = "600", owner = "nobody:nogroup" }},
+    {{ pattern = "secret.key", file_perms = "public", owner = "nobody:nogroup" }},
 ]
 "#,
             src_dir.display(),
@@ -600,7 +602,7 @@ globs = [
         let resolved = load_config(&config_path).unwrap();
         let g = &resolved.sync_groups[0].globs[0];
         assert_eq!(g.pattern, "secret.key");
-        assert_eq!(g.permissions, Some(0o600));
+        assert!(matches!(g.file_perms, Some(PermissionPreset::Public)));
         assert_eq!(g.owner.as_deref(), Some("nobody:nogroup"));
     }
 
@@ -624,32 +626,6 @@ globs = [
     }
 
     #[test]
-    fn test_load_config_permissions_invalid_string() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let src_dir = dir.path().join("source");
-        let tgt_dir = dir.path().join("target");
-        std::fs::create_dir(&src_dir).unwrap();
-        std::fs::create_dir(&tgt_dir).unwrap();
-
-        let config_path = dir.path().join("config.toml");
-        let config_content = format!(
-            r#"[[sync]]
-source = "{}"
-target = "{}"
-permissions = "abc"
-globs = ["*.conf"]
-"#,
-            src_dir.display(),
-            tgt_dir.display()
-        );
-        std::fs::write(&config_path, config_content).unwrap();
-
-        let result = load_config(&config_path);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("permissions"));
-    }
-
-    #[test]
     fn test_load_config_two_groups_one_with_owner_one_without() {
         let dir = tempfile::TempDir::new().unwrap();
         let src_a = dir.path().join("src-a");
@@ -667,7 +643,7 @@ globs = ["*.conf"]
 source = "{}"
 target = "{}"
 owner = "root:root"
-permissions = "600"
+file_perms = "public"
 globs = ["*.conf"]
 
 [[sync]]
@@ -687,15 +663,18 @@ globs = ["*.txt"]
 
         let g0 = &resolved.sync_groups[0];
         assert_eq!(g0.owner.as_deref(), Some("root:root"));
-        assert_eq!(g0.permissions, Some(0o600));
+        assert!(matches!(g0.file_perms, Some(PermissionPreset::Public)));
         assert_eq!(g0.globs[0].owner.as_deref(), Some("root:root"));
-        assert_eq!(g0.globs[0].permissions, Some(0o600));
+        assert!(matches!(
+            g0.globs[0].file_perms,
+            Some(PermissionPreset::Public)
+        ));
 
         let g1 = &resolved.sync_groups[1];
         assert_eq!(g1.owner, None);
-        assert_eq!(g1.permissions, None);
+        assert_eq!(g1.file_perms, None);
         assert_eq!(g1.globs[0].owner, None);
-        assert_eq!(g1.globs[0].permissions, None);
+        assert_eq!(g1.globs[0].file_perms, None);
     }
 
     #[test]
@@ -711,12 +690,12 @@ globs = ["*.txt"]
             r#"[[sync]]
 source = "{}"
 target = "{}"
-globs = ["*.conf", {{ pattern = "secret.key", permissions = "400" }}]
+globs = ["*.conf", {{ pattern = "secret.key", file_perms = "private" }}]
 
 [[sync]]
 source = "{}"
 target = "{}"
-permissions = "755"
+file_perms = "shared"
 globs = ["*.txt"]
 "#,
             src.display(),
@@ -731,52 +710,20 @@ globs = ["*.txt"]
 
         let g0 = &resolved.sync_groups[0];
         assert_eq!(g0.globs.len(), 2);
-        assert_eq!(g0.globs[0].permissions, None); // simple string, no overrides
-        assert_eq!(g0.globs[1].permissions, Some(0o400)); // detailed with override
+        assert_eq!(g0.globs[0].file_perms, None);
+        assert!(matches!(
+            g0.globs[1].file_perms,
+            Some(PermissionPreset::Private)
+        ));
         assert_eq!(g0.globs[1].pattern, "secret.key");
 
         let g1 = &resolved.sync_groups[1];
         assert_eq!(g1.globs.len(), 1);
-        assert_eq!(g1.permissions, Some(0o755));
-        assert_eq!(g1.globs[0].permissions, Some(0o755)); // inherits group default
-    }
-
-    #[test]
-    fn test_load_config_invalid_permissions_in_second_group() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let src_a = dir.path().join("src-a");
-        let tgt_a = dir.path().join("tgt-a");
-        let src_b = dir.path().join("src-b");
-        let tgt_b = dir.path().join("tgt-b");
-        std::fs::create_dir(&src_a).unwrap();
-        std::fs::create_dir(&tgt_a).unwrap();
-        std::fs::create_dir(&src_b).unwrap();
-        std::fs::create_dir(&tgt_b).unwrap();
-
-        let config_path = dir.path().join("config.toml");
-        let config_content = format!(
-            r#"[[sync]]
-source = "{}"
-target = "{}"
-globs = ["*.conf"]
-
-[[sync]]
-source = "{}"
-target = "{}"
-permissions = "bad"
-globs = ["*.txt"]
-"#,
-            src_a.display(),
-            tgt_a.display(),
-            src_b.display(),
-            tgt_b.display()
-        );
-        std::fs::write(&config_path, config_content).unwrap();
-
-        let result = load_config(&config_path);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.contains("permissions"), "got: {}", err);
+        assert!(matches!(g1.file_perms, Some(PermissionPreset::Shared)));
+        assert!(matches!(
+            g1.globs[0].file_perms,
+            Some(PermissionPreset::Shared)
+        ));
     }
 
     #[test]
@@ -794,7 +741,7 @@ source = "{}"
 target = "{}"
 globs = [
     "*.conf",
-    {{ pattern = "secret.key", permissions = "600" }},
+    {{ pattern = "secret.key", file_perms = "public" }},
 ]
 "#,
             src.display(),
@@ -804,38 +751,13 @@ globs = [
 
         let resolved = load_config(&config_path).unwrap();
         let g = &resolved.sync_groups[0];
-        // Group has no default permissions
-        assert_eq!(g.permissions, None);
-        // Simple glob inherits nothing
-        assert_eq!(g.globs[0].permissions, None);
-        // Detailed glob has its own permissions only
-        assert_eq!(g.globs[1].permissions, Some(0o600));
+        assert_eq!(g.file_perms, None);
+        assert_eq!(g.globs[0].file_perms, None);
+        assert!(matches!(
+            g.globs[1].file_perms,
+            Some(PermissionPreset::Public)
+        ));
         assert_eq!(g.globs[1].owner, None);
-    }
-
-    #[test]
-    fn test_load_config_permissions_with_leading_zero() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let src = dir.path().join("source");
-        let tgt = dir.path().join("target");
-        std::fs::create_dir(&src).unwrap();
-        std::fs::create_dir(&tgt).unwrap();
-
-        let config_path = dir.path().join("config.toml");
-        let config_content = format!(
-            r#"[[sync]]
-source = "{}"
-target = "{}"
-permissions = "0755"
-globs = ["*.conf"]
-"#,
-            src.display(),
-            tgt.display()
-        );
-        std::fs::write(&config_path, config_content).unwrap();
-
-        let resolved = load_config(&config_path).unwrap();
-        assert_eq!(resolved.sync_groups[0].permissions, Some(0o755));
     }
 
     #[test]

@@ -73,21 +73,20 @@ schema_doc.toml  LLM-readable config reference, embedded via include_str!.
 
 ### Key types
 
-- **`Change`** (enum): `CopyToTarget`, `CopyToSource`, `Conflict`, `DeleteTarget`, `DeleteSource`, `Cleanup`
-    - `CopyToTarget`/`CopyToSource` carry `abs_src` and `abs_tgt` paths
-    - `Conflict` does NOT carry `abs_src`/`abs_tgt` (though it now has them). `DeleteTarget` means: delete from **target** (file gone from source). `DeleteSource` means: delete from **source** (file gone from target). Each variant carries `group_index`. `CopyToTarget` also carries `group_index` for hook triggering.
-- **`ResolvedConfig`**: `config_dir`, `source_dir`, `target_dir`, `filters`, `state_path`
-- **`ResolvedFilter`**: `glob` (string), `pattern` (compiled glob `Pattern`), `permissions` (optional `u32` octal),
-  `owner` (optional `"user:group"`)
-- **`State`**: `last_sync: DateTime<Utc>`, `file: Vec<FileEntry>`
-- **`FileEntry`**: `path: String`, `source_mtime: i64`, `target_mtime: i64`
+See [docs/algorithm/index.md](docs/algorithm/index.md) for the full algorithm specification, change classification
+logic, and state file format.
+
+- **`Change`** (enum): `CopyToTarget`, `CopyToSource`, `Conflict`, `DeleteTarget`, `DeleteSource`, `Cleanup` — each variant carries `group_index`.
+- **`ResolvedConfig`**: `config_dir`, `sync_groups: Vec<ResolvedSyncGroup>`, `state_path`
+- **`ResolvedSyncGroup`**: `source_dir`, `target_dir`, `globs: Vec<ResolvedGlob>`, `hooks`, `deviating`
+- **`ResolvedGlob`**: `pattern` (compiled glob), `file_perms`, `dir_perms`, `owner`
 
 ### Data flow: `cfgsync sync config.toml`
 
 ```
 load_config(path)        → read/parse TOML, resolve paths, validate directories + globs
 State::load(state_path)  → read state file (or empty state on first run)
-changes::classify()      → scan_dir(source), scan_dir(target), classify each path → Vec<Change>
+changes::classify()      → scan source + target dirs, classify each path → Vec<Change>
 sync::run()              → handle conflicts, execute copies/deletes, enforce permissions,
                             run post-copy hooks for groups with CopyToTarget operations,
                             update + save state
@@ -147,20 +146,7 @@ reason.
 
 ## State file format
 
-```toml
-last_sync = "2026-05-25T10:30:00Z"
-
-[[file]]
-path = "nginx/nginx.conf"
-source_mtime = 1716634200
-target_mtime = 1716634200
-```
-
-- Location: `<config_path>.cfgsync.state` (same directory, `.cfgsync.state` extension)
-- `source_mtime` / `target_mtime`: `0` if file did not exist on that side
-- First run (no file) → `State::empty()` (empty file list)
-- Corrupted state file → fatal error with suggestion to delete and re-sync
-- After each sync, state is rebuilt from scratch by re-scanning the source directory
+Documented in [docs/algorithm/index.md](docs/algorithm/index.md#21-format-of-the-state-file).
 
 ## Edge cases and gotchas
 
@@ -178,9 +164,9 @@ target_mtime = 1716634200
   is emitted. This prevents `status` and `sync` from showing spurious copy operations.
 - **State rebuilding bug**: If a file matches multiple filters, it may appear **twice** in the rebuilt state (
   `update_state` iterates filters then walkdir entries; `state.file.clear()` is called once at the top, not per-filter).
-- **`skipped_perms` counter**: Tracks both true permission skips AND copy/delete failures — misleading in the summary.
 - **`Conflict` in `diff` command**: Cannot show an actual diff because the enum only stores `rel_path` (no absolute
   source/target paths).
+- **`skipped_perms` counter**: Tracks both true permission skips AND copy/delete failures — misleading in the summary.
 - **Hooks**: `hooks.after` on a sync group is a shell command run via `/bin/sh` after files are copied from source to
   target. Runs once per sync cycle (not per file). When running as root, switches to the group's configured owner (or
   config file owner if no owner set). When non-root with owner set, hook is skipped with a warning. Dry-run prints
@@ -197,5 +183,6 @@ target_mtime = 1716634200
 ## Resources
 
 - Config schema: `cfgsync schema` or read `src/schema_doc.toml`
+- Algorithm: [docs/algorithm/index.md](docs/algorithm/index.md)
 - Help: `cfgsync --help`, `cfgsync sync --help`, `cfgsync status --help`, `cfgsync diff --help`
 - GitHub CLI: Use `gh` to get logs from GitHub workflow runs (e.g., `gh run list`, `gh run view`).

@@ -1,6 +1,8 @@
 use crate::config::{ResolvedConfig, ResolvedGlob};
 use crate::state::{FileEntry, State};
+use chrono::DateTime;
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -126,24 +128,43 @@ pub fn classify(
 
     let state_map = state.as_map();
 
-    let mut all_paths: BTreeSet<(usize, &str)> = BTreeSet::new();
+    let group_to_index: HashMap<String, usize> = config
+        .sync_groups
+        .iter()
+        .enumerate()
+        .map(|(i, g)| (g.target_dir.to_string_lossy().to_string(), i))
+        .collect();
+
+    let mut all_paths: BTreeSet<(String, String)> = BTreeSet::new();
     for (i, src_files) in group_source_files.iter().enumerate() {
+        let group_path = config.sync_groups[i]
+            .target_dir
+            .to_string_lossy()
+            .to_string();
         for f in src_files {
-            all_paths.insert((i, &f.rel_path));
+            all_paths.insert((group_path.clone(), f.rel_path.clone()));
         }
     }
     for (i, tgt_files) in group_target_files.iter().enumerate() {
+        let group_path = config.sync_groups[i]
+            .target_dir
+            .to_string_lossy()
+            .to_string();
         for f in tgt_files {
-            all_paths.insert((i, &f.rel_path));
+            all_paths.insert((group_path.clone(), f.rel_path.clone()));
         }
     }
-    for &(group_index, path) in state_map.keys() {
-        all_paths.insert((group_index, path));
+    for &(group_path, path) in state_map.keys() {
+        all_paths.insert((group_path.to_string(), path.to_string()));
     }
 
     let mut changes = Vec::new();
 
-    for (group_index, rel_path) in all_paths {
+    for (group_path, rel_path) in all_paths {
+        let group_index = match group_to_index.get(group_path.as_str()) {
+            Some(&i) => i,
+            None => continue,
+        };
         let group = &config.sync_groups[group_index];
         let in_source = group_source_files[group_index]
             .iter()
@@ -151,18 +172,20 @@ pub fn classify(
         let in_target = group_target_files[group_index]
             .iter()
             .find(|f| f.rel_path == rel_path);
-        let in_state = state_map.get(&(group_index, rel_path));
-        let abs_src = group.source_dir.join(rel_path);
-        let abs_tgt = group.target_dir.join(rel_path);
+        let in_state = state_map.get(&(group_path.as_str(), rel_path.as_str()));
+        let abs_src = group.source_dir.join(&rel_path);
+        let abs_tgt = group.target_dir.join(&rel_path);
 
         let change = classify_entry(
             in_source,
             in_target,
             in_state,
             group_index,
-            rel_path,
+            &rel_path,
             &abs_src,
             &abs_tgt,
+            &group.globs,
+            &group.source_dir,
         );
         changes.push(change);
     }
@@ -212,6 +235,7 @@ fn validate_group_overlap(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn classify_entry(
     in_source: Option<&DiscoveredFile>,
     in_target: Option<&DiscoveredFile>,
@@ -220,6 +244,8 @@ fn classify_entry(
     rel_path: &str,
     abs_src: &Path,
     abs_tgt: &Path,
+    globs: &[ResolvedGlob],
+    source_dir: &Path,
 ) -> Change {
     let rel = rel_path.to_string();
     let gi = group_index;
@@ -229,8 +255,10 @@ fn classify_entry(
     match in_state {
         None => match (in_source, in_target) {
             (Some(_s), Some(_t)) => {
-                let src_hash = compute_file_hash(&src, _s.is_symlink, _s.symlink_target.as_deref());
-                let tgt_hash = compute_file_hash(&tgt, _t.is_symlink, _t.symlink_target.as_deref());
+                let src_hash =
+                    compute_file_hash(abs_src, _s.is_symlink, _s.symlink_target.as_deref());
+                let tgt_hash =
+                    compute_file_hash(abs_tgt, _t.is_symlink, _t.symlink_target.as_deref());
                 if src_hash.is_some() && src_hash == tgt_hash {
                     Change::UpdateState {
                         group_index: gi,
@@ -270,7 +298,7 @@ fn classify_entry(
             },
 
             (None, Some(target)) => {
-                if is_changed_target(target, state_entry, &tgt) {
+                if is_changed(target, abs_tgt, state_entry) {
                     Change::Conflict {
                         group_index: gi,
                         rel_path: rel,
@@ -287,7 +315,7 @@ fn classify_entry(
             }
 
             (Some(source), None) => {
-                if is_changed_source(source, state_entry, abs_src) {
+                if is_changed(source, abs_src, state_entry) {
                     Change::Conflict {
                         group_index: gi,
                         rel_path: rel,
@@ -304,12 +332,18 @@ fn classify_entry(
             }
 
             (Some(source), Some(target)) => {
-                let src_changed = is_changed_source(source, state_entry, abs_src);
-                let tgt_changed = is_changed_target(target, state_entry, abs_tgt);
+                let src_changed = is_changed(source, abs_src, state_entry);
+                let tgt_changed = is_changed(target, abs_tgt, state_entry);
 
                 if !src_changed && !tgt_changed {
-                    let perms_differ = target_permissions_differ(rel_path, abs_tgt, state_entry);
-                    if perms_differ {
+                    if target_permissions_differ(
+                        rel_path,
+                        abs_tgt,
+                        state_entry,
+                        abs_src,
+                        globs,
+                        source_dir,
+                    ) {
                         Change::CopyToTarget {
                             group_index: gi,
                             rel_path: rel,
@@ -337,8 +371,8 @@ fn classify_entry(
                         abs_tgt: tgt.clone(),
                     }
                 } else if files_or_symlinks_identical(
-                    &src,
-                    &tgt,
+                    abs_src,
+                    abs_tgt,
                     source.is_symlink,
                     target.is_symlink,
                 ) {
@@ -359,12 +393,31 @@ fn classify_entry(
     }
 }
 
+fn parse_mtime_to_i64(mtime_str: &str) -> Option<i64> {
+    DateTime::parse_from_rfc3339(mtime_str)
+        .ok()
+        .map(|dt| dt.timestamp_millis())
+}
+
+fn is_changed(file: &DiscoveredFile, abs_path: &Path, state_entry: &FileEntry) -> bool {
+    let state_mtime = parse_mtime_to_i64(&state_entry.mtime).unwrap_or(0);
+    if file.mtime == state_mtime {
+        return false;
+    }
+
+    let file_hash = compute_file_hash(abs_path, file.is_symlink, file.symlink_target.as_deref());
+    let Some(file_hash) = file_hash else {
+        return true;
+    };
+
+    file_hash != state_entry.hash
+}
+
 fn compute_file_hash(
     path: &Path,
     is_symlink: bool,
     symlink_target: Option<&str>,
 ) -> Option<String> {
-    use std::os::unix::fs::{MetadataExt, PermissionsExt};
     use xxhash_rust::xxh3::xxh3_128;
 
     if is_symlink {
@@ -389,42 +442,6 @@ fn compute_file_hash(
             None
         }
     }
-}
-
-fn is_changed_source(
-    source_file: &DiscoveredFile,
-    state_entry: &FileEntry,
-    abs_src: &Path,
-) -> bool {
-    if let Some(state_hash) = &state_entry.hash
-        && let Some(file_hash) = compute_file_hash(
-            abs_src,
-            source_file.is_symlink,
-            source_file.symlink_target.as_deref(),
-        )
-    {
-        return source_file.mtime != state_entry.last_sync.unwrap_or(0) && file_hash != *state_hash;
-    }
-    source_file.mtime != state_entry.source_mtime
-        || source_file.symlink_target.as_deref() != state_entry.symlink_target.as_deref()
-}
-
-fn is_changed_target(
-    target_file: &DiscoveredFile,
-    state_entry: &FileEntry,
-    abs_tgt: &Path,
-) -> bool {
-    if let Some(state_hash) = &state_entry.hash
-        && let Some(file_hash) = compute_file_hash(
-            abs_tgt,
-            target_file.is_symlink,
-            target_file.symlink_target.as_deref(),
-        )
-    {
-        return target_file.mtime != state_entry.last_sync.unwrap_or(0) && file_hash != *state_hash;
-    }
-    target_file.mtime != state_entry.target_mtime
-        || target_file.symlink_target.as_deref() != state_entry.symlink_target.as_deref()
 }
 
 fn files_or_symlinks_identical(a: &Path, b: &Path, a_is_symlink: bool, b_is_symlink: bool) -> bool {
@@ -564,14 +581,45 @@ pub struct ChangeCounts {
     pub failed: usize,
 }
 
-fn target_permissions_differ(_rel_path: &str, abs_tgt: &Path, _state_entry: &FileEntry) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    if let Ok(metadata) = std::fs::symlink_metadata(abs_tgt) {
-        if metadata.file_type().is_symlink() {
+fn resolve_permissions_for_file(
+    abs_src: &Path,
+    globs: &[ResolvedGlob],
+    source_dir: &Path,
+) -> Option<u32> {
+    let src_str = abs_src.to_string_lossy();
+    for glob_entry in globs {
+        let pattern_str = source_dir
+            .join(&glob_entry.pattern)
+            .to_string_lossy()
+            .to_string();
+        if let Ok(pattern) = glob::Pattern::new(&pattern_str)
+            && pattern.matches(&src_str)
+            && let Some(ref preset) = glob_entry.file_perms
+            && let Ok(metadata) = std::fs::symlink_metadata(abs_src)
+        {
+            let src_perms = metadata.permissions().mode() & 0o777;
+            return Some(preset.map_permissions(src_perms));
+        }
+    }
+    None
+}
+
+fn target_permissions_differ(
+    _rel_path: &str,
+    abs_tgt: &Path,
+    _state_entry: &FileEntry,
+    abs_src: &Path,
+    globs: &[ResolvedGlob],
+    source_dir: &Path,
+) -> bool {
+    if let Ok(tgt_meta) = std::fs::symlink_metadata(abs_tgt) {
+        if tgt_meta.file_type().is_symlink() {
             return false;
         }
-        let actual_mode = metadata.permissions().mode() & 0o777;
-        let _ = actual_mode;
+        let actual_mode = tgt_meta.permissions().mode() & 0o777;
+        if let Some(configured_mode) = resolve_permissions_for_file(abs_src, globs, source_dir) {
+            return actual_mode != configured_mode;
+        }
     }
     false
 }
@@ -585,10 +633,52 @@ mod tests {
     fn make_glob(pattern: &str) -> ResolvedGlob {
         ResolvedGlob {
             pattern: pattern.to_string(),
-            permissions: None,
             file_perms: None,
             dir_perms: None,
             owner: None,
+        }
+    }
+
+    fn make_file_entry(
+        group: &str,
+        path: &str,
+        hash: &str,
+        perms: &str,
+        owner: &str,
+        mtime: &str,
+    ) -> FileEntry {
+        FileEntry {
+            group: group.to_string(),
+            path: path.to_string(),
+            hash: hash.to_string(),
+            perms: perms.to_string(),
+            owner: owner.to_string(),
+            mtime: mtime.to_string(),
+        }
+    }
+
+    fn make_state_entry_from_file(
+        fs_path: &Path,
+        group_path: &str,
+        rel_path: &str,
+        perms: &str,
+        owner: &str,
+    ) -> FileEntry {
+        let hash = compute_file_hash(fs_path, fs_path.is_symlink(), None).unwrap_or_default();
+        let mtime = unix_timestamp(fs_path);
+        let mtime_str = format!(
+            "{}",
+            DateTime::from_timestamp_millis(mtime)
+                .unwrap()
+                .format("%Y-%m-%dT%H:%M:%S.%.3fZ")
+        );
+        FileEntry {
+            group: group_path.to_string(),
+            path: rel_path.to_string(),
+            hash,
+            perms: perms.to_string(),
+            owner: owner.to_string(),
+            mtime: mtime_str,
         }
     }
 
@@ -602,7 +692,6 @@ mod tests {
                     source_dir: src,
                     target_dir: tgt,
                     globs: vec![make_glob("**/*")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -689,16 +778,13 @@ mod tests {
 
         let state = State {
             last_sync: chrono::Utc::now(),
-            file: vec![FileEntry {
-                group_index: 0,
-                path: "app.conf".to_string(),
-                source_mtime: 1000000,
-                is_symlink: false,
-                symlink_target: None,
-                hash: None,
-                last_sync: None,
-                target_mtime: 1000000,
-            }],
+            file: vec![make_state_entry_from_file(
+                &tgt_file,
+                &tgt.to_string_lossy(),
+                "app.conf",
+                "644",
+                "user:user",
+            )],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
@@ -739,16 +825,13 @@ mod tests {
 
         let state = State {
             last_sync: chrono::Utc::now(),
-            file: vec![FileEntry {
-                group_index: 0,
-                path: "app.conf".to_string(),
-                source_mtime: 1000000,
-                is_symlink: false,
-                symlink_target: None,
-                hash: None,
-                last_sync: None,
-                target_mtime: 1000000,
-            }],
+            file: vec![make_state_entry_from_file(
+                &src_file,
+                &tgt.to_string_lossy(),
+                "app.conf",
+                "644",
+                "user:user",
+            )],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
@@ -796,16 +879,14 @@ mod tests {
 
         let state = State {
             last_sync: chrono::Utc::now(),
-            file: vec![FileEntry {
-                group_index: 0,
-                path: "app.conf".to_string(),
-                source_mtime: 1000000,
-                is_symlink: false,
-                symlink_target: None,
-                hash: None,
-                last_sync: None,
-                target_mtime: 1000000,
-            }],
+            file: vec![make_file_entry(
+                &tgt.to_string_lossy(),
+                "app.conf",
+                "deadbeef",
+                "644",
+                "user:user",
+                "1970-01-01T00:00:01.000Z",
+            )],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
@@ -831,20 +912,16 @@ mod tests {
         std::fs::create_dir(&tgt).unwrap();
 
         std::fs::write(tgt.join("app.conf"), "v1").unwrap();
-        let tgt_mtime = unix_timestamp(&tgt.join("app.conf"));
 
         let state = State {
             last_sync: chrono::Utc::now(),
-            file: vec![FileEntry {
-                group_index: 0,
-                path: "app.conf".to_string(),
-                source_mtime: tgt_mtime,
-                is_symlink: false,
-                symlink_target: None,
-                hash: None,
-                last_sync: None,
-                target_mtime: tgt_mtime,
-            }],
+            file: vec![make_state_entry_from_file(
+                &tgt.join("app.conf"),
+                &tgt.to_string_lossy(),
+                "app.conf",
+                "644",
+                "user:user",
+            )],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
@@ -862,20 +939,16 @@ mod tests {
         std::fs::create_dir(&tgt).unwrap();
 
         std::fs::write(src.join("app.conf"), "v1").unwrap();
-        let src_mtime = unix_timestamp(&src.join("app.conf"));
 
         let state = State {
             last_sync: chrono::Utc::now(),
-            file: vec![FileEntry {
-                group_index: 0,
-                path: "app.conf".to_string(),
-                source_mtime: src_mtime,
-                is_symlink: false,
-                symlink_target: None,
-                hash: None,
-                last_sync: None,
-                target_mtime: src_mtime,
-            }],
+            file: vec![make_state_entry_from_file(
+                &src.join("app.conf"),
+                &tgt.to_string_lossy(),
+                "app.conf",
+                "644",
+                "user:user",
+            )],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
@@ -894,16 +967,14 @@ mod tests {
 
         let state = State {
             last_sync: chrono::Utc::now(),
-            file: vec![FileEntry {
-                group_index: 0,
-                path: "old.conf".to_string(),
-                source_mtime: 100000,
-                is_symlink: false,
-                symlink_target: None,
-                hash: None,
-                last_sync: None,
-                target_mtime: 100000,
-            }],
+            file: vec![make_file_entry(
+                &tgt.to_string_lossy(),
+                "old.conf",
+                "abc",
+                "644",
+                "user:user",
+                "1970-01-01T00:00:01.000Z",
+            )],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
@@ -931,19 +1002,24 @@ mod tests {
             .set_modified(sync_time)
             .unwrap();
         let mtime = unix_timestamp(&src_file);
+        let mtime_str = format!(
+            "{}",
+            DateTime::from_timestamp_millis(mtime)
+                .unwrap()
+                .format("%Y-%m-%dT%H:%M:%S.%.3fZ")
+        );
+        let hash = compute_file_hash(&src_file, false, None).unwrap();
 
         let state = State {
             last_sync: chrono::Utc::now(),
-            file: vec![FileEntry {
-                group_index: 0,
-                path: "app.conf".to_string(),
-                source_mtime: mtime,
-                is_symlink: false,
-                symlink_target: None,
-                hash: None,
-                last_sync: None,
-                target_mtime: mtime,
-            }],
+            file: vec![make_file_entry(
+                &tgt.to_string_lossy(),
+                "app.conf",
+                &hash,
+                "644",
+                "user:user",
+                &mtime_str,
+            )],
         };
         let config = make_single_config(&src, &tgt, &dir.path().join("state"));
 
@@ -996,7 +1072,6 @@ mod tests {
                     source_dir: src.clone(),
                     target_dir: tgt1,
                     globs: vec![make_glob("**/*")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -1007,7 +1082,6 @@ mod tests {
                     source_dir: src,
                     target_dir: tgt2,
                     globs: vec![make_glob("**/*")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -1052,7 +1126,6 @@ mod tests {
                     source_dir: src1,
                     target_dir: tgt1,
                     globs: vec![make_glob("file1.*")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -1063,7 +1136,6 @@ mod tests {
                     source_dir: src2,
                     target_dir: tgt2,
                     globs: vec![make_glob("file2.*")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -1094,8 +1166,10 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let src = dir.path().join("source");
         let tgt = dir.path().join("target");
+        let tgt2 = dir.path().join("target2");
         std::fs::create_dir(&src).unwrap();
         std::fs::create_dir(&tgt).unwrap();
+        std::fs::create_dir(&tgt2).unwrap();
 
         std::fs::write(src.join("file.txt"), "content").unwrap();
 
@@ -1107,7 +1181,6 @@ mod tests {
                     source_dir: src.clone(),
                     target_dir: tgt.clone(),
                     globs: vec![make_glob("**/*.txt")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -1116,9 +1189,8 @@ mod tests {
                 },
                 crate::config::ResolvedSyncGroup {
                     source_dir: src.clone(),
-                    target_dir: tgt.clone(),
+                    target_dir: tgt2.clone(),
                     globs: vec![make_glob("*.nothing")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -1131,7 +1203,6 @@ mod tests {
 
         let state = State::empty();
         let changes = classify(&config, &state, false, false).unwrap();
-        // Only group 0 matches; group 1 has zero files
         assert_eq!(changes.len(), 1);
         assert!(matches!(
             changes[0],
@@ -1143,9 +1214,11 @@ mod tests {
     fn test_classify_multi_group_same_dir_non_overlapping_globs() {
         let dir = tempfile::TempDir::new().unwrap();
         let src = dir.path().join("source");
-        let tgt = dir.path().join("target");
+        let tgt1 = dir.path().join("target1");
+        let tgt2 = dir.path().join("target2");
         std::fs::create_dir(&src).unwrap();
-        std::fs::create_dir(&tgt).unwrap();
+        std::fs::create_dir(&tgt1).unwrap();
+        std::fs::create_dir(&tgt2).unwrap();
 
         std::fs::write(src.join("app.conf"), "conf").unwrap();
         std::fs::write(src.join("readme.txt"), "txt").unwrap();
@@ -1156,9 +1229,8 @@ mod tests {
             sync_groups: vec![
                 crate::config::ResolvedSyncGroup {
                     source_dir: src.clone(),
-                    target_dir: tgt.clone(),
+                    target_dir: tgt1.clone(),
                     globs: vec![make_glob("*.conf")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -1167,9 +1239,8 @@ mod tests {
                 },
                 crate::config::ResolvedSyncGroup {
                     source_dir: src.clone(),
-                    target_dir: tgt.clone(),
+                    target_dir: tgt2.clone(),
                     globs: vec![make_glob("*.txt")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -1207,30 +1278,25 @@ mod tests {
         std::fs::create_dir(&src2).unwrap();
         std::fs::create_dir(&tgt2).unwrap();
 
-        // Both files are gone but still tracked in state — should produce DeleteFromState for each group
         let state = State {
             last_sync: chrono::Utc::now(),
             file: vec![
-                FileEntry {
-                    group_index: 0,
-                    path: "app.conf".to_string(),
-                    source_mtime: 1000000,
-                    is_symlink: false,
-                    symlink_target: None,
-                    hash: None,
-                    last_sync: None,
-                    target_mtime: 1000000,
-                },
-                FileEntry {
-                    group_index: 1,
-                    path: "gone2.conf".to_string(),
-                    source_mtime: 200000,
-                    is_symlink: false,
-                    symlink_target: None,
-                    hash: None,
-                    last_sync: None,
-                    target_mtime: 200000,
-                },
+                make_file_entry(
+                    &tgt1.to_string_lossy(),
+                    "app.conf",
+                    "abc",
+                    "644",
+                    "user:user",
+                    "1970-01-01T00:00:01.000Z",
+                ),
+                make_file_entry(
+                    &tgt2.to_string_lossy(),
+                    "gone2.conf",
+                    "def",
+                    "644",
+                    "user:user",
+                    "1970-01-01T00:00:02.000Z",
+                ),
             ],
         };
         let config = ResolvedConfig {
@@ -1241,7 +1307,6 @@ mod tests {
                     source_dir: src1,
                     target_dir: tgt1,
                     globs: vec![make_glob("**/*")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,
@@ -1252,7 +1317,6 @@ mod tests {
                     source_dir: src2,
                     target_dir: tgt2,
                     globs: vec![make_glob("**/*")],
-                    permissions: None,
                     file_perms: None,
                     dir_perms: None,
                     owner: None,

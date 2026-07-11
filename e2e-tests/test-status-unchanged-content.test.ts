@@ -87,7 +87,7 @@ Deno.test("status-unchanged-content-changed-perms", async (t) => {
       [[sync]]
       source = "./source"
       target = "./target"
-      permissions = "644"
+      file_perms = "public"
       globs = ["**/*.txt"]
     `,
     files: [
