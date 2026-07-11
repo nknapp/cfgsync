@@ -40,11 +40,10 @@ each sync group defines
     * optional expected permission
     * optional expected owner
 
-    
 ## 1a. Permission and owner fallbacks
 
-(For details about configuration semantics concerning permissions and owner see [permissions-and-owner](./permissions-and-owner.md#permissions))
-
+(For details about configuration semantics concerning permissions and owner
+see [permissions-and-owner](./permissions-and-owner.md#permissions))
 
 # 2. Load state
 
@@ -61,20 +60,59 @@ It contains
 
 If there is no state-file yet, every file is assumed to be new.
 
-## 2.1 The state hash
+## 2.1 Format of the state file
+
+The state file has a single date storing the time of the laste sync as iso-date.
+Then it has a table of files containing the following data.
+
+* `group` - the target directory of the group this file belongs to (in order to identify the group)
+* `path` - the relative path of the file within the group's base directory
+* `hash` - the content hash of the file at the time of the last sync (or the path of the link-target if it is a symlink)
+* `perms` - the applied permissions of the target file at the time of the last sync, which is the same as the
+  permissions of the source file after applying the [configured mapping rules](./permissions-and-owner.md#permissions)
+* `owner` - the applied owner of the target file at the time of the last sync which is the same as
+  the [configured owner](./permissions-and-owner.md#owner) for the source file.
+* `mtime` - The mtime of the file at the time of the last sync (in iso-format, rounded to milliseconds)
+
+For the following config file
+
+```toml
+[[sync]]
+source = "./source"
+target = "./target"
+globs = ["**/*"]
+```
+
+The state file might look like this.
+
+```toml
+last_sync = "2026-07-11T00:12:16.665730271Z"
+
+[[file]]
+group = "./target"
+path = "file.txt"
+hash = "404d463254077143e09d7ae4ea7f4b2"
+perms = "644"
+owner = "user:user"
+mtime = "2026-07-11T00:12:16.665Z"
+```
 
 The hash is computed after the sync, when source and target file have the same content.
 The hash is based on
-* the contents of the file (or the path of the link-target if it is a symlink)
-* the permission of the file in the target directory after the sync, which is the same as the permissions of the source file
+
+* the contents of the file
+* the permission of the file in the target directory after the sync, which is the same as the permissions of the source
+  file
   after applying the [configured mapping rules](./permissions-and-owner.md#permissions)
-* the owner of the file in the target directory after the sync, which is the same as the [configured owner](./permissions-and-owner.md#owner)
+* the owner of the file in the target directory after the sync, which is the same as
+  the [configured owner](./permissions-and-owner.md#owner)
   for the source file.
 
 # 3. Find and classify files
 
 * This step first scans the files matching the globs in the source and target directory as well as the ancestor
-  directories. It uses an efficient glob filtering method that only dives in a directory if there is a chance of it having 
+  directories. It uses an efficient glob filtering method that only dives in a directory if there is a chance of it
+  having
   files matching the glob.
 * Verify that every source and target file was found by no more than one sync group. If a file is in multiple
   sync groups, write an error message and exit immediately.
@@ -82,37 +120,37 @@ The hash is based on
   not all information must be read upfront. It can also be read when needed)
     * source file/dir (if it exists)
         * mtime
-        * hash, computed from
-            * contents
-            * permissions from config (after applying defaults)
-            * owner from config (after applying defaults)
-    * target file/dir (if it exists)
+        * hash, computed from contents
+        * perms from config (after applying mapping)
+        * owner from config (after applying defaults)
+    * target file/dir (if it exists) 
         * mtime
-        * hash, computed from
-            * contents
-            * permissions
-            * owner
+        * hash, computed from contents
+        * perms
+        * owner
     * state-file entry for this file (if it exists)
-        * sync time
-        * hash of the file
+        * mtime at time of last sync
+        * hash at time of last sync
+        * perms at time of last sync
+        * owner at time of last sync
 
 ## 3.1 For each file, determine the action
 
 We assume having the following helpers (`file` is either `source` or `target`)
 
-* `is_changed(file)` is an abbreviation for `file.mtime != state.last_sync && file.hash != state.hash`
-  
-> Note: This implementation means that files with a fabricated mtime may lead to falsely skipped files. 
-> However, we do not assume bad intentions here. The major goal is to avoid unnecessary reads of the content
-> We expect most of the files to be unchanged with the same mtime as before. The content hash is only checked to 
-> detect files that have been edited and reverted as "unchanged"
+* `is_equal(a,b)` is the same as `a.hash == b.hash && a.perms == b.perms && a.owner == b.owner)
+* `is_changed(file)` is an abbreviation for `file.mtime != state.mtime && not is_equal(file, state)`
 
+> Note: This implementation means that files with a fabricated mtime may lead to falsely skipped files.
+> However, we do not assume bad intentions here. The major goal is to avoid unnecessary reads of the content
+> We expect most of the files to be unchanged with the same mtime as before. The content hash is only checked to
+> detect files that have been edited and reverted as "unchanged"
 
 ```python
 # Check for new files
 if state is None:
     if source is not None and target is not None:
-        if source.hash == target.hash:
+        if is_equal(source, target):
             return "UpdateState"
         else:
             return "Conflict"
@@ -143,7 +181,7 @@ else:
             return "CopyToTarget"
         elif is_changed(target) and not is_changed(source):
             return "CopyToSource"
-        elif source.hash == target.hash:
+        elif is_equal(source, target) :
             # Both sides made the same change. Adjust state to avoid having to compare the hash on the next run. 
             return "UpdateState"
         else:
@@ -151,7 +189,6 @@ else:
 ```
 
 # 4. Validate action feasibility
-
 
 Verify that the actions can be executed
 
@@ -183,8 +220,7 @@ Verify that the actions can be executed
 * `Conflict`:
     * Check if any of `CopyToTarget` or `CopyToSource` are feasable.
 
-
-All failed checks are collected and attached for each file record for use in later steps. 
+All failed checks are collected and attached for each file record for use in later steps.
 
 # 5. Execute changes
 
@@ -262,10 +298,10 @@ Where `new-owner` and `new-perms` are the owner and permission valus derived fro
 
 ### 5.3 Command: `sync`
 
-
 For all files marked as `failed`, print a warning, but continue with the operation.
 
 For all non-failed `Conflict` files, ask the user for a resolution.
+
 * if cli option `-i` is active:
     * Show the same diff as in 4.2 (for conflicts))
     * Show `Overwrite [t]arget   Overwrite [s]ource   [x]skip  [q]uit:`
@@ -274,25 +310,26 @@ For all non-failed `Conflict` files, ask the user for a resolution.
         * `s`: `CopyToSource`,
         * `x`: `Clean`
         * `q`: Quit the whole application, do not roll back, do not continue
-* else 
-  * Print the following warning and mark all files as `Clean`
-     ```
-    Conflicts detected (N files):
-    <rel_path_1>
-    <rel_path_2>
-    ... 
-    Aborting due to N conflict(s). Use -i/--interactive to resolve.
-    ```
-    
-For each non-failed file, perform the determined action. Because of the checks in [step 4](#4-validate-action-feasibility),
-we expect all actions to pass without errors. If errors happen, revert the file where the error occurred, 
+* else
+    * Print the following warning and mark all files as `Clean`
+       ```
+      Conflicts detected (N files):
+      <rel_path_1>
+      <rel_path_2>
+      ... 
+      Aborting due to N conflict(s). Use -i/--interactive to resolve.
+      ```
+
+For each non-failed file, perform the determined action. Because of the checks
+in [step 4](#4-validate-action-feasibility),
+we expect all actions to pass without errors. If errors happen, revert the file where the error occurred,
 print an error message, and continue with the next file.
 
 * `UpdateState`
     * Ensure that a state entry for the path exists with the hash.
     * Update the mtime of both files to the newest of both mtimes and set this time in the state as last_sync
 * `CopyToTarget`
-    * Create missing parent directories in the target folder an set the correct owner and permissions   
+    * Create missing parent directories in the target folder an set the correct owner and permissions
     * Copy the source file to the target directory
     * Ensure that permissions and owner match the configured values
       (see [permissions-and-owner](./permissions-and-owner.md)
@@ -327,32 +364,78 @@ If it is not possible to run the hook as that user, a warning is printed and the
 
 ### What the e2e tests cover that the algorithm description doesn't explicitly mention
 
-- **Multi-group scenarios**: Sync groups with independent source/target pairs (`test-multi-group-independent`), multiple groups sharing the same source directory with different owners (`test-multi-group-owner`), and multiple groups with per-glob permission overrides (`test-multi-group-per-glob`).
-- **Overlapping glob error detection**: When a file matches globs in two or more sync groups, the tool exits with an error (unit tests in `changes.rs` and `test-multi-group-overlap`).
-- **Glob filtering**: Only files matching configured globs are synced; non-matching files are ignored (`test-ignore-non-matching`). Per-glob permission/owner overrides without group-level defaults (`test-per-glob-no-group-defaults`).
-- **Symlink handling**: Symlinks are preserved as symlinks during sync (the symlink target path is replicated). Symlink targets are tracked in the state file for change detection (`test-symlinks`).
-- **Dry-run mode**: The `--dry-run` flag shows what would be done without making filesystem changes, including hook execution previews and no state file writes (`test-sync-dry-run`, `test-hooks-dry-run`).
-- **Interactive conflict resolution**: With `-i`, conflicts are presented one-by-one with a unified diff. The user can choose `[t]arget`, `[s]ource`, `[x]skip`, or `[q]uit`. Non-conflict files are also interactively processed (`test-interactive-resolve`).
-- **Watch mode**: With `-w`, the tool watches source and target directories for changes using inotify, re-running sync when files change (`test-watch`, `test-hooks-watch`).
-- **Permission mismatch detection (root)**: As root, chmod and chown are actually applied to target files. Directories are not updated, only regular files (`test-root-permissions-enforced`, `test-root-no-permissions`).
-- **Permission mismatch detection (non-root)**: As a non-root user, mismatches between actual and configured permissions/owner produce warnings but no filesystem changes (`test-permission-warning`).
-- **Hooks execution**: `hooks.after` runs after `CopyToTarget` operations complete. Hook ownership and security checks vary by context: hooks run as the configured owner when root (`test-hooks-root-configured-owner`), as the config file owner when root with no configured owner (`test-hooks-root-config-owner`), are skipped with a warning when non-root with a configured owner (`test-hooks-nonroot-owner`), are not triggered by `CopyToSource` operations (`test-hooks-not-run-on-copy-to-source`), are skipped when no files changed (`test-hooks-unchanged`), and respect the working directory (`test-hooks-working-directory`).
-- **Security confirmation (root with non-root-owned config)**: When running as root with a config file not owned by root, operations on target paths the config owner cannot write to require confirmation in interactive mode or are skipped with a warning in non-interactive mode. Hooks also require security confirmation when their effective owner differs from the config file owner. Covered by 7 test scenarios in `test-security-root-target-confirm`.
-- **Status short format**: The `status --short` flag shows a compact representation: `→` for source-to-target, `←` for target-to-source, `↯` for conflicts, `↺` for state updates, and `✓` when all files are clean. Zero counts are omitted (`test-status-short`).
+- **Multi-group scenarios**: Sync groups with independent source/target pairs (`test-multi-group-independent`), multiple
+  groups sharing the same source directory with different owners (`test-multi-group-owner`), and multiple groups with
+  per-glob permission overrides (`test-multi-group-per-glob`).
+- **Overlapping glob error detection**: When a file matches globs in two or more sync groups, the tool exits with an
+  error (unit tests in `changes.rs` and `test-multi-group-overlap`).
+- **Glob filtering**: Only files matching configured globs are synced; non-matching files are ignored (
+  `test-ignore-non-matching`). Per-glob permission/owner overrides without group-level defaults (
+  `test-per-glob-no-group-defaults`).
+- **Symlink handling**: Symlinks are preserved as symlinks during sync (the symlink target path is replicated). Symlink
+  targets are tracked in the state file for change detection (`test-symlinks`).
+- **Dry-run mode**: The `--dry-run` flag shows what would be done without making filesystem changes, including hook
+  execution previews and no state file writes (`test-sync-dry-run`, `test-hooks-dry-run`).
+- **Interactive conflict resolution**: With `-i`, conflicts are presented one-by-one with a unified diff. The user can
+  choose `[t]arget`, `[s]ource`, `[x]skip`, or `[q]uit`. Non-conflict files are also interactively processed (
+  `test-interactive-resolve`).
+- **Watch mode**: With `-w`, the tool watches source and target directories for changes using inotify, re-running sync
+  when files change (`test-watch`, `test-hooks-watch`).
+- **Permission mismatch detection (root)**: As root, chmod and chown are actually applied to target files. Directories
+  are not updated, only regular files (`test-root-permissions-enforced`, `test-root-no-permissions`).
+- **Permission mismatch detection (non-root)**: As a non-root user, mismatches between actual and configured
+  permissions/owner produce warnings but no filesystem changes (`test-permission-warning`).
+- **Hooks execution**: `hooks.after` runs after `CopyToTarget` operations complete. Hook ownership and security checks
+  vary by context: hooks run as the configured owner when root (`test-hooks-root-configured-owner`), as the config file
+  owner when root with no configured owner (`test-hooks-root-config-owner`), are skipped with a warning when non-root
+  with a configured owner (`test-hooks-nonroot-owner`), are not triggered by `CopyToSource` operations (
+  `test-hooks-not-run-on-copy-to-source`), are skipped when no files changed (`test-hooks-unchanged`), and respect the
+  working directory (`test-hooks-working-directory`).
+- **Security confirmation (root with non-root-owned config)**: When running as root with a config file not owned by
+  root, operations on target paths the config owner cannot write to require confirmation in interactive mode or are
+  skipped with a warning in non-interactive mode. Hooks also require security confirmation when their effective owner
+  differs from the config file owner. Covered by 7 test scenarios in `test-security-root-target-confirm`.
+- **Status short format**: The `status --short` flag shows a compact representation: `→` for source-to-target, `←` for
+  target-to-source, `↯` for conflicts, `↺` for state updates, and `✓` when all files are clean. Zero counts are
+  omitted (`test-status-short`).
 - **Schema output**: The `schema` command prints config schema documentation (`test-schema-json`).
-- **Relative path resolution**: Source and target directories specified as relative paths in the config are resolved relative to the config file's location (`test-relative-paths`).
+- **Relative path resolution**: Source and target directories specified as relative paths in the config are resolved
+  relative to the config file's location (`test-relative-paths`).
 - **Tilde expansion**: Paths starting with `~` are expanded to the user's home directory (`test-resolve-tilde`).
-- **Debug output**: The `--debug` flag prints detailed scan information including patterns and matched paths (`test-debug-flag`).
-- **Content-based change detection**: When mtimes differ on only one side but the file contents are identical (e.g., file was touched but not modified), no copy change is emitted. Also, identical untracked files on both sides are skipped rather than flagged as conflicts (`test-status-unchanged-content`, `test-unchanged-skip`, `test-identical-untracked`).
-- **Chown on source files**: When running as root, files copied from target to source get their owner set according to the configured glob's owner field (`test-chown`, `test-copy-to-source-owner`).
-- **Delete operations**: Files removed from source are deleted from target and vice versa, with proper state cleanup (`test-delete-from-target`, `test-delete-from-source`).
+- **Debug output**: The `--debug` flag prints detailed scan information including patterns and matched paths (
+  `test-debug-flag`).
+- **Content-based change detection**: When mtimes differ on only one side but the file contents are identical (e.g.,
+  file was touched but not modified), no copy change is emitted. Also, identical untracked files on both sides are
+  skipped rather than flagged as conflicts (`test-status-unchanged-content`, `test-unchanged-skip`,
+  `test-identical-untracked`).
+- **Chown on source files**: When running as root, files copied from target to source get their owner set according to
+  the configured glob's owner field (`test-chown`, `test-copy-to-source-owner`).
+- **Delete operations**: Files removed from source are deleted from target and vice versa, with proper state cleanup (
+  `test-delete-from-target`, `test-delete-from-source`).
 
 ### What the algorithm describes that the implementation does NOT yet cover
 
-- **Step 4 — Validate action feasibility**: The algorithm describes a validation step (4) that checks whether each action can actually be performed before execution (write permissions on state file, parent directory creation, correct permissions/owner on existing parent directories, file writability, ability to set owner, etc.). This step is not implemented — the code goes directly from classification (step 3) to execution (step 5).
-- **Hash includes permissions and owner**: Section 2.1 describes the state hash as computed from file contents, permissions, and owner. The current implementation (`compute_file_hash` in `changes.rs:356` and `compute_file_hash_for_state` in `sync.rs:703`) computes XXH3_128 over file contents only.
-- **Permission preset mappings**: The `PermissionPreset` enum (`private`, `shared`, `group`, `group-read`, `public`) is deserialized from config and stored in `ResolvedGlob` as `file_perms` and `dir_perms`, but the mapping logic (e.g., 644 → 600 for `private`) is never applied at runtime. Only raw octal `permissions` fields are used.
-- **Deviating directories validation**: The `deviating` field on sync groups is deserialized from config and stored in `ResolvedSyncGroup`, but the expected permissions and owner for these directories are never checked or enforced at runtime.
-- **Target-to-source permission/owner validation before sync**: `permissions-and-owner.md` describes that before copying from target to source, the target file's permissions and owner must be validated against the configured values. If they don't match, the file should be skipped with a warning. This validation is not implemented — CopyToSource proceeds without checking target file permissions/owner.
-- **Existing directories not updated with permissions/owner**: The algorithm says existing directories are NOT updated (only warning printed), but the current permission enforcement code in both `enforce_permissions_root` and `check_permissions_nonroot` restricts itself to `is_file()` and skips directories entirely — neither applying changes nor printing warnings about directory permission mismatches.
-- **Security edge case — files without explicit owner in foreign-owned directories**: `permissions-and-owner.md` describes that a file without explicit owner configuration must never be copied into a directory owned by another user (treated as a write failure). This check is not implemented.
+- **Step 4 — Validate action feasibility**: The algorithm describes a validation step (4) that checks whether each
+  action can actually be performed before execution (write permissions on state file, parent directory creation, correct
+  permissions/owner on existing parent directories, file writability, ability to set owner, etc.). This step is not
+  implemented — the code goes directly from classification (step 3) to execution (step 5).
+- **Hash includes permissions and owner**: Section 2.1 describes the state hash as computed from file contents,
+  permissions, and owner. The current implementation (`compute_file_hash` in `changes.rs:356` and
+  `compute_file_hash_for_state` in `sync.rs:703`) computes XXH3_128 over file contents only.
+- **Permission preset mappings**: The `PermissionPreset` enum (`private`, `shared`, `group`, `group-read`, `public`) is
+  deserialized from config and stored in `ResolvedGlob` as `file_perms` and `dir_perms`, but the mapping logic (e.g.,
+  644 → 600 for `private`) is never applied at runtime. Only raw octal `permissions` fields are used.
+- **Deviating directories validation**: The `deviating` field on sync groups is deserialized from config and stored in
+  `ResolvedSyncGroup`, but the expected permissions and owner for these directories are never checked or enforced at
+  runtime.
+- **Target-to-source permission/owner validation before sync**: `permissions-and-owner.md` describes that before copying
+  from target to source, the target file's permissions and owner must be validated against the configured values. If
+  they don't match, the file should be skipped with a warning. This validation is not implemented — CopyToSource
+  proceeds without checking target file permissions/owner.
+- **Existing directories not updated with permissions/owner**: The algorithm says existing directories are NOT updated (
+  only warning printed), but the current permission enforcement code in both `enforce_permissions_root` and
+  `check_permissions_nonroot` restricts itself to `is_file()` and skips directories entirely — neither applying changes
+  nor printing warnings about directory permission mismatches.
+- **Security edge case — files without explicit owner in foreign-owned directories**: `permissions-and-owner.md`
+  describes that a file without explicit owner configuration must never be copied into a directory owned by another
+  user (treated as a write failure). This check is not implemented.
