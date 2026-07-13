@@ -14,7 +14,7 @@ pub struct Config {
 #[derive(Debug, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum PermissionPreset {
-    #[schemars(description = "source 644→600, 755→600 (most restrictive)")]
+    #[schemars(description = "source 644→600, 755→700 (most restrictive)")]
     Private,
     #[schemars(description = "source 644→664, 755→775")]
     Shared,
@@ -30,7 +30,13 @@ impl PermissionPreset {
     pub fn map_permissions(&self, source_mode: u32) -> u32 {
         let owner_perm = source_mode & 0o700;
         match self {
-            PermissionPreset::Private => 0o600,
+            PermissionPreset::Private => {
+                if owner_perm == 0o700 {
+                    0o700
+                } else {
+                    0o600
+                }
+            }
             PermissionPreset::Shared => {
                 if owner_perm == 0o700 {
                     0o775
@@ -53,6 +59,20 @@ impl PermissionPreset {
                 }
             }
             PermissionPreset::Public => source_mode,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn reverse_map_permissions(&self, target_mode: u32) -> u32 {
+        match self {
+            PermissionPreset::Public => target_mode,
+            _ => {
+                if (target_mode & 0o100) != 0 {
+                    0o755
+                } else {
+                    0o644
+                }
+            }
         }
     }
 }
@@ -278,6 +298,7 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
                     .map(parse_permissions)
                     .transpose()?;
                 let path = resolve_path(&config_dir, &expand_tilde(&entry.path, &owner_home));
+                let path = path.canonicalize().unwrap_or(path);
                 Ok(ResolvedDeviatingEntry {
                     path,
                     permissions: perms,
@@ -355,6 +376,76 @@ fn config_owner_home(config_path: &Path) -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_map_permissions_private() {
+        let p = PermissionPreset::Private;
+        assert_eq!(p.map_permissions(0o644), 0o600);
+        assert_eq!(p.map_permissions(0o755), 0o700);
+        assert_eq!(p.map_permissions(0o777), 0o700);
+        assert_eq!(p.map_permissions(0o600), 0o600);
+    }
+
+    #[test]
+    fn test_map_permissions_shared() {
+        let p = PermissionPreset::Shared;
+        assert_eq!(p.map_permissions(0o644), 0o664);
+        assert_eq!(p.map_permissions(0o755), 0o775);
+    }
+
+    #[test]
+    fn test_map_permissions_group() {
+        let p = PermissionPreset::Group;
+        assert_eq!(p.map_permissions(0o644), 0o660);
+        assert_eq!(p.map_permissions(0o755), 0o770);
+    }
+
+    #[test]
+    fn test_map_permissions_group_read() {
+        let p = PermissionPreset::GroupRead;
+        assert_eq!(p.map_permissions(0o644), 0o640);
+        assert_eq!(p.map_permissions(0o755), 0o750);
+    }
+
+    #[test]
+    fn test_map_permissions_public_is_identity() {
+        let p = PermissionPreset::Public;
+        assert_eq!(p.map_permissions(0o644), 0o644);
+        assert_eq!(p.map_permissions(0o755), 0o755);
+        assert_eq!(p.map_permissions(0o600), 0o600);
+    }
+
+    #[test]
+    fn test_reverse_map_permissions() {
+        let cases = [
+            (PermissionPreset::Private, 0o600, 0o644),
+            (PermissionPreset::Private, 0o700, 0o755),
+            (PermissionPreset::Shared, 0o664, 0o644),
+            (PermissionPreset::Shared, 0o775, 0o755),
+            (PermissionPreset::Group, 0o660, 0o644),
+            (PermissionPreset::Group, 0o770, 0o755),
+            (PermissionPreset::GroupRead, 0o640, 0o644),
+            (PermissionPreset::GroupRead, 0o750, 0o755),
+        ];
+        for (preset, target, expected) in cases {
+            assert_eq!(
+                preset.reverse_map_permissions(target),
+                expected,
+                "reverse_map({:o}) for {:?} should be {:o}",
+                target,
+                preset,
+                expected
+            );
+        }
+        assert_eq!(
+            PermissionPreset::Public.reverse_map_permissions(0o644),
+            0o644
+        );
+        assert_eq!(
+            PermissionPreset::Public.reverse_map_permissions(0o755),
+            0o755
+        );
+    }
 
     #[test]
     fn test_resolve_relative_paths() {

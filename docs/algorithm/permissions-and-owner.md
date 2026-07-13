@@ -19,7 +19,7 @@ values that each represent a mapping of permissions. The following values are al
 | Value            | source-permissions | target-permissions |
 |------------------|--------------------|--------------------|
 | private          | 644                | 600                |
-|                  | 755                | 600                |
+|                  | 755                | 700                |
 | shared           | 644                | 664                |
 |                  | 755                | 775                |
 | group            | 644                | 660                |
