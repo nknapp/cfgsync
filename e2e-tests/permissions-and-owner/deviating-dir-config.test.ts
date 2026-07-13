@@ -2,7 +2,7 @@ import { assertEquals, deindent } from "../lib/index.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
 Deno.test("deviating-dir-config", async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, testDir, username, groupname } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -10,20 +10,15 @@ Deno.test("deviating-dir-config", async (t) => {
       globs = ["**/*.txt"]
 
       [[sync.deviating]]
-      path = "/etc/ssh"
+      path = "./target/special-dir"
       permissions = "700"
-      owner = "root:root"
-
-      [[sync.deviating]]
-      path = "/etc/nginx"
-      permissions = "755"
-      owner = "root:root"
     `,
     files: [
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
       "user:user | 0755 | 0 | source/",
       "user:user | 0644 | 0 | source/file.txt | hello world",
       "user:user | 0755 | 0 | target/",
+      "user:user | 0755 | 0 | target/special-dir/",
     ],
   });
 
@@ -48,15 +43,18 @@ Deno.test("deviating-dir-config", async (t) => {
       deleted target:   0
       deleted source:   0
     `,
-    stderr: "",
+    stderr: deindent`
+      Warning: deviating directory '${testDir}/target/special-dir' has 0o755, expected 0o700 (existing directories are not modified)
+    `,
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    `user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE`,
     "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
     "user:user | 0755 | 0 | source/",
     "user:user | 0644 | 0 | source/file.txt | hello world",
     "user:user | 0755 | 0 | target/",
     "user:user | 0644 | 0 | target/file.txt | hello world",
+    "user:user | 0755 | 0 | target/special-dir/",
   ]);
 });

@@ -23,6 +23,9 @@ fn print_status_long(counts: &ChangeCounts) {
     if counts.update_state > 0 {
         println!("state update:     {}", counts.update_state);
     }
+    if counts.failed > 0 {
+        println!("failed:           {}", counts.failed);
+    }
     if counts.clean == 0
         && counts.copy_to_target == 0
         && counts.copy_to_source == 0
@@ -30,6 +33,7 @@ fn print_status_long(counts: &ChangeCounts) {
         && counts.delete_source == 0
         && counts.conflicts == 0
         && counts.update_state == 0
+        && counts.failed == 0
     {
         println!("all clean");
     }
@@ -50,6 +54,9 @@ fn print_status_short(counts: &ChangeCounts) {
     }
     if counts.update_state > 0 {
         parts.push(format!("↺{}", counts.update_state));
+    }
+    if counts.failed > 0 {
+        parts.push(format!("✗{}", counts.failed));
     }
     if parts.is_empty() {
         println!("✓");

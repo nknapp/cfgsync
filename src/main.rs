@@ -127,11 +127,13 @@ fn cmd_sync(
         process::exit(1);
     });
 
-    let changes =
+    let mut changes =
         changes::classify(&resolved, &state, verbose || debug, debug).unwrap_or_else(|e| {
             eprintln!("Error: {}", e);
             process::exit(1);
         });
+
+    changes::validate_actions(&mut changes, &resolved);
 
     if let Err(e) = sync::run(&resolved, &mut state, changes, interactive, dry_run) {
         eprintln!("Error: {}", e);
@@ -150,11 +152,13 @@ fn cmd_status(config_path: PathBuf, short: bool, verbose: bool, debug: bool) {
         process::exit(1);
     });
 
-    let changes =
+    let mut changes =
         changes::classify(&resolved, &state, verbose || debug, debug).unwrap_or_else(|e| {
             eprintln!("Error: {}", e);
             process::exit(1);
         });
+
+    changes::validate_actions(&mut changes, &resolved);
 
     let counts = changes::count_changes(&changes);
     status::print_status(&counts, short);
@@ -171,11 +175,13 @@ fn cmd_diff(config_path: PathBuf, verbose: bool, debug: bool) {
         process::exit(1);
     });
 
-    let changes =
+    let mut changes =
         changes::classify(&resolved, &state, verbose || debug, debug).unwrap_or_else(|e| {
             eprintln!("Error: {}", e);
             process::exit(1);
         });
+
+    changes::validate_actions(&mut changes, &resolved);
 
     diff::print_diffs(&changes);
 }

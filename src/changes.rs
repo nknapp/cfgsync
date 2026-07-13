@@ -20,40 +20,48 @@ pub enum Change {
         rel_path: String,
         abs_src: PathBuf,
         abs_tgt: PathBuf,
+        failed_checks: Vec<String>,
     },
     CopyToSource {
         group_index: usize,
         rel_path: String,
         abs_src: PathBuf,
         abs_tgt: PathBuf,
+        failed_checks: Vec<String>,
     },
     Conflict {
         group_index: usize,
         rel_path: String,
         abs_src: PathBuf,
         abs_tgt: PathBuf,
+        failed_checks: Vec<String>,
     },
     DeleteTarget {
         group_index: usize,
         rel_path: String,
         abs_tgt: PathBuf,
+        failed_checks: Vec<String>,
     },
     DeleteSource {
         group_index: usize,
         rel_path: String,
         abs_src: PathBuf,
+        failed_checks: Vec<String>,
     },
     DeleteFromState {
         group_index: usize,
         rel_path: String,
+        failed_checks: Vec<String>,
     },
     UpdateState {
         group_index: usize,
         rel_path: String,
+        failed_checks: Vec<String>,
     },
     Clean {
         group_index: usize,
         rel_path: String,
+        failed_checks: Vec<String>,
     },
     #[allow(dead_code)]
     Failed {
@@ -91,6 +99,20 @@ impl Change {
             | Change::UpdateState { rel_path, .. }
             | Change::Clean { rel_path, .. }
             | Change::Failed { rel_path, .. } => rel_path,
+        }
+    }
+
+    pub fn failed_checks(&self) -> &[String] {
+        match self {
+            Change::CopyToTarget { failed_checks, .. }
+            | Change::CopyToSource { failed_checks, .. }
+            | Change::Conflict { failed_checks, .. }
+            | Change::DeleteTarget { failed_checks, .. }
+            | Change::DeleteSource { failed_checks, .. }
+            | Change::DeleteFromState { failed_checks, .. }
+            | Change::UpdateState { failed_checks, .. }
+            | Change::Clean { failed_checks, .. } => failed_checks,
+            Change::Failed { .. } => &[],
         }
     }
 }
@@ -264,6 +286,7 @@ fn classify_entry(
                     Change::UpdateState {
                         group_index: gi,
                         rel_path: rel,
+                        failed_checks: Vec::new(),
                     }
                 } else {
                     Change::Conflict {
@@ -271,6 +294,7 @@ fn classify_entry(
                         rel_path: rel,
                         abs_src: src.clone(),
                         abs_tgt: tgt.clone(),
+                        failed_checks: Vec::new(),
                     }
                 }
             }
@@ -279,16 +303,19 @@ fn classify_entry(
                 rel_path: rel,
                 abs_src: src.clone(),
                 abs_tgt: tgt.clone(),
+                failed_checks: Vec::new(),
             },
             (None, Some(_)) => Change::CopyToSource {
                 group_index: gi,
                 rel_path: rel,
                 abs_src: src.clone(),
                 abs_tgt: tgt.clone(),
+                failed_checks: Vec::new(),
             },
             (None, None) => Change::Clean {
                 group_index: gi,
                 rel_path: rel,
+                failed_checks: Vec::new(),
             },
         },
 
@@ -296,6 +323,7 @@ fn classify_entry(
             (None, None) => Change::DeleteFromState {
                 group_index: gi,
                 rel_path: rel,
+                failed_checks: Vec::new(),
             },
 
             (None, Some(target)) => {
@@ -305,12 +333,14 @@ fn classify_entry(
                         rel_path: rel,
                         abs_src: src.clone(),
                         abs_tgt: tgt.clone(),
+                        failed_checks: Vec::new(),
                     }
                 } else {
                     Change::DeleteTarget {
                         group_index: gi,
                         rel_path: rel,
                         abs_tgt: tgt.clone(),
+                        failed_checks: Vec::new(),
                     }
                 }
             }
@@ -322,12 +352,14 @@ fn classify_entry(
                         rel_path: rel,
                         abs_src: src.clone(),
                         abs_tgt: tgt.clone(),
+                        failed_checks: Vec::new(),
                     }
                 } else {
                     Change::DeleteSource {
                         group_index: gi,
                         rel_path: rel,
                         abs_src: src.clone(),
+                        failed_checks: Vec::new(),
                     }
                 }
             }
@@ -350,11 +382,13 @@ fn classify_entry(
                             rel_path: rel,
                             abs_src: src.clone(),
                             abs_tgt: tgt.clone(),
+                            failed_checks: Vec::new(),
                         }
                     } else {
                         Change::Clean {
                             group_index: gi,
                             rel_path: rel,
+                            failed_checks: Vec::new(),
                         }
                     }
                 } else if src_changed && !tgt_changed {
@@ -363,6 +397,7 @@ fn classify_entry(
                         rel_path: rel,
                         abs_src: src.clone(),
                         abs_tgt: tgt.clone(),
+                        failed_checks: Vec::new(),
                     }
                 } else if !src_changed && tgt_changed {
                     Change::CopyToSource {
@@ -370,6 +405,7 @@ fn classify_entry(
                         rel_path: rel,
                         abs_src: src.clone(),
                         abs_tgt: tgt.clone(),
+                        failed_checks: Vec::new(),
                     }
                 } else if files_or_symlinks_identical(
                     abs_src,
@@ -380,6 +416,7 @@ fn classify_entry(
                     Change::UpdateState {
                         group_index: gi,
                         rel_path: rel,
+                        failed_checks: Vec::new(),
                     }
                 } else {
                     Change::Conflict {
@@ -387,6 +424,7 @@ fn classify_entry(
                         rel_path: rel,
                         abs_src: src.clone(),
                         abs_tgt: tgt.clone(),
+                        failed_checks: Vec::new(),
                     }
                 }
             }
@@ -558,6 +596,141 @@ fn scan_dir(
         }
     }
     Ok(files)
+}
+
+pub fn validate_actions(changes: &mut [Change], config: &ResolvedConfig) {
+    for change in changes.iter_mut() {
+        validate_action(change, config);
+    }
+}
+
+fn validate_action(change: &mut Change, config: &ResolvedConfig) {
+    match change {
+        Change::UpdateState { failed_checks, .. } => {
+            check_state_writable(failed_checks, config);
+        }
+        Change::CopyToTarget {
+            abs_src,
+            abs_tgt,
+            failed_checks,
+            rel_path,
+            group_index,
+            ..
+        } => {
+            check_state_writable(failed_checks, config);
+            let group = &config.sync_groups[*group_index];
+            if let Some(parent) = abs_tgt.parent()
+                && parent != group.target_dir
+                && parent.exists()
+                && !parent.is_dir()
+            {
+                failed_checks.push(format!(
+                    "parent path '{}' exists but is not a directory",
+                    parent.display()
+                ));
+            }
+            if !abs_src.exists() && !abs_src.is_symlink() {
+                failed_checks.push(format!(
+                    "source file '{}' does not exist for CopyToTarget",
+                    rel_path
+                ));
+            }
+        }
+        Change::CopyToSource {
+            abs_src,
+            abs_tgt,
+            failed_checks,
+            rel_path,
+            ..
+        } => {
+            check_state_writable(failed_checks, config);
+            if !abs_tgt.exists() && !abs_tgt.is_symlink() {
+                failed_checks.push(format!(
+                    "target file '{}' does not exist for CopyToSource",
+                    rel_path
+                ));
+            }
+            if let Some(parent) = abs_src.parent()
+                && !parent.exists()
+            {
+                failed_checks.push(format!(
+                    "source parent directory '{}' does not exist",
+                    parent.display()
+                ));
+            } else if let Some(parent) = abs_src.parent()
+                && !parent.is_dir()
+            {
+                failed_checks.push(format!(
+                    "source parent path '{}' is not a directory",
+                    parent.display()
+                ));
+            }
+        }
+        Change::DeleteTarget {
+            abs_tgt,
+            failed_checks,
+            ..
+        } => {
+            check_state_writable(failed_checks, config);
+            if !abs_tgt.exists() {
+                failed_checks.push("target file does not exist (already deleted?)".to_string());
+            }
+        }
+        Change::DeleteSource {
+            abs_src,
+            failed_checks,
+            ..
+        } => {
+            check_state_writable(failed_checks, config);
+            if !abs_src.exists() {
+                failed_checks.push("source file does not exist (already deleted?)".to_string());
+            }
+        }
+        Change::DeleteFromState { failed_checks, .. } => {
+            check_state_writable(failed_checks, config);
+        }
+        Change::Conflict {
+            group_index,
+            abs_src,
+            abs_tgt,
+            failed_checks,
+            ..
+        } => {
+            let group = &config.sync_groups[*group_index];
+            if !abs_src.exists() && !abs_tgt.exists() {
+                failed_checks.push("neither source nor target file exists".to_string());
+            }
+            if !abs_src.exists()
+                && let Some(parent) = abs_src.parent()
+                && !parent.exists()
+            {
+                failed_checks.push(format!(
+                    "source parent directory '{}' does not exist for conflict resolution",
+                    parent.display()
+                ));
+            }
+            if !abs_tgt.exists()
+                && let Some(parent) = abs_tgt.parent()
+                && parent != group.target_dir
+                && !parent.is_dir()
+            {
+                failed_checks.push(format!(
+                    "target parent path '{}' is not a directory",
+                    parent.display()
+                ));
+            }
+        }
+        Change::Clean { .. } | Change::Failed { .. } => {}
+    }
+}
+
+fn check_state_writable(failed_checks: &mut Vec<String>, config: &ResolvedConfig) {
+    if let Some(parent) = config.state_path.parent()
+        && parent.exists()
+        && !parent.is_dir()
+    {
+        failed_checks.push("state file parent path is not a directory".to_string());
+    }
 }
 
 pub fn count_changes(changes: &[Change]) -> ChangeCounts {
