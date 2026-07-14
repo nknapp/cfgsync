@@ -11,7 +11,7 @@ usage() {
     echo "  1. mise run all-local  (full verification)"
     echo "  2. git add -A && git commit -m <message>"
     echo "  3. git push origin <current-branch>"
-    echo "  4. Verify PR is still open"
+    echo "  4. Create or verify PR"
     echo "  5. Wait for CI to finish"
     echo ""
     echo "Options:"
@@ -62,15 +62,22 @@ push() {
 }
 
 
-check_pr_open() {
+ensure_pr() {
     cd "$WORKTREE_ROOT"
     PR_NUMBER=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
     if [ -z "$PR_NUMBER" ]; then
-        echo "Warning: No open PR found for branch '$BRANCH'. It may have been merged." >&2
-        echo "If the PR was merged, a new branch is needed." >&2
-        return 1
+        echo "No open PR found for branch '$BRANCH'. Creating one..."
+        PR_URL=$(gh pr create --fill 2>&1)
+        PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$' || echo "")
+        if [ -z "$PR_NUMBER" ]; then
+            echo "Error: Failed to create PR." >&2
+            echo "$PR_URL" >&2
+            return 1
+        fi
+        echo "PR #$PR_NUMBER created."
+    else
+        echo "PR #$PR_NUMBER is still open."
     fi
-    echo "PR #$PR_NUMBER is still open."
 }
 
 
@@ -138,7 +145,7 @@ main() {
 
     commit "$msg"
     push
-    check_pr_open || true
+    ensure_pr
     wait_for_ci
 }
 

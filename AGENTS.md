@@ -31,7 +31,8 @@ Rust toolchain: `1.96.0` (managed by mise). The `x86_64-unknown-linux-musl` targ
 **Never commit or push directly to `main`.** All changes must go through branches and pull requests.
 
 **ALWAYS use `bin/git-commit-and-push <message>` to commit and push.** This script runs `mise run all-local`,
-commits with the given message (conventional commit style), pushes, and waits for CI. See `bin/git-commit-and-push --help`.
+commits with the given message (conventional commit style), pushes, creates a PR if none exists, and waits for CI.
+See `bin/git-commit-and-push --help`.
 
 Use `bin/git-commit-and-push --no-verify <message>` to skip verification (e.g. for doc-only changes).
 
