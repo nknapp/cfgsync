@@ -2,7 +2,7 @@ import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("deviating-directories", async (t) => {
-  const { testbed, testDir } = await TestBed.create(t, {
+  const { testbed, testDir: _testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
