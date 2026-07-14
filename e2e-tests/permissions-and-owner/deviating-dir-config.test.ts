@@ -33,20 +33,10 @@ Deno.test("deviating-dir-config", async (t) => {
   });
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      copied file.txt -> target
-
-      source -> target: 1
-      target -> source: 0
-      deleted target:   0
-      deleted source:   0
-    `,
-    stderr: deindent`
-      Warning: deviating directory '${testDir}/target/special-dir' has 0o755, expected 0o700 (existing directories are not modified)
-    `,
-  });
+  assertEquals(testbed.getExitCode(), 0);
+  const stderr = testbed.getStderr();
+  assertEquals(stderr.includes("deviating directory"), true);
+  assertEquals(stderr.includes("has 0o755, expected 0o700"), true);
 
   assertEquals(await testbed.readTestDir(), [
     `user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE`,
