@@ -120,11 +120,8 @@ pub struct SyncGroup {
 
 #[derive(Debug, Deserialize, Clone, JsonSchema)]
 pub struct DeviatingEntry {
-    #[schemars(description = "Path to a directory (no glob) with expected permissions/owner")]
+    #[schemars(description = "Path to a directory (no glob) with expected owner")]
     pub path: String,
-    #[schemars(description = "Optional expected permission for the directory")]
-    #[serde(default)]
-    pub permissions: Option<String>,
     #[schemars(description = "Optional expected owner for the directory")]
     #[serde(default)]
     pub owner: Option<String>,
@@ -192,8 +189,6 @@ pub struct ResolvedGlob {
 pub struct ResolvedDeviatingEntry {
     #[allow(dead_code)]
     pub path: PathBuf,
-    #[allow(dead_code)]
-    pub permissions: Option<u32>,
     #[allow(dead_code)]
     pub owner: Option<String>,
 }
@@ -292,16 +287,10 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
             .deviating
             .iter()
             .map(|entry| {
-                let perms = entry
-                    .permissions
-                    .as_deref()
-                    .map(parse_permissions)
-                    .transpose()?;
                 let path = resolve_path(&config_dir, &expand_tilde(&entry.path, &owner_home));
                 let path = path.canonicalize().unwrap_or(path);
                 Ok(ResolvedDeviatingEntry {
                     path,
-                    permissions: perms,
                     owner: entry.owner.clone(),
                 })
             })
@@ -329,6 +318,7 @@ pub fn load_config(config_path: &Path) -> Result<ResolvedConfig, String> {
     })
 }
 
+#[allow(dead_code)]
 fn parse_permissions(s: &str) -> Result<u32, String> {
     if s.is_empty() {
         return Err("Permissions string must not be empty".to_string());

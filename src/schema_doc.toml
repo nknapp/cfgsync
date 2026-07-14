@@ -20,5 +20,4 @@ globs = [
 
 # [[sync.deviating]]
 # path = "/etc/special-dir"
-# permissions = "755"
 # owner = "root:root"

@@ -1298,18 +1298,15 @@ fn check_directory_permission_warning(
 fn check_deviating_directories(config: &ResolvedConfig) {
     for group in &config.sync_groups {
         for entry in &group.deviating {
-            check_one_deviating_directory(&entry.path, &entry.permissions, &entry.owner);
+            check_one_deviating_directory(&entry.path, &entry.owner);
         }
     }
 }
 
 fn check_one_deviating_directory(
     dir_path: &Path,
-    expected_permissions: &Option<u32>,
     expected_owner: &Option<String>,
 ) {
-    use std::os::unix::fs::PermissionsExt;
-
     let metadata = match std::fs::symlink_metadata(dir_path) {
         Ok(m) => m,
         Err(_) => {
@@ -1327,18 +1324,6 @@ fn check_one_deviating_directory(
             dir_path.display()
         );
         return;
-    }
-
-    if let Some(perms) = expected_permissions {
-        let actual_mode = metadata.permissions().mode() & 0o777;
-        if actual_mode != *perms {
-            eprintln!(
-                "Warning: deviating directory '{}' has 0o{:o}, expected 0o{:o} (existing directories are not modified)",
-                dir_path.display(),
-                actual_mode,
-                perms
-            );
-        }
     }
 
     if let Some(owner_spec) = expected_owner

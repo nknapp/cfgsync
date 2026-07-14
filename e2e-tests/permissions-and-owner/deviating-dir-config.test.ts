@@ -11,7 +11,7 @@ Deno.test("deviating-dir-config", async (t) => {
 
       [[sync.deviating]]
       path = "./target/special-dir"
-      permissions = "700"
+      owner = "root:root"
     `,
     files: [
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
@@ -36,7 +36,7 @@ Deno.test("deviating-dir-config", async (t) => {
   assertEquals(testbed.getExitCode(), 0);
   const stderr = testbed.getStderr();
   assertEquals(stderr.includes("deviating directory"), true);
-  assertEquals(stderr.includes("has 0o755, expected 0o700"), true);
+  assertEquals(stderr.includes("expected 'root:root'"), true);
 
   assertEquals(await testbed.readTestDir(), [
     `user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE`,

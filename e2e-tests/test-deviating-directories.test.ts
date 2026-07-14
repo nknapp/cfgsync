@@ -11,7 +11,7 @@ Deno.test("deviating-directories", async (t) => {
 
       [[sync.deviating]]
       path = "./target/special-dir"
-      permissions = "700"
+      owner = "root:root"
     `,
     files: [
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
@@ -26,12 +26,5 @@ Deno.test("deviating-directories", async (t) => {
 
   const stderr = testbed.getStderr();
   assertEquals(stderr.includes("deviating directory"), true);
-  assertEquals(
-    stderr.includes("has 0o755, expected 0o700"),
-    true,
-  );
-  assertEquals(
-    stderr.includes("existing directories are not modified"),
-    true,
-  );
+  assertEquals(stderr.includes("expected 'root:root'"), true);
 });

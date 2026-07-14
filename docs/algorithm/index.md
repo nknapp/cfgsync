@@ -35,7 +35,7 @@ each sync group defines
         * optional file owner for files and directories in the target directory
         * optional file permissions for files in the target directory
         * optional directory permissions for directories in the target directory
-* a list of deviating directories when looking at permissions and owner
+* a list of deviating directories when looking at owner
     * path (no glob)
     * optional expected permission
     * optional expected owner
@@ -413,8 +413,7 @@ If it is not possible to run the hook as that user, a warning is printed and the
   However, `dir_perms` is never applied — directories get no permission enforcement. Additionally, the reverse mapping
   for `CopyToSource` (deriving source-side 644/755 from configured target perms) is not implemented.
 - **Deviating directories validation**: The `deviating` field on sync groups is deserialized from config and stored in
-  `ResolvedSyncGroup`, but the expected permissions and owner for these directories are never checked or enforced at
-  runtime.
+  `ResolvedSyncGroup`, but the expected owner was never checked at runtime.
 - **Target-to-source permission/owner validation before sync**: `permissions-and-owner.md` describes that before copying
   from target to source, the target file's permissions and owner must be validated against the configured values. If
   they don't match, the file should be skipped with a warning. This validation is not implemented — CopyToSource
