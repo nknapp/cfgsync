@@ -38,7 +38,7 @@ Deno.test("per-glob-no-group-defaults", async (t) => {
       permission skips: 2
     `,
     stderr: deindent`
-      Permission warning: 'file-with-perms.conf' has 0o644, should be 0o600 (run as root to fix)
+      Permission warning: 'file-with-perms.conf' has 644, should be 600 (run as root to fix)
       Owner warning: 'file-with-owner.conf' should be owned by 'root:root' (run as root to fix)
     `,
   });

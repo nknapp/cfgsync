@@ -41,7 +41,7 @@ Deno.test("permission-preset-shared", async (t) => {
       permission skips: 1
     `,
     stderr: deindent`
-      Permission warning: 'file.txt' has 0o644, should be 0o664 (run as root to fix)
+      Permission warning: 'file.txt' has 644, should be 664 (run as root to fix)
     `,
   });
 

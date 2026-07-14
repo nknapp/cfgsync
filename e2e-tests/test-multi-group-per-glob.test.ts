@@ -42,7 +42,7 @@ Deno.test("per-glob-owner-and-permissions", async (t) => {
     `,
     stderr: deindent`
       Owner warning: 'file.conf' should be owned by 'root:root' (run as root to fix)
-      Permission warning: 'override-perms.key' has 0o644, should be 0o600 (run as root to fix)
+      Permission warning: 'override-perms.key' has 644, should be 600 (run as root to fix)
       Owner warning: 'override-perms.key' should be owned by 'root:root' (run as root to fix)
       Owner warning: 'override-owner.key' should be owned by 'nobody:nogroup' (run as root to fix)
     `,

@@ -805,7 +805,7 @@ fn validate_target_for_copy_to_source(
             let expected = preset.map_permissions(reversed);
             if actual_mode != expected {
                 return Err(format!(
-                    "Warning: skipping '{}' (target file has unexpected permissions 0o{:o}, expected 0o{:o} for this preset)",
+                    "Warning: skipping '{}' (target file has unexpected permissions {:o}, expected {:o} for this preset)",
                     rel_path, actual_mode, expected
                 ));
             }
@@ -1084,7 +1084,7 @@ fn warn_directory_permission_mismatch(
         let expected_mode = preset.map_permissions(src_perms);
         if actual_mode != expected_mode {
             eprintln!(
-                "Warning: directory '{}' has 0o{:o}, expected 0o{:o} (existing directories are not modified)",
+                "Warning: directory '{}' has {:o}, expected {:o} (existing directories are not modified)",
                 rel_path, actual_mode, expected_mode
             );
         }
@@ -1224,7 +1224,7 @@ fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome)
                             let current_mode = metadata.permissions().mode() & 0o777;
                             if current_mode != target_mode {
                                 eprintln!(
-                                    "Permission warning: '{}' has 0o{:o}, should be 0o{:o} (run as root to fix)",
+                                    "Permission warning: '{}' has {:o}, should be {:o} (run as root to fix)",
                                     rel_path, current_mode, target_mode
                                 );
                                 outcome.skipped_perms += 1;
@@ -1275,7 +1275,7 @@ fn check_directory_permission_warning(
         let expected_mode = preset.map_permissions(src_perms);
         if actual_mode != expected_mode {
             eprintln!(
-                "Permission warning: directory '{}' has 0o{:o}, should be 0o{:o} (run as root to fix)",
+                "Permission warning: directory '{}' has {:o}, should be {:o} (run as root to fix)",
                 rel_path, actual_mode, expected_mode
             );
             warned = true;
