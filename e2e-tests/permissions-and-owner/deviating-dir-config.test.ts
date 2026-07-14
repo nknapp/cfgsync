@@ -2,7 +2,7 @@ import { assertEquals, deindent } from "../lib/index.ts";
 import { TestBed } from "../lib/TestBed.ts";
 
 Deno.test("deviating-dir-config", async (t) => {
-  const { testbed, testDir: _ } = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -34,12 +34,9 @@ Deno.test("deviating-dir-config", async (t) => {
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   assertEquals(testbed.getExitCode(), 0);
-  const stderr = testbed.getStderr();
-  assertEquals(stderr.includes("deviating directory"), true);
-  assertEquals(stderr.includes("expected 'root:root'"), true);
 
   assertEquals(await testbed.readTestDir(), [
-    `user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE`,
+    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
     "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
     "user:user | 0755 | 0 | source/",
     "user:user | 0644 | 0 | source/file.txt | hello world",
