@@ -1303,10 +1303,7 @@ fn check_deviating_directories(config: &ResolvedConfig) {
     }
 }
 
-fn check_one_deviating_directory(
-    dir_path: &Path,
-    expected_owner: &Option<String>,
-) {
+fn check_one_deviating_directory(dir_path: &Path, expected_owner: &Option<String>) {
     let metadata = match std::fs::symlink_metadata(dir_path) {
         Ok(m) => m,
         Err(_) => {
