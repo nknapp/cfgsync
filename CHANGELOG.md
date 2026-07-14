@@ -1,13 +1,37 @@
 # Changelog
 
-## [v0.6.1](https://github.com/nknapp/cfgsync/compare/v0.6.0...561912adef13f01cd40ec9e6f12a7de3c830c0e9) (2026-07-11)
+## [v0.6.2](https://github.com/nknapp/cfgsync/compare/v0.6.1...3e62861c00085a252acfb5da0a440c06da7bd04a) (2026-07-15)
 
 ### Features
+
+* bin/git-commit-and-push creates PR if none exists
+([3e62861](https://github.com/nknapp/cfgsync/commit/3e62861c00085a252acfb5da0a440c06da7bd04a))
+* close algorithm spec gap — implement steps 4-5 and all missing validations
+([073d5e7](https://github.com/nknapp/cfgsync/commit/073d5e7c684ee08f2c76d4c2e8bac7d88c60523a))
+
+### Fixes
+
+* address PR review — drop 0o prefix in perms warnings, root:root target dir
+([e501719](https://github.com/nknapp/cfgsync/commit/e501719d088e6b008a0053f7f16794504b1b0a70))
+* simplify deviating e2e tests for cross-platform compat
+([cf6a820](https://github.com/nknapp/cfgsync/commit/cf6a8208ce71583a308aeb658f6f573b6a8f0098))
+* wrap foreign-dir check in bypass and relax source parent existence check
+([7fa3cd1](https://github.com/nknapp/cfgsync/commit/7fa3cd14aaf7176cc736c1401a5149f18727634e))
+* remove unused testDir vars in deviating e2e tests
+([3ae8e91](https://github.com/nknapp/cfgsync/commit/3ae8e9102024f0390944e582a9d6f00666bf9cd0))
+* make deviating dir e2e tests cross-platform
+([f63058b](https://github.com/nknapp/cfgsync/commit/f63058b1c021a8743b65520a0adf7d372b7ddc61))
+* resolve CI lint and e2e test issues
+([264c457](https://github.com/nknapp/cfgsync/commit/264c45713f3bfc354cf95d4415fef87641e6650e))
+
+### [v0.6.1](https://github.com/nknapp/cfgsync/compare/v0.6.0...v0.6.1) (2026-07-11)
+
+#### Features
 
 * add version preview job to PR workflow
 ([d04fce4](https://github.com/nknapp/cfgsync/commit/d04fce4625caf31c1535acfe59b1bef97e820f2b))
 
-### Fixes
+#### Fixes
 
 * use grouped redirect and fetch-tags in version-preview
 ([561912a](https://github.com/nknapp/cfgsync/commit/561912adef13f01cd40ec9e6f12a7de3c830c0e9))
