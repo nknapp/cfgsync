@@ -17,7 +17,7 @@ Deno.test({
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
       "user:user | 0755 | 0 | source/",
       "user:user | 0755 | 0 | target/",
-      "user:user | 0644 | 0 | target/file.txt | target-only file",
+      "root:root | 0644 | 0 | target/file.txt | target-only file",
     ],
   });
 

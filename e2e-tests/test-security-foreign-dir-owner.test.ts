@@ -1,4 +1,4 @@
-import { assertEquals, deindent, runningOutsideDocker } from "./lib/index.ts";
+import { deindent, runningOutsideDocker } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test({
