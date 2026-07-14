@@ -15,10 +15,10 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "root:root | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | file content",
-      "user:user | 0755 | 0 | target/",
+      "root:root | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | file content",
+      "user:user | 755 | 0 | target/",
     ],
   });
 
@@ -39,12 +39,12 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "root:root | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "root:root | 0755 | 0 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | 0 | source/",
-    "user:user | 0644 | 0 | source/file.txt | file content",
-    "user:user | 0755 | 0 | target/",
-    "root:root | 0644 | 0 | target/file.txt | file content",
-    "root:root | 0644 | 0 | target/hook-owner-marker | root\n",
+    "root:root | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "root:root | 755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 755 | 0 | source/",
+    "user:user | 644 | 0 | source/file.txt | file content",
+    "user:user | 755 | 0 | target/",
+    "root:root | 644 | 0 | target/file.txt | file content",
+    "root:root | 644 | 0 | target/hook-owner-marker | root\n",
   ]);
 });

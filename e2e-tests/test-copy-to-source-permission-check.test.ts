@@ -11,10 +11,10 @@ Deno.test("copy-to-source-permission-check", async (t) => {
       globs = ["**/*.conf"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0644 | 0 | target/file.conf | from target",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/file.conf | from target",
     ],
   });
 

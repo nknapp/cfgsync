@@ -10,9 +10,9 @@ Deno.test("schema-json", async (t) => {
       'globs = ["**/*.txt"]',
     ].join("\n"),
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | target/",
     ],
   });
 

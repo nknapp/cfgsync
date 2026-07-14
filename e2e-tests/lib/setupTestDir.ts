@@ -209,7 +209,7 @@ export async function readTestDir(
       const user = idToUser[stat.uid ?? 1000];
       const group = idToGroup[stat.gid ?? 1000];
       const mode = stat.mode ?? 0o0000;
-      const perms = (mode & 0o7777).toString(8).padStart(4, "0") as TestPerms;
+      const perms = (mode & 0o7777).toString(8) as TestPerms;
       if (stat.isDirectory) {
         return `${user}:${group} | ${perms} | 0 | ${path}/`;
       } else if (stat.isSymlink) {

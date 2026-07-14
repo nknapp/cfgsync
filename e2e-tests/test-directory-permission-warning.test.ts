@@ -11,12 +11,12 @@ Deno.test("directory-permission-warning", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | source/subdir/",
-      "user:user | 0644 | 0 | source/subdir/file.txt | hello",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0755 | 0 | target/subdir/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | source/subdir/",
+      "user:user | 644 | 0 | source/subdir/file.txt | hello",
+      "user:user | 755 | 0 | target/",
+      "user:user | 755 | 0 | target/subdir/",
     ],
   });
 

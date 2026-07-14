@@ -15,11 +15,11 @@ Deno.test("multi-group-overlap-error", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/shared.conf | shared content",
-      "user:user | 0755 | 0 | target-a/",
-      "user:user | 0755 | 0 | target-b/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/shared.conf | shared content",
+      "user:user | 755 | 0 | target-a/",
+      "user:user | 755 | 0 | target-b/",
     ],
   });
 

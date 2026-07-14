@@ -10,13 +10,13 @@ Deno.test("state-file-structure-after-sync", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | hello",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | hello",
       `user:user |      | 0 | source/link.txt -> file.txt`,
-      "user:user | 0755 | 0 | source/subdir/",
-      "user:user | 0644 | 0 | source/subdir/nested.txt | nested content",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 755 | 0 | source/subdir/",
+      "user:user | 644 | 0 | source/subdir/nested.txt | nested content",
+      "user:user | 755 | 0 | target/",
     ],
     faketime: "2026-05-20T15:00:00Z",
   });

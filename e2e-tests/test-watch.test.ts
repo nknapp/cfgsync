@@ -15,10 +15,10 @@ Deno.test("watch-sync-on-change", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | original content",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | original content",
+      "user:user | 755 | 0 | target/",
     ],
   });
 
@@ -32,12 +32,12 @@ Deno.test("watch-sync-on-change", async (t) => {
     await child.waitForStderr("source -> target", { minCount: 2, timeoutMillis: 5000 });
 
     assertEquals(await testbed.readTestDir(), [
-      "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | modified content",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0644 | 0 | target/file.txt | modified content",
+      "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | modified content",
+      "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/file.txt | modified content",
     ]);
   } finally {
     child.stop();
@@ -53,10 +53,10 @@ Deno.test("watch-sync-on-delete", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | hello",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | hello",
+      "user:user | 755 | 0 | target/",
     ],
   });
 
@@ -71,10 +71,10 @@ Deno.test("watch-sync-on-delete", async (t) => {
     await child.waitForStderr("source -> target", { minCount: 2, timeoutMillis: 5000 });
 
     assertEquals(await testbed.readTestDir(), [
-      "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | target/",
     ]);
   } finally {
     child.stop();
@@ -90,9 +90,9 @@ Deno.test("watch-sync-new-file", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | target/",
     ],
   });
 
@@ -107,16 +107,16 @@ Deno.test("watch-sync-new-file", async (t) => {
     await sleep(100);
 
     assertEquals(await testbed.readTestDir(), [
-      "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/new-file.txt | new file content",
-      "user:user | 0755 | 0 | source/subdir/",
-      "user:user | 0644 | 0 | source/subdir/new-file-2.txt | new file content 2",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0644 | 0 | target/new-file.txt | new file content",
-      "user:user | 0755 | 0 | target/subdir/",
-      "user:user | 0644 | 0 | target/subdir/new-file-2.txt | new file content 2",
+      "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/new-file.txt | new file content",
+      "user:user | 755 | 0 | source/subdir/",
+      "user:user | 644 | 0 | source/subdir/new-file-2.txt | new file content 2",
+      "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/new-file.txt | new file content",
+      "user:user | 755 | 0 | target/subdir/",
+      "user:user | 644 | 0 | target/subdir/new-file-2.txt | new file content 2",
     ]);
   } finally {
     child.stop();
@@ -132,11 +132,11 @@ Deno.test("watch-empty-dir", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | source/subdir/",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0755 | 0 | target/subdir/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | source/subdir/",
+      "user:user | 755 | 0 | target/",
+      "user:user | 755 | 0 | target/subdir/",
     ],
   });
 
@@ -150,14 +150,14 @@ Deno.test("watch-empty-dir", async (t) => {
     await sleep(1000);
 
     assertEquals(await testbed.readTestDir(), [
-      "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | source/subdir/",
-      "user:user | 0644 | 0 | source/subdir/new-file.txt | contents",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0755 | 0 | target/subdir/",
-      "user:user | 0644 | 0 | target/subdir/new-file.txt | contents",
+      "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | source/subdir/",
+      "user:user | 644 | 0 | source/subdir/new-file.txt | contents",
+      "user:user | 755 | 0 | target/",
+      "user:user | 755 | 0 | target/subdir/",
+      "user:user | 644 | 0 | target/subdir/new-file.txt | contents",
     ]);
   } finally {
     child.stop();
@@ -173,13 +173,13 @@ Deno.test("do-not-watch-too-much", async (t) => {
       globs = ["subdir/subsub/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | source/subdir/",
-      "user:user | 0755 | 0 | source/subdir/subsub/",
-      "user:user | 0755 | 0 | source/subdir/other-dir/",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0755 | 0 | target/subdir/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | source/subdir/",
+      "user:user | 755 | 0 | source/subdir/subsub/",
+      "user:user | 755 | 0 | source/subdir/other-dir/",
+      "user:user | 755 | 0 | target/",
+      "user:user | 755 | 0 | target/subdir/",
     ],
   });
 

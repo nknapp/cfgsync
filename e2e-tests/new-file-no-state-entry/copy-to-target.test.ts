@@ -10,10 +10,10 @@ Deno.test("new-file-copy-to-target", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | hello\n",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | hello\n",
+      "user:user | 755 | 0 | target/",
     ],
     faketime: "2020-01-01T00:00:00Z",
   });
@@ -64,11 +64,11 @@ Deno.test("new-file-copy-to-target", async (t) => {
 
   // After sync: both files exist with same content, state file created
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | 0 | source/",
-    "user:user | 0644 | 0 | source/file.txt | hello\n",
-    "user:user | 0755 | 0 | target/",
-    "user:user | 0644 | 0 | target/file.txt | hello\n",
+    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 755 | 0 | source/",
+    "user:user | 644 | 0 | source/file.txt | hello\n",
+    "user:user | 755 | 0 | target/",
+    "user:user | 644 | 0 | target/file.txt | hello\n",
   ]);
 });

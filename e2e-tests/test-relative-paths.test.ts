@@ -10,23 +10,23 @@ Deno.test("relative-paths", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | subdir/",
-      "user:user | 0755 | 0 | subdir/config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | subdir/source/",
-      "user:user | 0644 | 0 | subdir/source/same.txt | identical content",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 755 | 0 | subdir/",
+      "user:user | 755 | 0 | subdir/config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | subdir/source/",
+      "user:user | 644 | 0 | subdir/source/same.txt | identical content",
+      "user:user | 755 | 0 | target/",
     ],
   });
   await testbed.run({ args: ["--config", "subdir/config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0755 | 0 | subdir/",
-    "user:user | 0644 | 0 | subdir/config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | 0 | subdir/config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | 0 | subdir/source/",
-    "user:user | 0644 | 0 | subdir/source/same.txt | identical content",
-    "user:user | 0755 | 0 | target/",
-    "user:user | 0644 | 0 | target/same.txt | identical content",
+    "user:user | 755 | 0 | subdir/",
+    "user:user | 644 | 0 | subdir/config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 755 | 0 | subdir/config.toml | __CONFIG_TOML__",
+    "user:user | 755 | 0 | subdir/source/",
+    "user:user | 644 | 0 | subdir/source/same.txt | identical content",
+    "user:user | 755 | 0 | target/",
+    "user:user | 644 | 0 | target/same.txt | identical content",
   ]);
   testbed.assertOutput({
     code: 0,

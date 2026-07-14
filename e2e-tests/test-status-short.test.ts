@@ -10,11 +10,11 @@ Deno.test("status-short", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | new file",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0644 | 0 | target/other.txt | target file",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | new file",
+      "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/other.txt | target file",
     ],
   });
 

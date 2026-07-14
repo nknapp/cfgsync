@@ -16,10 +16,10 @@ Deno.test("hooks-watch-mode", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | original content",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | original content",
+      "user:user | 755 | 0 | target/",
     ],
   });
 
@@ -33,13 +33,13 @@ Deno.test("hooks-watch-mode", async (t) => {
 
     // Verify both initial and follow-up syncs (hook ran twice creating the marker)
     assertEquals(await testbed.readTestDir(), [
-      "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | modified content",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0644 | 0 | target/file.txt | modified content",
-      "user:user | 0644 | 0 | target/hook-ran | xx",
+      "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | modified content",
+      "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/file.txt | modified content",
+      "user:user | 644 | 0 | target/hook-ran | xx",
     ]);
   } finally {
     child.stop();

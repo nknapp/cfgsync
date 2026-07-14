@@ -11,22 +11,22 @@ Deno.test("permission-warning", async (t) => {
       file_perms = "private"
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.conf | some content",
-      "user:user | 0755 | 0 | target/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.conf | some content",
+      "user:user | 755 | 0 | target/",
     ],
   });
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | 0 | source/",
-    "user:user | 0644 | 0 | source/file.conf | some content",
-    "user:user | 0755 | 0 | target/",
-    "user:user | 0644 | 0 | target/file.conf | some content",
+    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 755 | 0 | source/",
+    "user:user | 644 | 0 | source/file.conf | some content",
+    "user:user | 755 | 0 | target/",
+    "user:user | 644 | 0 | target/file.conf | some content",
   ]);
   testbed.assertOutput({
     code: 0,

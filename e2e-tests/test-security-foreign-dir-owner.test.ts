@@ -13,12 +13,12 @@ Deno.test({
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | source/foreign-dir/",
-      "user:user | 0644 | 0 | source/foreign-dir/file.txt | hello",
-      "root:root | 0777 | 0 | target/",
-      "root:root | 0777 | 0 | target/foreign-dir/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | source/foreign-dir/",
+      "user:user | 644 | 0 | source/foreign-dir/file.txt | hello",
+      "root:root | 777 | 0 | target/",
+      "root:root | 777 | 0 | target/foreign-dir/",
     ],
   });
 

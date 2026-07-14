@@ -14,11 +14,11 @@ Deno.test("deviating-directories", async (t) => {
       owner = "root:root"
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.conf | hello",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0755 | 0 | target/special-dir/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.conf | hello",
+      "user:user | 755 | 0 | target/",
+      "user:user | 755 | 0 | target/special-dir/",
     ],
   });
 

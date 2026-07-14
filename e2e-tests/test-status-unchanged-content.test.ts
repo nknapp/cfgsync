@@ -10,11 +10,11 @@ Deno.test("status-unchanged-content", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | same content",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0644 | 0 | target/file.txt | same content",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | same content",
+      "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/file.txt | same content",
     ],
     faketime: "2020-01-01T00:00:00Z",
   });
@@ -56,11 +56,11 @@ Deno.test("status-unchanged-content-actual-change-detected", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | original content",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0644 | 0 | target/file.txt | original content",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | original content",
+      "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/file.txt | original content",
     ],
     faketime: "2020-01-01T00:00:00Z",
   });
@@ -91,11 +91,11 @@ Deno.test("status-unchanged-content-changed-perms", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0644 | 0 | source/file.txt | original content",
-      "user:user | 0755 | 0 | target/",
-      "user:user | 0600 | 0 | target/file.txt | original content",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 644 | 0 | source/file.txt | original content",
+      "user:user | 755 | 0 | target/",
+      "user:user | 600 | 0 | target/file.txt | original content",
     ],
     faketime: "2020-01-01T00:00:00Z",
   });

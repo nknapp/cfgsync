@@ -27,10 +27,10 @@ async function testSyncToHomeDir(t: Deno.TestContext, { sudo = false } = {}) {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
-      "user:user | 0755 | 0 | source/cfgsync-test-subdir/",
-      "user:user | 0644 | 0 | source/cfgsync-test-subdir/data.txt | My data",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
+      "user:user | 755 | 0 | source/cfgsync-test-subdir/",
+      "user:user | 644 | 0 | source/cfgsync-test-subdir/data.txt | My data",
     ],
   });
 
@@ -50,15 +50,15 @@ async function testSyncToHomeDir(t: Deno.TestContext, { sudo = false } = {}) {
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | 0 | source/",
-    "user:user | 0755 | 0 | source/cfgsync-test-subdir/",
-    "user:user | 0644 | 0 | source/cfgsync-test-subdir/data.txt | My data",
+    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 755 | 0 | source/",
+    "user:user | 755 | 0 | source/cfgsync-test-subdir/",
+    "user:user | 644 | 0 | source/cfgsync-test-subdir/data.txt | My data",
   ]);
 
   assertEquals(await readTestDir(new URL("/home/user/cfgsync-test-subdir/", import.meta.url), ""), [
-    "user:user | 0644 | 0 | data.txt | My data",
+    "user:user | 644 | 0 | data.txt | My data",
   ]);
 }
 
@@ -71,8 +71,8 @@ Deno.test({ name: "sync from home dir", ignore: runningOutsideDocker }, async (t
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-      "user:user | 0755 | 0 | source/",
+      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 755 | 0 | source/",
       `user:user | 0755 | 0 | /home/user/cfgsync-test-subdir/`,
       `user:user | 0755 | 0 | /home/user/cfgsync-test-subdir/subdir/`,
       `user:user | 0644 | 0 | /home/user/cfgsync-test-subdir/subdir/data.txt | My data`,
@@ -95,10 +95,10 @@ Deno.test({ name: "sync from home dir", ignore: runningOutsideDocker }, async (t
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 0644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
-    "user:user | 0755 | 0 | source/",
-    "user:user | 0755 | 0 | source/subdir/",
-    "user:user | 0644 | 0 | source/subdir/data.txt | My data",
+    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
+    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 755 | 0 | source/",
+    "user:user | 755 | 0 | source/subdir/",
+    "user:user | 644 | 0 | source/subdir/data.txt | My data",
   ]);
 });
