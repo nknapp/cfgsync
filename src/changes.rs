@@ -651,13 +651,7 @@ fn validate_action(change: &mut Change, config: &ResolvedConfig) {
                 ));
             }
             if let Some(parent) = abs_src.parent()
-                && !parent.exists()
-            {
-                failed_checks.push(format!(
-                    "source parent directory '{}' does not exist",
-                    parent.display()
-                ));
-            } else if let Some(parent) = abs_src.parent()
+                && parent.exists()
                 && !parent.is_dir()
             {
                 failed_checks.push(format!(
