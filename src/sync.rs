@@ -111,7 +111,8 @@ pub fn run(
                         SecurityAction::None => {}
                     }
                 }
-                if !has_explicit_owner(config, *group_index, rel_path)
+                if !bypass
+                    && !has_explicit_owner(config, *group_index, rel_path)
                     && parent_dir_owned_by_foreign_user(
                         abs_tgt,
                         config_file_uid(&config.config_path),
@@ -373,19 +374,19 @@ pub fn run(
                             }
                             SecurityAction::None => {}
                         }
-                    }
-                    if !has_explicit_owner(config, *group_index, rel_path)
-                        && parent_dir_owned_by_foreign_user(
-                            abs_tgt,
-                            config_file_uid(&config.config_path),
-                        )
-                    {
-                        eprintln!(
-                            "Warning: skipping '{}' (target parent directory is owned by another user, set explicit owner to override)",
-                            rel_path
-                        );
-                        outcome.skipped_perms += 1;
-                        continue;
+                        if !has_explicit_owner(config, *group_index, rel_path)
+                            && parent_dir_owned_by_foreign_user(
+                                abs_tgt,
+                                config_file_uid(&config.config_path),
+                            )
+                        {
+                            eprintln!(
+                                "Warning: skipping '{}' (target parent directory is owned by another user, set explicit owner to override)",
+                                rel_path
+                            );
+                            outcome.skipped_perms += 1;
+                            continue;
+                        }
                     }
                     if dry_run {
                         println!("[dry-run] copy {} -> target", rel_path);
