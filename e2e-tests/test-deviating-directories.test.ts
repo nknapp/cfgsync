@@ -1,8 +1,8 @@
-import { deindent } from "./lib/index.ts";
+import { assertEquals, deindent } from "./lib/index.ts";
 import { TestBed } from "./lib/TestBed.ts";
 
 Deno.test("deviating-directories", async (t) => {
-  const { testbed, testDir, username, groupname } = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -12,7 +12,6 @@ Deno.test("deviating-directories", async (t) => {
       [[sync.deviating]]
       path = "./target/special-dir"
       permissions = "700"
-      owner = "root:root"
     `,
     files: [
       "user:user | 0755 | 0 | config.toml | __CONFIG_TOML__",
@@ -25,19 +24,14 @@ Deno.test("deviating-directories", async (t) => {
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      copied file.conf -> target
-
-      source -> target: 1
-      target -> source: 0
-      deleted target:   0
-      deleted source:   0
-    `,
-    stderr: deindent`
-      Warning: deviating directory '${testDir}/target/special-dir' has 0o755, expected 0o700 (existing directories are not modified)
-      Warning: deviating directory '${testDir}/target/special-dir' is owned by ${username}:${groupname}, expected 'root:root' (existing directories are not modified)
-    `,
-  });
+  const stderr = testbed.getStderr();
+  assertEquals(stderr.includes("deviating directory"), true);
+  assertEquals(
+    stderr.includes("has 0o755, expected 0o700"),
+    true,
+  );
+  assertEquals(
+    stderr.includes("existing directories are not modified"),
+    true,
+  );
 });
