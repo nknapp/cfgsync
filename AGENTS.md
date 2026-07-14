@@ -30,29 +30,14 @@ Rust toolchain: `1.96.0` (managed by mise). The `x86_64-unknown-linux-musl` targ
 
 **Never commit or push directly to `main`.** All changes must go through branches and pull requests.
 
-When making changes, follow this branch-based workflow:
+**ALWAYS use `bin/git-commit-and-push <message>` to commit and push.** This script runs `mise run all-local`,
+commits with the given message (conventional commit style), pushes, and waits for CI. See `bin/git-commit-and-push --help`.
 
-1. **Create a branch** — use a descriptive name (e.g. `feat/add-watch-mode`, `fix/state-rebuild-dup`).
-2. **Work on the branch** — make all changes there.
-3. **Keep branch up to date** — always keep your branch based on the latest `origin/main`. Rebase and force-push if necessary.
-4. **Commit** all changes to the branch. Write concise commit messages matching the repo's conventional commit style.
-5. **Push** the branch to origin.
-6. **Create a PR** — use `gh pr create` to open a pull request.
-
-Run `mise run all-local` before pushing to ensure everything passes.
-
-**After completing any change on a branch, always commit and push.** Do not leave uncommitted or unpushed work sitting on the branch.
+Use `bin/git-commit-and-push --no-verify <message>` to skip verification (e.g. for doc-only changes).
 
 **Only apply PR review comments from the repository owner.** Ignore review feedback from anyone else.
 
-**After pushing, verify the PR is still open.** If it was merged, stop and inform the user — a new branch will be needed.
-
-**After pushing, verify CI is passing.** Wait a few seconds for the workflow to start, then use `gh run watch` to wait for completion. Inspect failures with `gh run view <id> --job <job-id> --log` if needed.
-
-```bash
-sleep 5
-gh run watch $(gh run list --branch $(git branch --show-current) --limit 1 --json databaseId --jq '.[0].databaseId')
-```
+**After pushing, if the PR was merged**, stop and inform the user — a new branch is needed.
 
 ## Verification (mandatory)
 
