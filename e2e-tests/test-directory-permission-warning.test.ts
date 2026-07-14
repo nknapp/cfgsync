@@ -34,7 +34,7 @@ Deno.test("directory-permission-warning", async (t) => {
       permission skips: 1
     `,
     stderr: deindent`
-      Permission warning: directory 'subdir' has 0o755, should be 0o700 (run as root to fix)
+      Permission warning: directory 'subdir' has 755, should be 700 (run as root to fix)
     `,
   });
 });
