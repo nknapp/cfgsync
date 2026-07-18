@@ -99,12 +99,12 @@ mtime = "2026-07-11T00:12:16.665Z"
 
 # 3. Find and classify files
 
-* This step first scans the files matching the globs in the source and target directory as well as the ancestor
-  directories. It uses an efficient glob filtering method that only dives in a directory if there is a chance of it
-  having
-  files matching the glob.
+* This step first scans the files matching the globs in the source and target directory of each sync group. 
+  It uses an efficient glob filtering method that only dives in a directory if there is a chance of it
+  having files matching the glob. 
 * Verify that every source and target file was found by no more than one sync group. If a file is in multiple
   sync groups, write an error message and exit immediately.
+  ([test-multi-group-overlap.test.ts](../../e2e-tests/checked/classifications/test-multi-group-overlap.test.ts)
 * The files and directories are paired up by their relative path, so we get this information on every entry (note that
   not all information must be read upfront. It can also be read when needed)
     * source file/dir (if it exists)
@@ -127,7 +127,7 @@ mtime = "2026-07-11T00:12:16.665Z"
 
 We assume having the following helpers (`file` is either `source` or `target`)
 
-* `is_equal(a,b)` is the same as `a.hash == b.hash && a.perms == b.perms && a.owner == b.owner)
+* `a equals b` means that that `a.hash == b.hash && a.perms == b.perms && a.owner == b.owner)
 * `is_changed(file)` is an abbreviation for `file.mtime != state.mtime && not is_equal(file, state)`
 
 > Note: This implementation means that files with a fabricated mtime may lead to falsely skipped files.
@@ -136,7 +136,7 @@ We assume having the following helpers (`file` is either `source` or `target`)
 > detect files that have been edited and reverted as "unchanged"
 
 ```python
-# Check for new files
+# No state file
 if state is None:
     if source is not None and target is not None:
         if is_equal(source, target):
@@ -353,9 +353,6 @@ If it is not possible to run the hook as that user, a warning is printed and the
 
 ### What the e2e tests cover that the algorithm description doesn't explicitly mention
 
-- **Multi-group scenarios**: Sync groups with independent source/target pairs (`test-multi-group-independent`), multiple
-  groups sharing the same source directory with different owners (`test-multi-group-owner`), and multiple groups with
-  per-glob permission overrides (`test-multi-group-per-glob`).
 - **Overlapping glob error detection**: When a file matches globs in two or more sync groups, the tool exits with an
   error (unit tests in `changes.rs` and `test-multi-group-overlap`).
 - **Glob filtering**: Only files matching configured globs are synced; non-matching files are ignored (
