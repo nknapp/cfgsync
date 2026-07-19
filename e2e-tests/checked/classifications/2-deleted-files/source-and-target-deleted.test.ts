@@ -16,7 +16,7 @@ Deno.test("delete-from-state", async (t) => {
       "user:user | 755 | 0 | target/",
       "user:user | 644 | 0 | target/file.txt | file content",
     ],
-    faketime: "2024-10-10T08:11:33.000Z"
+    faketime: "2024-10-10T08:11:33.000Z",
   });
 
   await testbed.deleteFile("source/file.txt");

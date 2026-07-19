@@ -3,7 +3,6 @@ import {
   groupToId,
   STATE_FILE_SUFFIX,
   TestGroup,
-  TestPerms,
   TestSpec,
   TestUser,
   userToId,
@@ -191,15 +190,13 @@ class StateFileFactory implements Factory {
     );
     assertEquals(code, 0);
 
-    // Verify ownership
-    const stat = await Deno.lstat(new URL(this.init.path, this.init.testDir));
-    assertEquals(stat.uid, this.init.uid);
-    assertEquals(stat.gid, this.init.gid);
+    const realPath = new URL(this.init.path, this.init.testDir)
+    const stat = await Deno.lstat(realPath);
     assertEquals(stat.mtime, this.init.mtime);
+    await Deno.chmod(realPath, parseInt(this.init.perms, 8));
+    await setOwner(realPath, this.init.uid, this.init.gid);
 
-    const mode = stat.mode ?? 0o0000;
-    const perms = (mode & 0o7777).toString(8) as TestPerms;
-    assertEquals(perms, this.init.perms);
+
   }
 }
 

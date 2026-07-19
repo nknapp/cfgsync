@@ -24,7 +24,7 @@ export function runCfgsync(
   }
 
   if (sudo) {
-    cmdAndArgs.unshift("sudo");
+    cmdAndArgs.unshift("sudo", "--preserve-env=FAKETIME");
   }
   const [cmd, ...realArgs] = cmdAndArgs;
   const command = new Deno.Command(cmd, {
