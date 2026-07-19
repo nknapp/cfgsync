@@ -1,4 +1,12 @@
-import { CONFIG_TOML_PLACEHOLDER, idToGroup, idToUser, TestEntry, TestPerms } from "./config.ts";
+import {
+  CONFIG_TOML_PLACEHOLDER,
+  idToGroup,
+  idToUser,
+  STATE_FILE_SUFFIX,
+  STATE_TOML_PLACEHOLDER,
+  TestEntry,
+  TestPerms,
+} from "./config.ts";
 
 export async function readTestDir(
   baseDir: URL,
@@ -53,8 +61,8 @@ function getContents(raw: string, configToml: string, path: string) {
   let contents = raw;
   if (raw === configToml) {
     contents = CONFIG_TOML_PLACEHOLDER;
-  } else if (path.endsWith(".cfgsync.state")) {
-    contents = "CFGSYNC_STATE";
+  } else if (path.endsWith(STATE_FILE_SUFFIX)) {
+    contents = STATE_TOML_PLACEHOLDER;
   }
   return contents;
 }

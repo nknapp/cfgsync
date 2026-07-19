@@ -1,12 +1,18 @@
 import {
   CONFIG_TOML_PLACEHOLDER,
   groupToId,
+  STATE_FILE_SUFFIX,
   TestGroup,
+  TestPerms,
   TestSpec,
   TestUser,
   userToId,
 } from "./config.ts";
 import { parseDuration } from "./parseDuration.ts";
+import { runCfgsync } from "./runCfgsync.ts";
+import { assert, assertEquals } from "./assert.ts";
+import { deindent, runningOutsideDocker } from "./index.ts";
+import { FakeTime } from "./faketime.ts";
 
 export async function setupTestDir(
   testDir: URL,
@@ -67,6 +73,9 @@ class SetupTestDir {
     }
     if (contents == CONFIG_TOML_PLACEHOLDER) {
       return new FileFactory({ ...baseInit, contents: this.spec.configToml });
+    }
+    if (path.endsWith(STATE_FILE_SUFFIX)) {
+      return new StateFileFactory(baseInit);
     }
     return new FileFactory({ ...baseInit, contents });
   }
@@ -147,6 +156,50 @@ class SymlinkFactory implements Factory {
     await Deno.spawnAndWait("touch", {
       args: ["-h", "-d", this.init.mtime.toISOString(), absoluteSourcePath.pathname],
     });
+  }
+}
+
+interface StateFileFactoryInit extends BaseFactoryInit {
+}
+
+class StateFileFactory implements Factory {
+  readonly order = 10;
+
+  constructor(private init: StateFileFactoryInit) {
+    assert(init.path.endsWith(STATE_FILE_SUFFIX));
+  }
+
+  async create(): Promise<void> {
+    const configPath = this.init.path.replace(STATE_FILE_SUFFIX, ".toml");
+    const fakeTime = new FakeTime(this.init.mtime);
+    const process = runCfgsync({
+      args: ["--config", configPath, "sync"],
+      sudo: !runningOutsideDocker,
+      cwd: this.init.testDir,
+      faketimeFile: fakeTime.file,
+    });
+    const { code, stdout, stderr } = await process.waitForExit();
+    assertEquals(stderr, "");
+    assertEquals(
+      stdout.trim(),
+      deindent`
+        source -> target: 0
+        target -> source: 0
+        deleted target:   0
+        deleted source:   0
+    `.trim(),
+    );
+    assertEquals(code, 0);
+
+    // Verify ownership
+    const stat = await Deno.lstat(new URL(this.init.path, this.init.testDir));
+    assertEquals(stat.uid, this.init.uid);
+    assertEquals(stat.gid, this.init.gid);
+    assertEquals(stat.mtime, this.init.mtime);
+
+    const mode = stat.mode ?? 0o0000;
+    const perms = (mode & 0o7777).toString(8) as TestPerms;
+    assertEquals(perms, this.init.perms);
   }
 }
 

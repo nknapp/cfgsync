@@ -47,7 +47,11 @@ impl State {
         let content =
             toml::to_string_pretty(self).map_err(|e| format!("Cannot serialize state: {}", e))?;
         std::fs::write(path, &content)
-            .map_err(|e| format!("Cannot write state file '{}': {}", path.display(), e))
+            .map_err(|e| format!("Cannot write state file '{}': {}", path.display(), e))?;
+        if let Ok(file) = std::fs::File::open(path) {
+            let _ = file.set_modified(self.last_sync.into());
+        }
+        Ok(())
     }
 
     pub fn as_map(&self) -> HashMap<(&str, &str), &FileEntry> {

@@ -9,15 +9,15 @@ Deno.test("delete-from-state", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 644 | 0 | config.toml | __CONFIG_TOML__",
+      "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | file content",
       "user:user | 755 | 0 | target/",
       "user:user | 644 | 0 | target/file.txt | file content",
     ],
+    faketime: "2024-10-10T08:11:33.000Z"
   });
-
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   await testbed.deleteFile("source/file.txt");
   await testbed.deleteFile("target/file.txt");
@@ -48,7 +48,7 @@ Deno.test("delete-from-state", async (t) => {
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    "user:user | 644 | 0 | config.toml | __CONFIG_TOML__",
     "user:user | 755 | 0 | source/",
     "user:user | 755 | 0 | target/",
   ]);
