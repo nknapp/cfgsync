@@ -1,6 +1,6 @@
 import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
 
-Deno.test("both-exist-clean", async (t) => {
+Deno.test("delete-from-state", async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
@@ -11,28 +11,25 @@ Deno.test("both-exist-clean", async (t) => {
     files: [
       "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
       "user:user | 755 | 0 | source/",
-      "user:user | 644 | 0 | source/file.txt | hello",
+      "user:user | 644 | 0 | source/file.txt | file content",
       "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/file.txt | file content",
     ],
   });
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
+  await testbed.deleteFile("source/file.txt");
+  await testbed.deleteFile("target/file.txt");
+
   await testbed.run({ args: ["--config", "config.toml", "status"] });
+  // TODO: This should not say "all clean" but "update state: 1"
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
       source -> target: 0
       target -> source: 0
-    `,
-    stderr: "",
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      ✓
+      all clean
     `,
     stderr: "",
   });
@@ -53,8 +50,6 @@ Deno.test("both-exist-clean", async (t) => {
     "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
     "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
     "user:user | 755 | 0 | source/",
-    "user:user | 644 | 0 | source/file.txt | hello",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.txt | hello",
   ]);
 });

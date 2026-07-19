@@ -135,6 +135,8 @@ We assume having the following helpers (`file` is either `source` or `target`)
 > We expect most of the files to be unchanged with the same mtime as before. The content hash is only checked to
 > detect files that have been edited and reverted as "unchanged"
 
+* [e2e-tests](../../e2e-tests/checked/classifications)
+
 ```python
 # No state file
 if state is None:

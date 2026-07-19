@@ -10,3 +10,4 @@ if [[ "${CFGSYNC:+x}" ]] ; then
 fi
 
 deno test --config deno.json --frozen --allow-write --allow-sys --allow-read --allow-env --allow-run --allow-net "$@"
+

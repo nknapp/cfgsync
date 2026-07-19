@@ -16,7 +16,6 @@ Deno.test("both-exist-conflict", async (t) => {
     ],
     faketime: "2020-01-01T00:00:00Z",
   });
-
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   testbed.advance("1 sec");

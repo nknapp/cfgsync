@@ -29,6 +29,8 @@ Deno.test("new-file-update-state", async (t) => {
     stderr: "",
   });
 
+  // TODO: Test short status (new icon to show that everything is fine, but sync should be run anyway)
+
   // diff: UpdateState produces no output
   await testbed.run({ args: ["--config", "config.toml", "diff"] });
   testbed.assertOutput({

@@ -1,5 +1,6 @@
 import { assertEquals, deindent, runningOutsideDocker, TestBed } from "@/lib/index.ts";
-import { readTestDir } from "@/lib/setupTestDir.ts";
+
+import { readTestDir } from "@/lib/readTestDir.ts";
 
 Deno.test.beforeEach(async () => {
   try {

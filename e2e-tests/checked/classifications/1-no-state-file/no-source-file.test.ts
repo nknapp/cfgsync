@@ -28,6 +28,8 @@ Deno.test("new-file-copy-to-source", async (t) => {
     stderr: "",
   });
 
+  // TODO: test short status
+
   // diff: unified diff showing target content added to (missing) source
   await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
   testbed.assertOutput({

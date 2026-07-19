@@ -1,10 +1,12 @@
-import { readTestDir, setupTestDir, TestSpec } from "./setupTestDir.ts";
+import { setupTestDir } from "./setupTestDir.ts";
 import { testBaseDir } from "./env.ts";
 import { RunArgs, runCfgsync } from "./runCfgsync.ts";
 import { assertEquals } from "./assert.ts";
 import { InteractiveChildProcess } from "./spawn.ts";
 import { XXH3_128 } from "xxh3-ts";
 import { Buffer } from "node:buffer";
+import { readTestDir } from "./readTestDir.ts";
+import { TestSpec } from "./config.ts";
 
 export type ExecReturn = { code: number; stdout: string; stderr: string };
 
@@ -63,8 +65,8 @@ export class TestBed {
     const testDirUrl = new URL(t.name.replace(/\W/g, "_") + "/", testBaseDir);
     const testDir = testDirUrl.pathname.replace(/\/$/, "");
     const spec = typeof specOrFn === "function" ? specOrFn({ testDir: testDir }) : specOrFn;
-    const dir = await setupTestDir(testDirUrl, spec);
-    const bed = new TestBed(spec, dir);
+    await setupTestDir(testDirUrl, spec);
+    const bed = new TestBed(spec, testDirUrl);
     if (spec.faketime) {
       bed.faketime = new FakeTime(new Date(spec.faketime));
     }
@@ -109,8 +111,8 @@ export class TestBed {
 
   async run(runArgs: Omit<RunArgs, "cwd">) {
     this.lastRun = await runCfgsync({
-      cwd: this.testDir,
       ...runArgs,
+      cwd: this.testDir,
       faketimeFile: this.faketime?.file,
     }).waitForExit();
   }

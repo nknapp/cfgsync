@@ -1,48 +1,148 @@
-import { invertKeyValues } from "./invertKeyValues.ts";
+import {
+  CONFIG_TOML_PLACEHOLDER,
+  groupToId,
+  TestGroup,
+  TestSpec,
+  TestUser,
+  userToId,
+} from "./config.ts";
 
-type TestPath = string;
-type TestContents = string;
-type TestUser = keyof typeof userIdMap;
-type TestGroup = keyof typeof groupIdMap;
-type TestOwner = `${"user" | "root"}:${"user" | "root"}`;
-type TestPerms = `${number | ""}${number}${number}${number}`;
-type TestMtime = string;
-
-type TestFile = `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath} | ${TestContents}`;
-type TestSymlink = `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath} -> ${TestPath}`;
-type TestDir = `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath}/`;
-export type TestEntry = TestFile | TestSymlink | TestDir;
-
-export interface TestSpec {
-  files: TestEntry[];
-  configToml: string;
-  faketime?: string;
+export async function setupTestDir(
+  testDir: URL,
+  spec: TestSpec,
+): Promise<void> {
+  await new SetupTestDir(testDir, spec).run();
 }
 
-const userIdMap = {
-  user: Deno.uid() ?? 1000,
-  root: 0,
-};
-const idToUser = invertKeyValues(userIdMap);
+class SetupTestDir {
+  constructor(private testDir: URL, private spec: TestSpec) {}
 
-const groupIdMap = {
-  user: Deno.gid() ?? 1000,
-  root: 0,
-};
-const idToGroup = invertKeyValues(groupIdMap);
+  async run(): Promise<void> {
+    try {
+      await Deno.remove(this.testDir, { recursive: true });
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound)) {
+        throw e;
+      }
+    }
+    await Deno.mkdir(this.testDir, { recursive: true });
 
-function userToId(user: TestUser): number {
-  if (user in userIdMap) return userIdMap[user] as number;
-  throw new Error(
-    `User must be one of ${Object.keys(userToId)} but was '${user}'`,
-  );
+    const factories = this.spec.files.map((line) => this.createFactory(line));
+    factories.sort((a, b) => a.order - b.order);
+
+    for (const factory of factories) {
+      await factory.create();
+    }
+  }
+
+  createFactory(line: string): Factory {
+    const parts = line.split(" | ");
+    const [owner, perms, mtimeStr, path, contents] = parts;
+
+    assertNotNull(owner, "owner must not be null");
+    assertNotNull(perms, "perms must not be null");
+    assertNotNull(path, "path must not be null");
+    const [user, group] = owner.split(":");
+    const uid = userToId(user as TestUser);
+    const gid = groupToId(group as TestGroup);
+    const testDir = this.testDir;
+    const mtime = computeMtime(this.spec, mtimeStr);
+
+    const baseInit: BaseFactoryInit = {
+      testDir,
+      path,
+      mtime,
+      perms,
+      gid,
+      uid,
+    };
+
+    if (path.endsWith("/")) {
+      return new DirectoryFactory(baseInit);
+    }
+    if (path.includes(" -> ")) {
+      return new SymlinkFactory(baseInit);
+    }
+    if (contents == CONFIG_TOML_PLACEHOLDER) {
+      return new FileFactory({ ...baseInit, contents: this.spec.configToml });
+    }
+    return new FileFactory({ ...baseInit, contents });
+  }
 }
 
-function groupToId(group: TestGroup): number {
-  if (group in groupIdMap) return groupIdMap[group] as number;
-  throw new Error(
-    `Group must be one of ${Object.keys(groupIdMap)} but was '${group}'`,
-  );
+interface Factory {
+  readonly order: number;
+  create(): Promise<void>;
+}
+
+interface BaseFactoryInit {
+  testDir: URL;
+  path: string;
+  uid: number;
+  gid: number;
+  perms: string;
+  mtime: Date;
+}
+
+interface DirectoryFactoryInit extends BaseFactoryInit {}
+
+class DirectoryFactory implements Factory {
+  constructor(private init: DirectoryFactoryInit) {}
+
+  readonly order = 0;
+
+  async create() {
+    const realPath = new URL(this.init.path, this.init.testDir);
+    console.log(`Creating dir: ${realPath.pathname}`);
+    await Deno.mkdir(realPath);
+    await Deno.utime(realPath, this.init.mtime, this.init.mtime);
+    await Deno.chmod(realPath, parseInt(this.init.perms, 8));
+    await setOwner(realPath, this.init.uid, this.init.gid);
+  }
+}
+
+interface FileFactoryInit extends BaseFactoryInit {
+  contents: string;
+}
+
+class FileFactory implements Factory {
+  readonly order = 0;
+
+  constructor(private init: FileFactoryInit) {
+    assertNotNull(
+      init.contents,
+      "contents must not be null if path does not end with '/'",
+    );
+  }
+
+  async create() {
+    const realPath = new URL(this.init.path, this.init.testDir);
+    await Deno.create(realPath);
+    await Deno.writeTextFile(realPath, this.init.contents);
+    await Deno.utime(realPath, this.init.mtime, this.init.mtime);
+    await Deno.chmod(realPath, parseInt(this.init.perms, 8));
+    await setOwner(realPath, this.init.uid, this.init.gid);
+  }
+}
+
+interface SymlinkFactoryInit extends BaseFactoryInit {
+}
+
+class SymlinkFactory implements Factory {
+  readonly order = 0;
+
+  constructor(private init: SymlinkFactoryInit) {}
+
+  async create() {
+    const [sourcePath, targetPath] = this.init.path.split(" -> ");
+    const absoluteSourcePath = new URL(encodeURI(sourcePath), this.init.testDir);
+    await Deno.symlink(targetPath, absoluteSourcePath);
+    await new Deno.Command("touch", {
+      args: ["-h", "-d", this.init.mtime.toISOString(), absoluteSourcePath.pathname],
+      stdout: "null",
+      stderr: "null",
+    }).output();
+  }
 }
 
 function assertNotNull<T>(
@@ -53,8 +153,6 @@ function assertNotNull<T>(
     throw new Error(message);
   }
 }
-
-const CONFIG_TOML_PLACEHOLDER = "__CONFIG_TOML__";
 
 function parseMtimeOffset(mtimeStr: string): number {
   if (!mtimeStr || mtimeStr === "0") return 0;
@@ -71,193 +169,10 @@ function computeMtime(spec: TestSpec, mtimeStr: string): Date {
   return new Date(base.getTime() + offsetMs);
 }
 
-async function createDirOrFile(line: string, testDir: URL, spec: TestSpec) {
-  const parts = line.split(" | ");
-  let owner: string, perms: string, mtimeStr: string, path: string, contents: string | undefined;
-
-  if (parts.length === 5) {
-    [owner, perms, mtimeStr, path, contents] = parts;
-  } else if (parts.length === 4) {
-    const fourth = parts[3] as string;
-    if (fourth.endsWith("/") || fourth.includes(" -> ")) {
-      [owner, perms, mtimeStr, path] = parts;
-      contents = undefined;
-    } else {
-      [owner, perms, path, contents] = parts;
-      mtimeStr = "0";
-    }
-  } else {
-    [owner, perms, path] = parts;
-    mtimeStr = "0";
-    contents = undefined;
+async function setOwner(realPath: URL, uid: number, gid: number) {
+  if (Deno.uid() === 0) {
+    await Deno.chown(realPath, uid, gid);
+  } else if (uid !== Deno.uid() || gid !== Deno.gid()) {
+    await Deno.spawnAndWait("sudo", ["chown", `${uid}:${gid}`, realPath.pathname]);
   }
-
-  assertNotNull(owner, "owner must not be null");
-  assertNotNull(perms, "perms must not be null");
-  assertNotNull(path, "path must not be null");
-  const [user, group] = owner.split(":");
-  const uid = userToId(user as TestUser);
-  const gid = groupToId(group as TestGroup);
-  const realPath = await createNoOwnerAndPerms(path, testDir, contents, spec.configToml);
-  const isSymlink = (await Deno.lstat(realPath)).isSymlink;
-  const mtime = computeMtime(spec, mtimeStr);
-
-  if (isSymlink) {
-    await new Deno.Command("touch", {
-      args: ["-h", "-d", mtime.toISOString(), realPath.pathname],
-      stdout: "null",
-      stderr: "null",
-    }).output();
-  } else {
-    await Deno.utime(realPath, mtime, mtime);
-  }
-
-  if (!isSymlink) {
-    await Deno.chmod(realPath, parseInt(perms, 8));
-
-    if (Deno.uid() === 0) {
-      await Deno.chown(realPath, uid, gid);
-    } else if (uid !== Deno.uid() || gid !== Deno.gid()) {
-      await new Deno.Command("sudo", {
-        args: ["chown", `${uid}:${gid}`, realPath.pathname],
-        stdout: "null",
-        stderr: "null",
-      }).output();
-    }
-  }
-}
-
-async function createDirectory(path: string, testDir: URL) {
-  const realPath = new URL(encodeURI(path), testDir);
-  await Deno.mkdir(realPath);
-  return realPath;
-}
-
-async function createRegularFile(path: string, testDir: URL, contents: string, configToml: string) {
-  const realPath = new URL(encodeURI(path), testDir);
-  await Deno.create(realPath);
-  await Deno.writeTextFile(
-    realPath,
-    contents == CONFIG_TOML_PLACEHOLDER ? configToml : contents,
-  );
-  return realPath;
-}
-
-async function createSymlink(symlinkSpec: string, testDir: URL) {
-  const [sourcePath, targetPath] = symlinkSpec.split(" -> ");
-  const absoluteSourcePath = new URL(encodeURI(sourcePath), testDir);
-  await Deno.symlink(targetPath, absoluteSourcePath);
-  return absoluteSourcePath;
-}
-
-async function createNoOwnerAndPerms(
-  path: string,
-  testDir: URL,
-  contents: string | undefined,
-  configToml: string,
-) {
-  const type = path.endsWith("/") ? "directory" : (path.includes(" -> ") ? "symlink" : "file");
-
-  switch (type) {
-    case "directory":
-      return await createDirectory(path, testDir);
-    case "file":
-      assertNotNull(
-        contents,
-        "contents must not be null if path does not end with '/'",
-      );
-      return await createRegularFile(path, testDir, contents, configToml);
-    case "symlink":
-      return await createSymlink(path, testDir);
-  }
-}
-
-export async function setupTestDir(
-  testDir: URL,
-  spec: TestSpec,
-): Promise<URL> {
-  try {
-    await Deno.remove(testDir, { recursive: true });
-  } catch (e) {
-    if (e instanceof Deno.errors.PermissionDenied) {
-      await new Deno.Command("sudo", {
-        args: ["rm", "-rf", testDir.pathname],
-        stdout: "null",
-        stderr: "null",
-      }).output();
-    } else if (!(e instanceof Deno.errors.NotFound)) {
-      throw e;
-    }
-  }
-  await Deno.mkdir(testDir, { recursive: true });
-
-  for (const file of spec.files) {
-    await createDirOrFile(file, testDir, spec);
-  }
-  return testDir;
-}
-
-export async function readTestDir(
-  baseDir: URL,
-  configToml: string,
-): Promise<TestEntry[]> {
-  const filesAndDirs = (await Array.fromAsync(walkDir(baseDir))).toSorted(
-    byPath,
-  );
-  return await Promise.all(
-    filesAndDirs.map(async ({ stat, path, fullPath }): Promise<TestEntry> => {
-      const user = idToUser[stat.uid ?? 1000];
-      const group = idToGroup[stat.gid ?? 1000];
-      const mode = stat.mode ?? 0o0000;
-      const perms = (mode & 0o7777).toString(8) as TestPerms;
-      if (stat.isDirectory) {
-        return `${user}:${group} | ${perms} | 0 | ${path}/`;
-      } else if (stat.isSymlink) {
-        const linkTarget = await Deno.readLink(fullPath);
-        return `${user}:${group} |      | 0 | ${path} -> ${linkTarget}`;
-      } else {
-        const raw = await Deno.readTextFile(fullPath);
-        const contents = getContents(raw, configToml, path);
-        return `${user}:${group} | ${perms} | 0 | ${path} | ${contents}`;
-      }
-    }),
-  );
-}
-
-interface WalkDirResult {
-  path: string;
-  fullPath: URL;
-  stat: Deno.FileInfo;
-}
-
-export async function* walkDir(
-  baseDir: URL,
-  relativeDir: string = "",
-): AsyncGenerator<WalkDirResult> {
-  const currentDir = new URL(relativeDir, baseDir);
-  for await (const entry of Deno.readDir(currentDir)) {
-    const path = relativeDir + entry.name;
-    const fullPath = new URL(encodeURI("./" + path), baseDir);
-    const stat = await Deno.lstat(fullPath);
-    yield { path, fullPath, stat };
-    if (stat.isDirectory) {
-      yield* walkDir(baseDir, path + "/");
-    }
-  }
-}
-
-function getContents(raw: string, configToml: string, path: string) {
-  let contents = raw;
-  if (raw === configToml) {
-    contents = CONFIG_TOML_PLACEHOLDER;
-  } else if (path.endsWith(".cfgsync.state")) {
-    contents = "CFGSYNC_STATE";
-  }
-  return contents;
-}
-
-function byPath(o1: WalkDirResult, o2: WalkDirResult) {
-  if (o1.path < o2.path) return -1;
-  if (o1.path > o2.path) return 1;
-  return 0;
 }
