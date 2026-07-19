@@ -1,15 +1,22 @@
 # Changelog
 
-## [v0.6.2](https://github.com/nknapp/cfgsync/compare/v0.6.1...3e62861c00085a252acfb5da0a440c06da7bd04a) (2026-07-15)
+## [v0.6.3](https://github.com/nknapp/cfgsync/compare/v0.6.2...c9e39314227bc76a525e4fcfa8e045eeffca1c36) (2026-07-19)
 
-### Features
+### Fixes
+
+* set state file modification time after writing
+([b2bc1f2](https://github.com/nknapp/cfgsync/commit/b2bc1f20d85dde8a52ba92fe5e2a2c6ffa702b24))
+
+### [v0.6.2](https://github.com/nknapp/cfgsync/compare/v0.6.1...v0.6.2) (2026-07-14)
+
+#### Features
 
 * bin/git-commit-and-push creates PR if none exists
 ([3e62861](https://github.com/nknapp/cfgsync/commit/3e62861c00085a252acfb5da0a440c06da7bd04a))
 * close algorithm spec gap — implement steps 4-5 and all missing validations
 ([073d5e7](https://github.com/nknapp/cfgsync/commit/073d5e7c684ee08f2c76d4c2e8bac7d88c60523a))
 
-### Fixes
+#### Fixes
 
 * address PR review — drop 0o prefix in perms warnings, root:root target dir
 ([e501719](https://github.com/nknapp/cfgsync/commit/e501719d088e6b008a0053f7f16794504b1b0a70))
