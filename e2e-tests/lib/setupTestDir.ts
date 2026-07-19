@@ -6,6 +6,7 @@ import {
   TestUser,
   userToId,
 } from "./config.ts";
+import { parseDuration } from "./parseDuration.ts";
 
 export async function setupTestDir(
   testDir: URL,
@@ -46,7 +47,8 @@ class SetupTestDir {
     const uid = userToId(user as TestUser);
     const gid = groupToId(group as TestGroup);
     const testDir = this.testDir;
-    const mtime = computeMtime(this.spec, mtimeStr);
+
+    const mtime = this.computeMtime(mtimeStr);
 
     const baseInit: BaseFactoryInit = {
       testDir,
@@ -67,6 +69,11 @@ class SetupTestDir {
       return new FileFactory({ ...baseInit, contents: this.spec.configToml });
     }
     return new FileFactory({ ...baseInit, contents });
+  }
+
+  computeMtime(mtimeStr: string): Date {
+    const base = this.spec.faketime ? new Date(this.spec.faketime) : new Date();
+    return new Date(base.getTime() + parseDuration(mtimeStr));
   }
 }
 
@@ -93,7 +100,6 @@ class DirectoryFactory implements Factory {
 
   async create() {
     const realPath = new URL(this.init.path, this.init.testDir);
-    console.log(`Creating dir: ${realPath.pathname}`);
     await Deno.mkdir(realPath);
     await Deno.utime(realPath, this.init.mtime, this.init.mtime);
     await Deno.chmod(realPath, parseInt(this.init.perms, 8));
@@ -137,11 +143,10 @@ class SymlinkFactory implements Factory {
     const [sourcePath, targetPath] = this.init.path.split(" -> ");
     const absoluteSourcePath = new URL(encodeURI(sourcePath), this.init.testDir);
     await Deno.symlink(targetPath, absoluteSourcePath);
-    await new Deno.Command("touch", {
+    // Deno.utime does not work for symlinks because it sets the time of the link target.
+    await Deno.spawnAndWait("touch", {
       args: ["-h", "-d", this.init.mtime.toISOString(), absoluteSourcePath.pathname],
-      stdout: "null",
-      stderr: "null",
-    }).output();
+    });
   }
 }
 
@@ -152,21 +157,6 @@ function assertNotNull<T>(
   if (value == null) {
     throw new Error(message);
   }
-}
-
-function parseMtimeOffset(mtimeStr: string): number {
-  if (!mtimeStr || mtimeStr === "0") return 0;
-  const msMatch = mtimeStr.match(/^(-?\d+)\s*ms$/);
-  if (msMatch) return parseInt(msMatch[1]);
-  const secMatch = mtimeStr.match(/^(-?\d+)\s*sec$/);
-  if (secMatch) return parseInt(secMatch[1]) * 1000;
-  return 0;
-}
-
-function computeMtime(spec: TestSpec, mtimeStr: string): Date {
-  const offsetMs = parseMtimeOffset(mtimeStr);
-  const base = spec.faketime ? new Date(spec.faketime) : new Date();
-  return new Date(base.getTime() + offsetMs);
 }
 
 async function setOwner(realPath: URL, uid: number, gid: number) {

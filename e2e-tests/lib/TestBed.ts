@@ -7,6 +7,7 @@ import { XXH3_128 } from "xxh3-ts";
 import { Buffer } from "node:buffer";
 import { readTestDir } from "./readTestDir.ts";
 import { TestSpec } from "./config.ts";
+import { FakeTime } from "./faketime.ts";
 
 export type ExecReturn = { code: number; stdout: string; stderr: string };
 
@@ -24,34 +25,6 @@ function getUserInfo(): { username: string; groupname: string } {
     new Deno.Command("id", { args: ["-ng"] }).outputSync().stdout,
   ).trim();
   return { username, groupname };
-}
-
-class FakeTime {
-  file: string;
-  now: Date;
-
-  constructor(now: Date) {
-    this.now = now;
-    this.file = Deno.makeTempFileSync({ prefix: "cfgsync-faketime-" });
-    this.writeFakeTimeFile();
-  }
-
-  writeFakeTimeFile() {
-    Deno.writeTextFileSync(this.file, String(this.now.getTime()));
-  }
-
-  advance(duration: string): void {
-    const msMatch = duration.match(/^(\d+)\s*ms$/);
-    const secMatch = duration.match(/^(\d+)\s*sec$/);
-    if (msMatch) {
-      this.now = new Date(this.now.getTime() + parseInt(msMatch[1]));
-    } else if (secMatch) {
-      this.now = new Date(this.now.getTime() + parseInt(secMatch[1]) * 1000);
-    } else {
-      throw new Error(`Invalid duration format: "${duration}". Use "X ms" or "Y sec"`);
-    }
-    this.writeFakeTimeFile();
-  }
 }
 
 export class TestBed {
