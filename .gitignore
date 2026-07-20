@@ -2,7 +2,7 @@
 *.cfgsync.state
 /.idea/
 /tmp-opencode/
-/e2e-tests/_tmp/
+/e2e-tests/**/*.test.ts.tmp/
 .env
 .mise.local.toml
 /tmp

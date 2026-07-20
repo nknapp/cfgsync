@@ -19,7 +19,7 @@ const possibleFaketimeExecutables = [
 const projectDir = new URL("../..", import.meta.url);
 
 export const testBaseDir = new URL(
-  getFromEnvOrDefault("E2E_TEST_DIR", () => "e2e-tests/_tmp/"),
+  getFromEnvOrDefault("E2E_TEST_DIR", () => "e2e-tests/"),
   projectDir,
 );
 

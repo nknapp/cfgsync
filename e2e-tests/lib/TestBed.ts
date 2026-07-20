@@ -8,6 +8,8 @@ import { Buffer } from "node:buffer";
 import { readTestDir } from "./readTestDir.ts";
 import { TestEntry, TestSpec } from "./config.ts";
 import { FakeTime } from "./faketime.ts";
+import { relative } from "@std/path";
+import { mapToNewBasePath } from "./mapToNewBasePath.ts";
 
 export type ExecReturn = { code: number; stdout: string; stderr: string };
 
@@ -27,6 +29,14 @@ function getUserInfo(): { username: string; groupname: string } {
   return { username, groupname };
 }
 
+function getTestDir(t: Deno.TestContext) {
+  const desiredBaseDir = new URL(t.origin + ".tmp/");
+  const e2eTestDir = new URL("../", import.meta.url);
+  const baseDir = mapToNewBasePath(desiredBaseDir, e2eTestDir, testBaseDir);
+  const testNameSlug = t.name.replace(/\W/g, "_") + "/";
+  return new URL(testNameSlug, baseDir);
+}
+
 export class TestBed {
   private lastRun?: ExecReturn;
   private faketime: FakeTime | null = null;
@@ -35,7 +45,7 @@ export class TestBed {
     t: Deno.TestContext,
     specOrFn: TestSpecOrFn,
   ): Promise<{ testbed: TestBed; testDir: string; username: string; groupname: string }> {
-    const testDirUrl = new URL(t.name.replace(/\W/g, "_") + "/", testBaseDir);
+    const testDirUrl = getTestDir(t);
     const testDir = testDirUrl.pathname.replace(/\/$/, "");
     const spec = typeof specOrFn === "function" ? specOrFn({ testDir: testDir }) : specOrFn;
     await setupTestDir(testDirUrl, spec);
