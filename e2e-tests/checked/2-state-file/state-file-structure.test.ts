@@ -34,6 +34,7 @@ Deno.test("state-file-structure-after-sync", async (t) => {
     perms = "644"
     owner = "${username}:${groupname}"
     mtime = "2026-05-20T15:00:00.000Z"
+    file_type = "file"
 
     [[file]]
     group = "${testDir}/target"
@@ -42,6 +43,7 @@ Deno.test("state-file-structure-after-sync", async (t) => {
     perms = "0"
     owner = ""
     mtime = "2026-05-20T15:00:00.000Z"
+    file_type = "symlink"
 
     [[file]]
     group = "${testDir}/target"
@@ -50,6 +52,7 @@ Deno.test("state-file-structure-after-sync", async (t) => {
     perms = "644"
     owner = "${username}:${groupname}"
     mtime = "2026-05-20T15:00:00.000Z"
+    file_type = "file"
   `;
 
   assertEquals(stateToml, expected);

@@ -735,6 +735,12 @@ fn update_state(
                         String::new()
                     };
 
+                    let file_type = if abs_path.is_symlink() {
+                        "symlink".to_string()
+                    } else {
+                        "file".to_string()
+                    };
+
                     state.file.push(FileEntry {
                         group: group_path.clone(),
                         path: rel_path,
@@ -742,6 +748,7 @@ fn update_state(
                         perms,
                         owner,
                         mtime: mtime_str,
+                        file_type,
                     });
                 }
             }

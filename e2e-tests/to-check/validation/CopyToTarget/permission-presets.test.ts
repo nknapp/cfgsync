@@ -32,6 +32,7 @@ Deno.test("permission-presets-state-records-mapped-perms", async (t) => {
     perms = "600"
     owner = "${username}:${groupname}"
     mtime = "2026-05-20T15:00:00.000Z"
+    file_type = "file"
   `;
   assertEquals(stateToml, expected);
 });
