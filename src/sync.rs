@@ -607,18 +607,19 @@ fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
         })?;
     }
 
+    if std::fs::symlink_metadata(dst).is_ok() {
+        std::fs::remove_file(dst).map_err(|e| {
+            format!(
+                "Cannot remove existing file '{}' before copy: {}",
+                dst.display(),
+                e
+            )
+        })?;
+    }
+
     if src.is_symlink() {
         let target = std::fs::read_link(src)
             .map_err(|e| format!("Cannot read symlink target for '{}': {}", src.display(), e))?;
-        if dst.exists() {
-            std::fs::remove_file(dst).map_err(|e| {
-                format!(
-                    "Cannot remove existing file '{}' before creating symlink: {}",
-                    dst.display(),
-                    e
-                )
-            })?;
-        }
         std::os::unix::fs::symlink(&target, dst).map_err(|e| {
             format!(
                 "Cannot create symlink '{}' -> '{}': {}",
