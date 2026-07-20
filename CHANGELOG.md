@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.6.3](https://github.com/nknapp/cfgsync/compare/v0.6.2...c9e39314227bc76a525e4fcfa8e045eeffca1c36) (2026-07-19)
+## [v0.6.4](https://github.com/nknapp/cfgsync/compare/v0.6.3...4981123a27d77f6eb562d22420cb263e6e017016) (2026-07-20)
 
 ### Fixes
+
+* **sync:** do not update state for skipped conflicts
+([4981123](https://github.com/nknapp/cfgsync/commit/4981123a27d77f6eb562d22420cb263e6e017016))
+
+### [v0.6.3](https://github.com/nknapp/cfgsync/compare/v0.6.2...v0.6.3) (2026-07-19)
+
+#### Fixes
 
 * set state file modification time after writing
 ([b2bc1f2](https://github.com/nknapp/cfgsync/commit/b2bc1f20d85dde8a52ba92fe5e2a2c6ffa702b24))
