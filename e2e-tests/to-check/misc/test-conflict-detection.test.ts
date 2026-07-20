@@ -1,4 +1,4 @@
-import { assertEquals, CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
 
 Deno.test("conflict-detection", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -39,7 +39,7 @@ Deno.test("conflict-detection", async (t) => {
     `,
   });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/conflict.txt | source version",

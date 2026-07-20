@@ -1,4 +1,4 @@
-import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("permission-preset-shared", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -44,7 +44,7 @@ Deno.test("permission-preset-shared", async (t) => {
     `,
   });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",

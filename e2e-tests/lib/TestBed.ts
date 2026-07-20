@@ -6,7 +6,7 @@ import { InteractiveChildProcess } from "./spawn.ts";
 import { XXH3_128 } from "xxh3-ts";
 import { Buffer } from "node:buffer";
 import { readTestDir } from "./readTestDir.ts";
-import { TestSpec } from "./config.ts";
+import { TestEntry, TestSpec } from "./config.ts";
 import { FakeTime } from "./faketime.ts";
 
 export type ExecReturn = { code: number; stdout: string; stderr: string };
@@ -70,6 +70,10 @@ export class TestBed {
   async readTextFile(relativePath: string): Promise<string> {
     const path = new URL(relativePath, this.testDir);
     return await Deno.readTextFile(path);
+  }
+
+  async assertTestDir(files: TestEntry[]) {
+    assertEquals(await this.readTestDir(), files);
   }
 
   async mkdir(relativePath: string) {

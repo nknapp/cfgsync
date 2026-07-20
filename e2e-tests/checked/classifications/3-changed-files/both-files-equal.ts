@@ -1,4 +1,4 @@
-import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("both-exist-clean", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -10,13 +10,13 @@ Deno.test("both-exist-clean", async (t) => {
     `,
     files: [
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+      `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | hello",
       "user:user | 755 | 0 | target/",
       "user:user | 644 | 0 | target/file.txt | hello",
     ],
   });
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   // Test status
   await testbed.run({ args: ["--config", "config.toml", "status"] });
@@ -51,7 +51,7 @@ Deno.test("both-exist-clean", async (t) => {
     `,
     stderr: "",
   });
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",

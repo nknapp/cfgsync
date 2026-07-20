@@ -1,4 +1,4 @@
-import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("hooks-working-directory-is-config-dir", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -20,7 +20,7 @@ Deno.test("hooks-working-directory-is-config-dir", async (t) => {
 
   await testbed.run({ args: ["--config", "subdir/config.toml", "sync"] });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     "user:user | 755 | 0 | subdir/",
     `user:user | 644 | 0 | subdir/config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | subdir/config.toml | ${CONFIG_TOML}`,

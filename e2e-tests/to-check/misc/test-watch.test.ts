@@ -30,7 +30,7 @@ Deno.test("watch-sync-on-change", async (t) => {
     await testbed.writeTextFile("source/file.txt", "modified content");
     await child.waitForStderr("source -> target", { minCount: 2, timeoutMillis: 5000 });
 
-    assertEquals(await testbed.readTestDir(), [
+    await testbed.assertTestDir([
       `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
@@ -69,7 +69,7 @@ Deno.test("watch-sync-on-delete", async (t) => {
 
     await child.waitForStderr("source -> target", { minCount: 2, timeoutMillis: 5000 });
 
-    assertEquals(await testbed.readTestDir(), [
+    await testbed.assertTestDir([
       `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
@@ -105,7 +105,7 @@ Deno.test("watch-sync-new-file", async (t) => {
 
     await sleep(100);
 
-    assertEquals(await testbed.readTestDir(), [
+    await testbed.assertTestDir([
       `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
@@ -148,7 +148,7 @@ Deno.test("watch-empty-dir", async (t) => {
     await child.waitForStderr("source -> target", { minCount: 1, timeoutMillis: 5000 });
     await sleep(1000);
 
-    assertEquals(await testbed.readTestDir(), [
+    await testbed.assertTestDir([
       `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",

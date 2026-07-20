@@ -1,4 +1,3 @@
-import { assertEquals } from "@/lib/assert.ts";
 import { deindent } from "@/lib/deindent.ts";
 import { CONFIG_TOML, TestBed } from "@/lib/index.ts";
 
@@ -32,7 +31,7 @@ Deno.test("hooks-watch-mode", async (t) => {
     await sleep(2000);
 
     // Verify both initial and follow-up syncs (hook ran twice creating the marker)
-    assertEquals(await testbed.readTestDir(), [
+    await testbed.assertTestDir([
       `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",

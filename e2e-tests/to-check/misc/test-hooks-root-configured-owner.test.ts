@@ -1,11 +1,4 @@
-import {
-  assertEquals,
-  CONFIG_TOML,
-  deindent,
-  runningOutsideDocker,
-  STATE_FILE,
-  TestBed,
-} from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, runningOutsideDocker, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test({
   name: "hook-runs-as-configured-owner",
@@ -44,7 +37,7 @@ Deno.test({
     stderr: "",
   });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `root:root | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `root:root | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",

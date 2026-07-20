@@ -1,4 +1,4 @@
-import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("delete-target-changed", async (t) => {
   // Setup
@@ -11,6 +11,7 @@ Deno.test("delete-target-changed", async (t) => {
     `,
     files: [
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+      `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | file content",
       "user:user | 755 | 0 | target/",
@@ -18,7 +19,6 @@ Deno.test("delete-target-changed", async (t) => {
     ],
     faketime: "2020-01-01T00:00:00Z",
   });
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.advance("1 sec");
   await testbed.deleteFile("source/file.txt");
   await testbed.writeTextFile("target/file.txt", "different content");
@@ -47,7 +47,7 @@ Deno.test("delete-target-changed", async (t) => {
     `,
   });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",

@@ -1,4 +1,4 @@
-import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("symlinks-are-preserved-during-sync-forward", async (t) => {
   const { testbed, testDir } = await TestBed.create(t, ({ testDir }) => ({
@@ -21,7 +21,7 @@ Deno.test("symlinks-are-preserved-during-sync-forward", async (t) => {
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
@@ -58,7 +58,7 @@ Deno.test("symlinks-are-preserved-during-sync-backwards", async (t) => {
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
@@ -100,7 +100,7 @@ Deno.test("symlink-target-change-is-synced", async (t) => {
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",

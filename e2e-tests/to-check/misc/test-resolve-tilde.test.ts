@@ -56,7 +56,7 @@ async function testSyncToHomeDir(t: Deno.TestContext, { sudo = false } = {}) {
     stderr: "",
   });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
@@ -101,7 +101,7 @@ Deno.test({ name: "sync from home dir", ignore: runningOutsideDocker }, async (t
     stderr: "",
   });
 
-  assertEquals(await testbed.readTestDir(), [
+  await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
