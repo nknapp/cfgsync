@@ -8,7 +8,6 @@ import { Buffer } from "node:buffer";
 import { readTestDir } from "./readTestDir.ts";
 import { TestEntry, TestSpec } from "./config.ts";
 import { FakeTime } from "./faketime.ts";
-import { relative } from "@std/path";
 import { mapToNewBasePath } from "./mapToNewBasePath.ts";
 
 export type ExecReturn = { code: number; stdout: string; stderr: string };
