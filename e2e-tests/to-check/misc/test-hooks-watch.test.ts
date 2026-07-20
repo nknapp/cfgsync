@@ -1,6 +1,6 @@
 import { assertEquals } from "@/lib/assert.ts";
 import { deindent } from "@/lib/deindent.ts";
-import { TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, TestBed } from "@/lib/index.ts";
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -16,7 +16,7 @@ Deno.test("hooks-watch-mode", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | original content",
       "user:user | 755 | 0 | target/",
@@ -33,8 +33,8 @@ Deno.test("hooks-watch-mode", async (t) => {
 
     // Verify both initial and follow-up syncs (hook ran twice creating the marker)
     assertEquals(await testbed.readTestDir(), [
-      "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | modified content",
       "user:user | 755 | 0 | target/",

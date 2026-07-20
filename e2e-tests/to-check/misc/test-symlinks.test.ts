@@ -1,4 +1,4 @@
-import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("symlinks-are-preserved-during-sync-forward", async (t) => {
   const { testbed, testDir } = await TestBed.create(t, ({ testDir }) => ({
@@ -9,7 +9,7 @@ Deno.test("symlinks-are-preserved-during-sync-forward", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | file content",
       `user:user |      | 0 | source/symlink-absolute.txt -> ${testDir}/target/file.txt`,
@@ -22,8 +22,8 @@ Deno.test("symlinks-are-preserved-during-sync-forward", async (t) => {
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | file content",
     `user:user |      | 0 | source/symlink-absolute.txt -> ${testDir}/target/file.txt`,
@@ -46,7 +46,7 @@ Deno.test("symlinks-are-preserved-during-sync-backwards", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 755 | 0 | target/",
       "user:user | 644 | 0 | target/file.txt | file content",
@@ -59,8 +59,8 @@ Deno.test("symlinks-are-preserved-during-sync-backwards", async (t) => {
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | file content",
     `user:user |      | 0 | source/symlink-absolute.txt -> ${testDir}/source/file.txt`,
@@ -83,7 +83,7 @@ Deno.test("symlink-target-change-is-synced", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 644 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/one.txt | first",
       `user:user |      | 0 | source/symlink.txt -> one.txt`,
@@ -101,8 +101,8 @@ Deno.test("symlink-target-change-is-synced", async (t) => {
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 644 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/one.txt | first",
     "user:user |      | 0 | source/symlink.txt -> two.txt",

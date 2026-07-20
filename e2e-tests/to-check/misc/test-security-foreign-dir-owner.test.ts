@@ -1,4 +1,4 @@
-import { deindent, runningOutsideDocker, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, runningOutsideDocker, TestBed } from "@/lib/index.ts";
 
 Deno.test({
   name: "security-foreign-dir-owner",
@@ -12,7 +12,7 @@ Deno.test({
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 755 | 0 | source/foreign-dir/",
       "user:user | 644 | 0 | source/foreign-dir/file.txt | hello",

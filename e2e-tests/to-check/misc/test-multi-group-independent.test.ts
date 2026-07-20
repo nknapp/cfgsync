@@ -1,4 +1,4 @@
-import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("multi-group-independent", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -14,7 +14,7 @@ Deno.test("multi-group-independent", async (t) => {
       globs = ["**/*.conf"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source-a/",
       "user:user | 644 | 0 | source-a/file.txt | content from group a",
       "user:user | 755 | 0 | target-a/",
@@ -54,8 +54,8 @@ Deno.test("multi-group-independent", async (t) => {
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source-a/",
     "user:user | 644 | 0 | source-a/file.txt | content from group a",
     "user:user | 755 | 0 | source-b/",

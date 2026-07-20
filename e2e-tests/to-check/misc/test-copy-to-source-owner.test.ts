@@ -1,4 +1,11 @@
-import { assertEquals, deindent, runningOutsideDocker, TestBed } from "@/lib/index.ts";
+import {
+  assertEquals,
+  CONFIG_TOML,
+  deindent,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 Deno.test({
   name: "copy-to-source-respects-config-owner",
@@ -13,7 +20,7 @@ Deno.test({
       owner = "root:root"
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 755 | 0 | target/",
       "root:root | 644 | 0 | target/file.txt | target-only file",
@@ -36,8 +43,8 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "root:root | 644 | 0 | source/file.txt | target-only file",
     "user:user | 755 | 0 | target/",

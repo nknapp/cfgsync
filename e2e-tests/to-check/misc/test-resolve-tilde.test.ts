@@ -1,4 +1,11 @@
-import { assertEquals, deindent, runningOutsideDocker, TestBed } from "@/lib/index.ts";
+import {
+  assertEquals,
+  CONFIG_TOML,
+  deindent,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 import { readTestDir } from "@/lib/readTestDir.ts";
 
@@ -27,7 +34,7 @@ async function testSyncToHomeDir(t: Deno.TestContext, { sudo = false } = {}) {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 755 | 0 | source/cfgsync-test-subdir/",
       "user:user | 644 | 0 | source/cfgsync-test-subdir/data.txt | My data",
@@ -50,8 +57,8 @@ async function testSyncToHomeDir(t: Deno.TestContext, { sudo = false } = {}) {
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 755 | 0 | source/cfgsync-test-subdir/",
     "user:user | 644 | 0 | source/cfgsync-test-subdir/data.txt | My data",
@@ -71,7 +78,7 @@ Deno.test({ name: "sync from home dir", ignore: runningOutsideDocker }, async (t
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       `user:user | 0755 | 0 | /home/user/cfgsync-test-subdir/`,
       `user:user | 0755 | 0 | /home/user/cfgsync-test-subdir/subdir/`,
@@ -95,8 +102,8 @@ Deno.test({ name: "sync from home dir", ignore: runningOutsideDocker }, async (t
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 755 | 0 | source/subdir/",
     "user:user | 644 | 0 | source/subdir/data.txt | My data",

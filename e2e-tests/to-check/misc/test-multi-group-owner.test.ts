@@ -1,4 +1,11 @@
-import { assertEquals, deindent, runningOutsideDocker, TestBed } from "@/lib/index.ts";
+import {
+  assertEquals,
+  CONFIG_TOML,
+  deindent,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 Deno.test({
   name: "multi-group-owner",
@@ -18,7 +25,7 @@ Deno.test({
       globs = ["**/*.conf"]
     `,
     files: [
-      "root:root | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `root:root | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source-with-owner/",
       "user:user | 644 | 0 | source-with-owner/file.conf | owner group file",
       "user:user | 755 | 0 | target-with-owner/",
@@ -45,8 +52,8 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "root:root | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "root:root | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `root:root | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `root:root | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source-no-owner/",
     "user:user | 644 | 0 | source-no-owner/file.conf | no owner group file",
     "user:user | 755 | 0 | source-with-owner/",

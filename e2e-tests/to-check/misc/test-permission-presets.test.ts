@@ -1,4 +1,4 @@
-import { assertEquals, deindent, hash, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, hash, TestBed } from "@/lib/index.ts";
 
 Deno.test("permission-presets-state-records-mapped-perms", async (t) => {
   const { testbed, testDir, username, groupname } = await TestBed.create(t, {
@@ -10,7 +10,7 @@ Deno.test("permission-presets-state-records-mapped-perms", async (t) => {
       globs = ["**/*.conf"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.conf | some content",
       "user:user | 755 | 0 | target/",

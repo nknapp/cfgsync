@@ -1,4 +1,4 @@
-import { deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
 
 Deno.test("status-unchanged-content", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -9,7 +9,7 @@ Deno.test("status-unchanged-content", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | same content",
       "user:user | 755 | 0 | target/",
@@ -55,7 +55,7 @@ Deno.test("status-unchanged-content-actual-change-detected", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | original content",
       "user:user | 755 | 0 | target/",
@@ -90,7 +90,7 @@ Deno.test("status-unchanged-content-changed-perms", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | original content",
       "user:user | 755 | 0 | target/",

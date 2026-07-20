@@ -1,4 +1,4 @@
-import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
 
 Deno.test("new-file-conflict", async (t) => {
   const { testbed, testDir } = await TestBed.create(t, {
@@ -9,7 +9,7 @@ Deno.test("new-file-conflict", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source version\n",
       "user:user | 755 | 0 | target/",
@@ -59,7 +59,7 @@ Deno.test("new-file-conflict", async (t) => {
 
   // After abort: files unchanged, no state file created
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source version\n",
     "user:user | 755 | 0 | target/",

@@ -1,4 +1,11 @@
-import { assertEquals, deindent, runningOutsideDocker, TestBed } from "@/lib/index.ts";
+import {
+  assertEquals,
+  CONFIG_TOML,
+  deindent,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 Deno.test({
   name: "root-permissions-enforced",
@@ -13,7 +20,7 @@ Deno.test({
       file_perms = "private"
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.conf | secret config",
       "user:user | 755 | 0 | target/",
@@ -36,8 +43,8 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.conf | secret config",
     "user:user | 755 | 0 | target/",

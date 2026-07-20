@@ -1,4 +1,4 @@
-import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("new-file-copy-to-source", async (t) => {
   const { testbed, testDir } = await TestBed.create(t, {
@@ -9,7 +9,7 @@ Deno.test("new-file-copy-to-source", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 755 | 0 | target/",
       "user:user | 644 | 0 | target/file.txt | from target\n",
@@ -64,8 +64,8 @@ Deno.test("new-file-copy-to-source", async (t) => {
 
   // After sync: both files exist with same content, state file created
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | from target\n",
     "user:user | 755 | 0 | target/",

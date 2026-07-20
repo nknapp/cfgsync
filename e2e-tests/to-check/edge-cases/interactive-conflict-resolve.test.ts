@@ -1,4 +1,4 @@
-import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("interactive-skip-conflict", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -9,7 +9,7 @@ Deno.test("interactive-skip-conflict", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/conflict.txt | source version",
       "user:user | 755 | 0 | target/",
@@ -40,8 +40,8 @@ Deno.test("interactive-skip-conflict", async (t) => {
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/conflict.txt | source version",
     "user:user | 755 | 0 | target/",
@@ -58,7 +58,7 @@ Deno.test("interactive-quit-conflict", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/conflict.txt | source version",
       "user:user | 755 | 0 | target/",

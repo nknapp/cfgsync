@@ -1,4 +1,4 @@
-import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("hooks-working-directory-is-config-dir", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -11,7 +11,7 @@ Deno.test("hooks-working-directory-is-config-dir", async (t) => {
     `,
     files: [
       "user:user | 755 | 0 | subdir/",
-      "user:user | 755 | 0 | subdir/config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | subdir/config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | subdir/source/",
       "user:user | 644 | 0 | subdir/source/file.txt | file content",
       "user:user | 755 | 0 | subdir/target/",
@@ -22,8 +22,8 @@ Deno.test("hooks-working-directory-is-config-dir", async (t) => {
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 755 | 0 | subdir/",
-    "user:user | 644 | 0 | subdir/config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | subdir/config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | subdir/config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | subdir/config.toml | ${CONFIG_TOML}`,
     "user:user | 644 | 0 | subdir/hook-marker | ",
     "user:user | 755 | 0 | subdir/source/",
     "user:user | 644 | 0 | subdir/source/file.txt | file content",

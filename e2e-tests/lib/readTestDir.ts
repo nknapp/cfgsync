@@ -1,9 +1,9 @@
 import {
-  CONFIG_TOML_PLACEHOLDER,
+  CONFIG_TOML,
   idToGroup,
   idToUser,
+  STATE_FILE,
   STATE_FILE_SUFFIX,
-  STATE_TOML_PLACEHOLDER,
   TestEntry,
   TestPerms,
 } from "./config.ts";
@@ -60,9 +60,9 @@ export async function* walkDir(
 function getContents(raw: string, configToml: string, path: string) {
   let contents = raw;
   if (raw === configToml) {
-    contents = CONFIG_TOML_PLACEHOLDER;
+    contents = CONFIG_TOML;
   } else if (path.endsWith(STATE_FILE_SUFFIX)) {
-    contents = STATE_TOML_PLACEHOLDER;
+    contents = STATE_FILE;
   }
   return contents;
 }

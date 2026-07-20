@@ -1,4 +1,4 @@
-import { deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
 
 Deno.test("diff-conflict-shows-unified-diff", async (t) => {
   const { testbed, testDir } = await TestBed.create(t, {
@@ -9,7 +9,7 @@ Deno.test("diff-conflict-shows-unified-diff", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | -7200 sec | source/conflict.txt | line 1\nline 2\nline 3 source\n",
       "user:user | 755 | 0 | target/",

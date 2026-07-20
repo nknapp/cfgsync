@@ -12,8 +12,8 @@ export type TestFile = `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath}
 export type TestSymlink = `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath} -> ${TestPath}`;
 export type TestDir = `${TestOwner} | ${TestPerms} | ${TestMtime} | ${TestPath}/`;
 export type TestEntry = TestFile | TestSymlink | TestDir;
-export const CONFIG_TOML_PLACEHOLDER = "__CONFIG_TOML__";
-export const STATE_TOML_PLACEHOLDER = "CFGSYNC_STATE";
+export const CONFIG_TOML = "__CONFIG_TOML__";
+export const STATE_FILE = "CFGSYNC_STATE";
 
 export const STATE_FILE_SUFFIX = ".cfgsync.state";
 

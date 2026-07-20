@@ -1,4 +1,4 @@
-import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
 
 Deno.test("sync-dry-run", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -9,7 +9,7 @@ Deno.test("sync-dry-run", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | some content",
       "user:user | 755 | 0 | target/",
@@ -33,7 +33,7 @@ Deno.test("sync-dry-run", async (t) => {
 
   // Verify no files were actually copied
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | some content",
     "user:user | 755 | 0 | target/",

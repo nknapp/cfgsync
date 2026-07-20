@@ -1,4 +1,4 @@
-import { deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
 
 Deno.test("multi-group-overlap-error", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -14,7 +14,7 @@ Deno.test("multi-group-overlap-error", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/shared.conf | shared content",
       "user:user | 755 | 0 | target-a/",

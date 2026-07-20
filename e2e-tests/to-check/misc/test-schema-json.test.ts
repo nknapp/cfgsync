@@ -1,4 +1,4 @@
-import { assertEquals, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, TestBed } from "@/lib/index.ts";
 
 Deno.test("schema-json", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -9,7 +9,7 @@ Deno.test("schema-json", async (t) => {
       'globs = ["**/*.txt"]',
     ].join("\n"),
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 755 | 0 | target/",
     ],

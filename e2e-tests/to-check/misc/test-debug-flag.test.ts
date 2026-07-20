@@ -1,4 +1,4 @@
-import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("debug-flag-shows-scan-details", async (t) => {
   const { testbed, testDir } = await TestBed.create(t, {
@@ -9,7 +9,7 @@ Deno.test("debug-flag-shows-scan-details", async (t) => {
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | file content",
       "user:user | 644 | 0 | source/ignoredFile.md | file content",
@@ -20,8 +20,8 @@ Deno.test("debug-flag-shows-scan-details", async (t) => {
   await testbed.run({ args: ["--config", "config.toml", "sync", "--debug"] });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | file content",
     "user:user | 644 | 0 | source/ignoredFile.md | file content",

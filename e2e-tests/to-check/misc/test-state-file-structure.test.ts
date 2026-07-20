@@ -1,4 +1,4 @@
-import { assertEquals, deindent, hash, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, hash, TestBed } from "@/lib/index.ts";
 
 Deno.test("state-file-structure-after-sync", async (t) => {
   const { testbed, testDir, username, groupname } = await TestBed.create(t, {
@@ -9,7 +9,7 @@ Deno.test("state-file-structure-after-sync", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | hello",
       `user:user |      | 0 | source/link.txt -> file.txt`,

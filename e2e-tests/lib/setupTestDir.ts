@@ -1,5 +1,5 @@
 import {
-  CONFIG_TOML_PLACEHOLDER,
+  CONFIG_TOML,
   groupToId,
   STATE_FILE_SUFFIX,
   TestGroup,
@@ -70,7 +70,7 @@ class SetupTestDir {
     if (path.includes(" -> ")) {
       return new SymlinkFactory(baseInit);
     }
-    if (contents == CONFIG_TOML_PLACEHOLDER) {
+    if (contents == CONFIG_TOML) {
       return new FileFactory({ ...baseInit, contents: this.spec.configToml });
     }
     if (path.endsWith(STATE_FILE_SUFFIX)) {
@@ -190,13 +190,11 @@ class StateFileFactory implements Factory {
     );
     assertEquals(code, 0);
 
-    const realPath = new URL(this.init.path, this.init.testDir)
+    const realPath = new URL(this.init.path, this.init.testDir);
     const stat = await Deno.lstat(realPath);
     assertEquals(stat.mtime, this.init.mtime);
     await Deno.chmod(realPath, parseInt(this.init.perms, 8));
     await setOwner(realPath, this.init.uid, this.init.gid);
-
-
   }
 }
 

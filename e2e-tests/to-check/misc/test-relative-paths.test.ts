@@ -1,4 +1,4 @@
-import { assertEquals, deindent, TestBed } from "@/lib/index.ts";
+import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("relative-paths", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -10,7 +10,7 @@ Deno.test("relative-paths", async (t) => {
     `,
     files: [
       "user:user | 755 | 0 | subdir/",
-      "user:user | 755 | 0 | subdir/config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | subdir/config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | subdir/source/",
       "user:user | 644 | 0 | subdir/source/same.txt | identical content",
       "user:user | 755 | 0 | target/",
@@ -20,8 +20,8 @@ Deno.test("relative-paths", async (t) => {
 
   assertEquals(await testbed.readTestDir(), [
     "user:user | 755 | 0 | subdir/",
-    "user:user | 644 | 0 | subdir/config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | subdir/config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | subdir/config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | subdir/config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | subdir/source/",
     "user:user | 644 | 0 | subdir/source/same.txt | identical content",
     "user:user | 755 | 0 | target/",

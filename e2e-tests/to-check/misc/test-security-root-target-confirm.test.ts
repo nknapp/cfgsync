@@ -1,4 +1,11 @@
-import { assertEquals, deindent, runningOutsideDocker, TestBed } from "@/lib/index.ts";
+import {
+  assertEquals,
+  CONFIG_TOML,
+  deindent,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 // Bypass: root-owned config, not group/other-writable → no security
 Deno.test({
@@ -13,7 +20,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "root:root | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `root:root | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "root:root | 755 | 0 | target/",
@@ -36,8 +43,8 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "root:root | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "root:root | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `root:root | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `root:root | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "root:root | 755 | 0 | target/",
@@ -57,7 +64,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "user:user | 755 | 0 | target/",
@@ -80,8 +87,8 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "user:user | 755 | 0 | target/",
@@ -102,7 +109,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "root:root | 755 | 0 | target/",
@@ -127,8 +134,8 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "root:root | 755 | 0 | target/",
@@ -150,7 +157,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "user:user | 755 | 0 | target/",
@@ -184,8 +191,8 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "root:root | 644 | 0 | hook-ran | root\n",
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
@@ -209,7 +216,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "user:user | 755 | 0 | target/",
@@ -244,8 +251,8 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "user:user | 755 | 0 | target/",
@@ -268,7 +275,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "user:user | 755 | 0 | target/",
@@ -296,7 +303,7 @@ Deno.test({
   assertEquals(code, 1);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "user:user | 755 | 0 | target/",
@@ -318,7 +325,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "user:user | 755 | 0 | target/",
@@ -341,8 +348,8 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 644 | 0 | hook-ran | user\n",
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
@@ -365,7 +372,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "root:root | 755 | 0 | target/",
@@ -393,8 +400,8 @@ Deno.test({
   });
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "root:root | 755 | 0 | target/",
@@ -415,7 +422,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "user:user | 755 | 0 | target/",
@@ -445,8 +452,8 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "user:user | 755 | 0 | target/",
@@ -468,7 +475,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | source content",
       "user:user | 755 | 0 | target/",
@@ -497,8 +504,8 @@ Deno.test({
   assertEquals(code, 0);
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 644 | 0 | config.cfgsync.state | CFGSYNC_STATE",
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "user:user | 755 | 0 | target/",
@@ -519,7 +526,7 @@ Deno.test({
       globs = ["**/*.txt"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/a.txt | content a",
       "user:user | 755 | 0 | target/",
@@ -556,7 +563,7 @@ Deno.test({
   );
 
   assertEquals(await testbed.readTestDir(), [
-    "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/a.txt | content a",
     "user:user | 755 | 0 | target/",

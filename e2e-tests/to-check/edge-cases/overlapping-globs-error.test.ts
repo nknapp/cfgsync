@@ -1,4 +1,4 @@
-import { deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
 
 Deno.test("overlapping-globs-status-error", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -14,7 +14,7 @@ Deno.test("overlapping-globs-status-error", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/shared.conf | shared file",
       "user:user | 755 | 0 | tgt-a/",
@@ -46,7 +46,7 @@ Deno.test("overlapping-globs-sync-error", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/shared.conf | shared file",
       "user:user | 755 | 0 | tgt-a/",
