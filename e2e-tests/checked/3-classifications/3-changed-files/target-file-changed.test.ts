@@ -19,8 +19,6 @@ Deno.test("both-exist-copy-to-source", async (t) => {
     faketime: "2020-01-01T00:00:00Z",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-
   testbed.advance("1 sec");
   await testbed.writeTextFile("target/file.txt", "v2");
 

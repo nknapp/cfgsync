@@ -104,7 +104,6 @@ mtime = "2026-07-11T00:12:16.665Z"
   having files matching the glob. 
 * Verify that every source and target file was found by no more than one sync group. If a file is in multiple
   sync groups, write an error message and exit immediately.
-  ([test-multi-group-overlap.test.ts](../../e2e-tests/checked/classifications/test-multi-group-overlap.test.ts)
 * The files and directories are paired up by their relative path, so we get this information on every entry (note that
   not all information must be read upfront. It can also be read when needed)
     * source file/dir (if it exists)
@@ -135,7 +134,7 @@ We assume having the following helpers (`file` is either `source` or `target`)
 > We expect most of the files to be unchanged with the same mtime as before. The content hash is only checked to
 > detect files that have been edited and reverted as "unchanged"
 
-* [e2e-tests](../../e2e-tests/checked/classifications)
+* [e2e-tests](../../e2e-tests/checked/3-classifications)
 
 ```python
 # No state file

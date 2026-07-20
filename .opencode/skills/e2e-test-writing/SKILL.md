@@ -14,7 +14,7 @@ override: AGENTS.md
 ./e2e-tests/run-docker.sh <test-file-name>
 ```
 
-The argument is the full test file name (e.g. `copy-to-source.test.ts`), not a partial pattern. No `--` separator.
+The argument is the full test file name (e.g. `target-file-changed.test.ts`), not a partial pattern. No `--` separator.
 
 This is sufficient because:
 - Test-only changes cannot break the build, lints, or unit tests (those only run against Rust source)

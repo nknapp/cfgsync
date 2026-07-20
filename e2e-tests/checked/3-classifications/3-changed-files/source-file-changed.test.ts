@@ -10,14 +10,14 @@ Deno.test("both-exist-copy-to-target", async (t) => {
     `,
     files: [
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+      `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | v1",
       "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/file.txt | v1",
     ],
     faketime: "2020-01-01T00:00:00Z",
   });
-
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   testbed.advance("1 sec");
   await testbed.writeTextFile("source/file.txt", "v2");
