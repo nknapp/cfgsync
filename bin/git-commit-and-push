@@ -34,11 +34,11 @@ wait_for_ci_run() {
 
 
 main() {
-    if [ "$BRANCH" = "main" ]; then
+    if [[ "$BRANCH" = "main" ]]; then
         echo "Error: You are on 'main' branch. Never commit or push directly to main." >&2
         exit 1
     fi
-    if [ -z "$1" ]; then
+    if [[ "${1+x}" != "x" ]]; then
         usage
         exit 1
     fi
