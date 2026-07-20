@@ -6,97 +6,27 @@ usage() {
     echo "Usage: $0 <commit-message>"
     echo ""
     echo "Stage all files, run full verification, commit, push, and verify CI."
-    echo ""
-    echo "Steps:"
-    echo "  1. mise run all-local  (full verification)"
-    echo "  2. git add -A && git commit -m <message>"
-    echo "  3. git push origin <current-branch>"
-    echo "  4. Create or verify PR"
-    echo "  5. Wait for CI to finish"
-    echo ""
-    echo "Options:"
-    echo "  --no-verify   Skip verification (commit and push only)"
 }
 
-WORKTREE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BRANCH="$(cd "$WORKTREE_ROOT" && git branch --show-current)"
-PR_NUMBER=""
+BRANCH="$( git branch --show-current)"
 
-
-detect_ssh_auth() {
-    for sock in /run/user/$(id -u)/*ssh* /run/user/$(id -u)/*gcr*ssh* /tmp/ssh-*/*.agent.*; do
-        if [ -S "$sock" ] 2>/dev/null; then
-            export SSH_AUTH_SOCK="$sock"
-            return 0
-        fi
-    done
-    echo "Warning: no SSH agent socket found. Push may fail." >&2
-    return 1
-}
-
-
-run_verification() {
-    echo "--- Running full verification (mise run all-local)..."
-    cd "$WORKTREE_ROOT"
-    if mise run all-local; then
-        echo "--- Verification passed."
-    else
-        echo "--- Verification FAILED. Aborting." >&2
-        exit 1
-    fi
-}
-
-
-commit() {
-    local msg="$1"
-    cd "$WORKTREE_ROOT"
-    git add -A
-    git commit -m "$msg"
-}
-
-
-push() {
-    cd "$WORKTREE_ROOT"
-    detect_ssh_auth
-    git push origin "$BRANCH"
-}
-
-
-ensure_pr() {
-    cd "$WORKTREE_ROOT"
-    PR_NUMBER=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
-    if [ -z "$PR_NUMBER" ]; then
-        echo "No open PR found for branch '$BRANCH'. Creating one..."
-        PR_URL=$(gh pr create --fill 2>&1)
-        PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$' || echo "")
-        if [ -z "$PR_NUMBER" ]; then
-            echo "Error: Failed to create PR." >&2
-            echo "$PR_URL" >&2
-            return 1
-        fi
-        echo "PR #$PR_NUMBER created."
-    else
-        echo "PR #$PR_NUMBER is still open."
-    fi
-}
-
-
-wait_for_ci() {
-    cd "$WORKTREE_ROOT"
-    local run_id
+wait_for_ci_start() {
+  local run_id
+  run_id=""
+  while [[ -z ${run_id} ]] ; do
     sleep 5
-    run_id=$(gh run list --branch "$BRANCH" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
-    if [ -z "$run_id" ]; then
-        echo "Warning: Could not find CI run for branch '$BRANCH'." >&2
-        return 1
-    fi
-    echo "Waiting for CI run #$run_id to complete..."
-    gh run watch "$run_id"
+    run_id="$(gh run list --commit "$( git rev-parse HEAD )" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "" )"
+  done
+  echo "${run_id}"
+}
+
+wait_for_ci_run() {
+    gh run watch "$1"
     local conclusion
-    conclusion=$(gh run view "$run_id" --json conclusion --jq '.conclusion' 2>/dev/null || echo "unknown")
+    conclusion=$(gh run view "$1" --json conclusion --jq '.conclusion' 2>/dev/null || echo "unknown")
     if [ "$conclusion" != "success" ]; then
-        echo "CI failed (conclusion: $conclusion). Inspect with:" >&2
-        echo "  gh run view $run_id --log | grep -i error" >&2
+        echo "CI failed (conclusion: $conclusion)" >&2
+        gh run view "$1" --log | grep -i error >&2
         return 1
     fi
     echo "All CI jobs passed."
@@ -104,49 +34,27 @@ wait_for_ci() {
 
 
 main() {
-    local skip_verify=false
-    local msg=""
-
-    while [ $# -gt 0 ]; do
-        case "$1" in
-            --no-verify)
-                skip_verify=true
-                shift
-                ;;
-            --help|-h)
-                usage
-                exit 0
-                ;;
-            *)
-                if [ -z "$msg" ]; then
-                    msg="$1"
-                else
-                    usage
-                    exit 1
-                fi
-                shift
-                ;;
-        esac
-    done
-
-    if [ -z "$msg" ]; then
-        usage
-        exit 1
-    fi
-
     if [ "$BRANCH" = "main" ]; then
         echo "Error: You are on 'main' branch. Never commit or push directly to main." >&2
         exit 1
     fi
-
-    if [ "$skip_verify" = false ]; then
-        run_verification
+    if [ -z "$1" ]; then
+        usage
+        exit 1
     fi
 
-    commit "$msg"
-    push
-    ensure_pr
-    wait_for_ci
+    mise run all-local
+    git add -A
+    git diff-index --quiet HEAD || git commit -m "$1"
+    git rebase origin/main
+    git push origin "$BRANCH" --force-with-lease
+
+    if ! gh pr create --fill ; then
+      echo "There is already a PR. Just use it."
+    fi
+    wait_for_ci_run "$( wait_for_ci_start )"
+
+    echo "PR is at: $( gh pr status --jq .currentBranch.url --json url )"
 }
 
 
