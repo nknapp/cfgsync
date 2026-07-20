@@ -1,18 +1,18 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
-Deno.test("file-perms-public-no-change", async (t) => {
+Deno.test("permission-preset-shared", async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
       target = "./target"
-      globs = ["**/*.conf"]
-      file_perms = "public"
+      globs = ["**/*.txt"]
+      file_perms = "shared"
     `,
     files: [
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
-      "user:user | 644 | 0 | source/file.conf | config content",
+      "user:user | 644 | 0 | source/file.txt | some content",
       "user:user | 755 | 0 | target/",
     ],
   });
@@ -27,26 +27,38 @@ Deno.test("file-perms-public-no-change", async (t) => {
     stderr: "",
   });
 
+  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      1→
+    `,
+    stderr: "",
+  });
+
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      copied file.conf -> target
+      copied file.txt -> target
 
       source -> target: 1
       target -> source: 0
       deleted target:   0
       deleted source:   0
+      permission skips: 1
     `,
-    stderr: "",
+    stderr: deindent`
+      Permission warning: 'file.txt' has 644, should be 664 (run as root to fix)
+    `,
   });
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
-    "user:user | 644 | 0 | source/file.conf | config content",
+    "user:user | 644 | 0 | source/file.txt | some content",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.conf | config content",
+    "user:user | 644 | 0 | target/file.txt | some content",
   ]);
 });

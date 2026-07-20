@@ -57,7 +57,7 @@ Deno.test("both-exist-copy-to-source", async (t) => {
       \ No newline at end of file
     `,
     stderr: "",
-  })
+  });
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
