@@ -1,4 +1,4 @@
-import { deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
 
 Deno.test("directory-permission-warning", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -10,7 +10,7 @@ Deno.test("directory-permission-warning", async (t) => {
       globs = ["**/*"]
     `,
     files: [
-      "user:user | 755 | 0 | config.toml | __CONFIG_TOML__",
+      `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 755 | 0 | source/subdir/",
       "user:user | 644 | 0 | source/subdir/file.txt | hello",
