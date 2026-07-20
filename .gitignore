@@ -5,3 +5,4 @@
 /e2e-tests/_tmp/
 .env
 .mise.local.toml
+/tmp

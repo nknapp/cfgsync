@@ -24,17 +24,17 @@ Deno.test("interactive-conflict-choose-source", async (t) => {
   const { code, stdout } = await child.waitForExit();
 
   assertEquals(
-      stdout,
-      deindent`
-    resolved: file.txt (kept target)
-
-    source -> target: 0
-    target -> source: 1
-    deleted target:   0
-    deleted source:   0
-    conflicts:        1
-      resolved:       1
-      skipped:        0
+    stdout,
+    deindent`
+      resolved: file.txt (kept target)
+  
+      source -> target: 0
+      target -> source: 1
+      deleted target:   0
+      deleted source:   0
+      conflicts:        1
+        resolved:       1
+        skipped:        0
   `,
   );
 
@@ -74,8 +74,8 @@ Deno.test("interactive-conflict-choose-target", async (t) => {
   const { code, stdout } = await child.waitForExit();
 
   assertEquals(
-      stdout,
-      deindent`
+    stdout,
+    deindent`
     resolved: file.txt (kept source)
 
     source -> target: 1
@@ -99,7 +99,6 @@ Deno.test("interactive-conflict-choose-target", async (t) => {
     "user:user | 644 | 0 | target/file.txt | source version\n",
   ]);
 });
-
 
 Deno.test("interactive-conflict-skip", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -145,10 +144,22 @@ Deno.test("interactive-conflict-skip", async (t) => {
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
-    "user:user | 644 | 0 | source/file.txt | source version",
+    "user:user | 644 | 0 | source/file.txt | source version\n",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.txt | target version",
+    "user:user | 644 | 0 | target/file.txt | target version\n",
   ]);
+
+  // nothing has changed. State for this file should not have been updated, conflict is still there
+  await testbed.run({ args: ["--config", "config.toml", "status"] });
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      source -> target: 0
+      target -> source: 0
+      conflict:         1
+    `,
+    stderr: "",
+  });
 });
 
 Deno.test("interactive-quit-conflict", async (t) => {

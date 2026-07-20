@@ -14,7 +14,7 @@ struct SyncOutcome {
     deleted_from_source: usize,
     skipped_perms: usize,
     conflicts_total: usize,
-    conflicts_skipped: usize,
+    conflicts_resolved: usize,
     #[allow(dead_code)]
     updated_state: usize,
     hook_failures: usize,
@@ -54,12 +54,13 @@ pub fn run(
         deleted_from_source: 0,
         skipped_perms: 0,
         conflicts_total: conflict_count,
-        conflicts_skipped: 0,
+        conflicts_resolved: 0,
         updated_state: 0,
         hook_failures: 0,
     };
 
     let mut groups_with_copy_to_target: HashSet<usize> = HashSet::new();
+    let mut skipped_conflicts: HashSet<(usize, String)> = HashSet::new();
 
     let bypass = security_bypass(config);
     let mut security_notice_printed = false;
@@ -293,13 +294,13 @@ pub fn run(
                                     Ok(()) => {
                                         println!("resolved: {} (kept source)", rel_path);
                                         outcome.copied_to_target += 1;
-                                        outcome.conflicts_skipped += 1;
+                                        outcome.conflicts_resolved += 1;
                                         groups_with_copy_to_target.insert(*group_index);
                                     }
                                     Err(e) => {
                                         eprintln!("Warning: skipping '{}': {}", rel_path, e);
                                         outcome.skipped_perms += 1;
-                                        outcome.conflicts_skipped += 1;
+                                        outcome.conflicts_resolved += 1;
                                     }
                                 }
                             }
@@ -313,12 +314,12 @@ pub fn run(
                                         println!("resolved: {} (kept target)", rel_path);
                                         apply_source_owner(config, *group_index, abs_src);
                                         outcome.copied_to_source += 1;
-                                        outcome.conflicts_skipped += 1;
+                                        outcome.conflicts_resolved += 1;
                                     }
                                     Err(e) => {
                                         eprintln!("Warning: skipping '{}': {}", rel_path, e);
                                         outcome.skipped_perms += 1;
-                                        outcome.conflicts_skipped += 1;
+                                        outcome.conflicts_resolved += 1;
                                     }
                                 }
                             }
@@ -329,7 +330,7 @@ pub fn run(
                         }
                         _ => {
                             println!("skipped conflict: {}", rel_path);
-                            outcome.conflicts_skipped += 1;
+                            skipped_conflicts.insert((*group_index, rel_path.clone()));
                             conflict_count -= 1;
                         }
                     }
@@ -556,7 +557,7 @@ pub fn run(
         }
 
         // Rebuild state from current filesystem
-        update_state(config, state);
+        update_state(config, state, &skipped_conflicts);
         state.save(&config.state_path)?;
         chown_state_file(&config.state_path, &config.config_path);
     } else {
@@ -581,13 +582,9 @@ pub fn run(
     println!("deleted source:   {}", outcome.deleted_from_source);
     if outcome.conflicts_total > 0 {
         println!("conflicts:        {}", outcome.conflicts_total);
-        if outcome.conflicts_skipped > 0 {
-            println!("  resolved:       {}", outcome.conflicts_skipped);
-            println!(
-                "  skipped:        {}",
-                outcome.conflicts_total - outcome.conflicts_skipped
-            );
-        }
+        let skipped = outcome.conflicts_total - outcome.conflicts_resolved;
+        println!("  resolved:       {}", outcome.conflicts_resolved);
+        println!("  skipped:        {}", skipped);
     }
     if outcome.skipped_perms > 0 {
         println!("permission skips: {}", outcome.skipped_perms);
@@ -666,7 +663,11 @@ fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn update_state(config: &ResolvedConfig, state: &mut State) {
+fn update_state(
+    config: &ResolvedConfig,
+    state: &mut State,
+    skipped_conflicts: &HashSet<(usize, String)>,
+) {
     state.last_sync = crate::time::now();
     state.file.clear();
 
@@ -709,6 +710,10 @@ fn update_state(config: &ResolvedConfig, state: &mut State) {
                 };
 
                 if !seen.insert((group_index, rel_path.clone())) {
+                    continue;
+                }
+
+                if skipped_conflicts.contains(&(group_index, rel_path.clone())) {
                     continue;
                 }
 
@@ -1798,7 +1803,7 @@ mod tests {
             deleted_from_source: 0,
             skipped_perms: 0,
             conflicts_total: 0,
-            conflicts_skipped: 0,
+            conflicts_resolved: 0,
             updated_state: 0,
             hook_failures: 0,
         };
