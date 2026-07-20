@@ -18,6 +18,12 @@ pub struct FileEntry {
     pub perms: String,
     pub owner: String,
     pub mtime: String,
+    #[serde(default = "default_file_type")]
+    pub file_type: String,
+}
+
+fn default_file_type() -> String {
+    "file".to_string()
 }
 
 impl State {
@@ -90,6 +96,7 @@ mod tests {
                     perms: "644".to_string(),
                     owner: "root:root".to_string(),
                     mtime: "2026-05-25T10:30:00.000Z".to_string(),
+                    file_type: "file".to_string(),
                 },
                 FileEntry {
                     group: "./target".to_string(),
@@ -98,6 +105,7 @@ mod tests {
                     perms: "600".to_string(),
                     owner: "nobody:nogroup".to_string(),
                     mtime: "2026-05-25T10:30:00.000Z".to_string(),
+                    file_type: "file".to_string(),
                 },
             ],
         };
@@ -141,6 +149,7 @@ mod tests {
                 perms: "644".to_string(),
                 owner: "user:user".to_string(),
                 mtime: "2026-05-25T10:30:00.000Z".to_string(),
+                file_type: "file".to_string(),
             }],
         };
 
@@ -152,6 +161,7 @@ mod tests {
         assert_eq!(loaded.file[0].perms, "644");
         assert_eq!(loaded.file[0].owner, "user:user");
         assert_eq!(loaded.file[0].mtime, "2026-05-25T10:30:00.000Z");
+        assert_eq!(loaded.file[0].file_type, "file");
     }
 
     #[test]
@@ -166,6 +176,7 @@ mod tests {
                     perms: "600".to_string(),
                     owner: "root:root".to_string(),
                     mtime: "2026-05-25T10:30:00.000Z".to_string(),
+                    file_type: "file".to_string(),
                 },
                 FileEntry {
                     group: "./target2".to_string(),
@@ -174,6 +185,7 @@ mod tests {
                     perms: "644".to_string(),
                     owner: "user:user".to_string(),
                     mtime: "2026-05-25T10:30:00.000Z".to_string(),
+                    file_type: "file".to_string(),
                 },
             ],
         };

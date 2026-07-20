@@ -277,24 +277,34 @@ fn classify_entry(
     match in_state {
         None => match (in_source, in_target) {
             (Some(_s), Some(_t)) => {
-                let src_hash =
-                    compute_file_hash(abs_src, _s.is_symlink, _s.symlink_target.as_deref());
-                let tgt_hash =
-                    compute_file_hash(abs_tgt, _t.is_symlink, _t.symlink_target.as_deref());
-                let perms_equal = file_perms_match(abs_src, abs_tgt);
-                if src_hash.is_some() && src_hash == tgt_hash && perms_equal {
-                    Change::UpdateState {
-                        group_index: gi,
-                        rel_path: rel,
-                        failed_checks: Vec::new(),
-                    }
-                } else {
+                if _s.is_symlink != _t.is_symlink {
                     Change::Conflict {
                         group_index: gi,
                         rel_path: rel,
                         abs_src: src.clone(),
                         abs_tgt: tgt.clone(),
                         failed_checks: Vec::new(),
+                    }
+                } else {
+                    let src_hash =
+                        compute_file_hash(abs_src, _s.is_symlink, _s.symlink_target.as_deref());
+                    let tgt_hash =
+                        compute_file_hash(abs_tgt, _t.is_symlink, _t.symlink_target.as_deref());
+                    let perms_equal = file_perms_match(abs_src, abs_tgt);
+                    if src_hash.is_some() && src_hash == tgt_hash && perms_equal {
+                        Change::UpdateState {
+                            group_index: gi,
+                            rel_path: rel,
+                            failed_checks: Vec::new(),
+                        }
+                    } else {
+                        Change::Conflict {
+                            group_index: gi,
+                            rel_path: rel,
+                            abs_src: src.clone(),
+                            abs_tgt: tgt.clone(),
+                            failed_checks: Vec::new(),
+                        }
                     }
                 }
             }
@@ -439,6 +449,11 @@ fn parse_mtime_to_i64(mtime_str: &str) -> Option<i64> {
 }
 
 fn is_changed(file: &DiscoveredFile, abs_path: &Path, state_entry: &FileEntry) -> bool {
+    let file_type_str = if file.is_symlink { "symlink" } else { "file" };
+    if state_entry.file_type != file_type_str {
+        return true;
+    }
+
     let state_mtime = parse_mtime_to_i64(&state_entry.mtime).unwrap_or(0);
     if file.mtime == state_mtime {
         return false;
@@ -830,6 +845,7 @@ mod tests {
             perms: perms.to_string(),
             owner: owner.to_string(),
             mtime: mtime.to_string(),
+            file_type: "file".to_string(),
         }
     }
 
@@ -855,6 +871,11 @@ mod tests {
             perms: perms.to_string(),
             owner: owner.to_string(),
             mtime: mtime_str,
+            file_type: if fs_path.is_symlink() {
+                "symlink".to_string()
+            } else {
+                "file".to_string()
+            },
         }
     }
 

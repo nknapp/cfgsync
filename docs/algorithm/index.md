@@ -73,6 +73,7 @@ Then it has a table of files containing the following data.
 * `owner` - the applied owner of the target file at the time of the last sync which is the same as
   the [configured owner](./permissions-and-owner.md#owner) for the source file.
 * `mtime` - The mtime of the file at the time of the last sync (in iso-format, rounded to milliseconds)
+* `file_type` - The type of the file, either `"file"` or `"symlink"`. This distinguishes symlinks from regular files even when their hashes would collide (e.g., a symlink pointing to `"./file.txt"` vs a regular file whose content is `"./file.txt"`).
 
 For the following config file
 
@@ -95,6 +96,7 @@ hash = "404d463254077143e09d7ae4ea7f4b2"
 perms = "644"
 owner = "user:user"
 mtime = "2026-07-11T00:12:16.665Z"
+file_type = "file"
 ```
 
 # 3. Find and classify files
