@@ -137,17 +137,24 @@ When a file does not end with `\n`, the unified diff includes `\ No newline at e
 
 ### Missing file (empty mtime)
 
-When the source file is missing (CopyToSource with no source), the `+++` line has an empty mtime (just a trailing tab). `deindent` strips trailing whitespace, so use string concatenation instead:
+When the source or target file is missing, the unified diff includes `(file missing)` as the content. Use `deindent` as usual:
 
 ```typescript
-    stdout: `=== file.txt (target -> source) ===\n` +
-      `--- ${testDir}/target/file.txt\t2020-01-01 00:00:00.000000000 +0000\n` +
-      `+++ ${testDir}/source/file.txt\t\n` +
-      `@@ -1 +1 @@\n` +
-      `-from target\n` +
-      `+(file missing)\n` +
-      `\\ No newline at end of file`,
+    stdout: deindent`
+      === file.txt (source -> target) ===
+      --- ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
+      +++ ${testDir}/target/file.txt
+      @@ -1 +1 @@
+      -source content
+      \ No newline at end of file
+      +(file missing)
+      \ No newline at end of file
+    `,
 ```
+
+`deindent` uses `String.raw` internally, which preserves raw template characters verbatim. This means `\ No newline` (single backslash) in the template literal stays as a single backslash in the output — no need to double it.
+
+Do NOT use `\\ No newline` — that would produce two literal backslashes in the output.
 
 ### Change variant → diff header mapping
 

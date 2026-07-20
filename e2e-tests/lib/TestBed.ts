@@ -139,8 +139,8 @@ export class TestBed {
   private normalizeOutput({ code, stdout, stderr }: ExecReturn): ExecReturn {
     return {
       code,
-      stdout: stdout.replace(/ $/mg, "").trim(),
-      stderr: stderr.replace(/ $/mg, "").trim(),
+      stdout: stdout.replace(/\s+$/mg, "").trim(),
+      stderr: stderr.replace(/\s+$/mg, "").trim(),
     };
   }
 }
