@@ -1,7 +1,7 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("both-exist-copy-to-target", async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -42,12 +42,20 @@ Deno.test("both-exist-copy-to-target", async (t) => {
   });
 
   await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  const diffOutput = testbed.getStdout();
-  if (!diffOutput.includes("=== file.txt (source -> target) ===")) {
-    throw new Error(
-      `Expected diff to contain "=== file.txt (source -> target) ===" but got: ${diffOutput}`,
-    );
-  }
+  testbed.assertOutput({
+    code: 0,
+    stderr: "",
+    stdout: deindent`
+      === file.txt (source -> target) ===
+      --- ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
+      +++ ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
+      @@ -1 +1 @@
+      -v2
+      \ No newline at end of file
+      +v1
+      \ No newline at end of file
+    `,
+  });
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({

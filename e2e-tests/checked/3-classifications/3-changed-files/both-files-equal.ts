@@ -39,6 +39,14 @@ Deno.test("both-exist-clean", async (t) => {
     stderr: "",
   });
 
+  // Test diff (no changes = empty output)
+  await testbed.run({ args: ["--config", "config.toml", "diff"] });
+  testbed.assertOutput({
+    code: 0,
+    stdout: "",
+    stderr: "",
+  });
+
   // Test sync
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({

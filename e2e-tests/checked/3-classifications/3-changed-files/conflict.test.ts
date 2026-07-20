@@ -1,7 +1,7 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("both-exist-conflict", async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -44,12 +44,20 @@ Deno.test("both-exist-conflict", async (t) => {
   });
 
   await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  const diffOutput = testbed.getStdout();
-  if (!diffOutput.includes("=== file.txt (CONFLICT) ===")) {
-    throw new Error(
-      `Expected diff to contain "=== file.txt (CONFLICT) ===" but got: ${diffOutput}`,
-    );
-  }
+  testbed.assertOutput({
+    code: 0,
+    stderr: "",
+    stdout: deindent`
+      === file.txt (CONFLICT) ===
+      --- ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
+      +++ ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
+      @@ -1 +1 @@
+      -source v2
+      \ No newline at end of file
+      +target v2
+      \ No newline at end of file
+    `,
+  });
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({

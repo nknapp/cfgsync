@@ -22,6 +22,7 @@ Deno.test("deviating-dir-config", async (t) => {
   });
 
   await testbed.run({ args: ["--config", "config.toml", "status"] });
+  // TODO: Should this run not complain that the special-dir has the wrong owner?
   testbed.assertOutput({
     code: 0,
     stdout: deindent`

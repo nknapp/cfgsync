@@ -208,7 +208,7 @@ Verify that the actions can be executed
 * `Clean`
     * Nothing to check
 * `Conflict`:
-    * Check if any of `CopyToTarget` or `CopyToSource` are feasable.
+    * Check if any of `CopyToTarget` or `CopyToSource` are possible.
 
 All failed checks are collected and attached for each file record for use in later steps.
 
