@@ -12,7 +12,7 @@ Deno.test("state-file-structure-after-sync", async (t) => {
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | hello",
-      `user:user |      | 0 | source/link.txt -> file.txt`,
+      "user:user |     | 0 | source/link.txt -> file.txt",
       "user:user | 755 | 0 | source/subdir/",
       "user:user | 644 | 0 | source/subdir/nested.txt | nested content",
       "user:user | 755 | 0 | target/",
