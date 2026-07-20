@@ -14,17 +14,17 @@ export function runCfgsync(
 ): InteractiveChildProcess {
   const binary = faketimeFile ? cfgSyncFaketime : cfgSync;
   const cmdAndArgs: string[] = [binary, ...args];
-  let mergedEnv: Record<string, string> | undefined;
+  const mergedEnv: Record<string, string> = { TZ: "UTC", ...env };
 
-  if (faketimeFile || env) {
-    mergedEnv = { ...Deno.env.toObject(), ...env };
+  if (faketimeFile) {
     if (faketimeFile) {
       mergedEnv["FAKETIME"] = faketimeFile;
     }
   }
 
   if (sudo) {
-    cmdAndArgs.unshift("sudo", "--preserve-env=FAKETIME");
+    const preserveEnv = Object.keys(mergedEnv).join(",");
+    cmdAndArgs.unshift("sudo", `--preserve-env=${preserveEnv}`);
   }
   const [cmd, ...realArgs] = cmdAndArgs;
   const command = new Deno.Command(cmd, {

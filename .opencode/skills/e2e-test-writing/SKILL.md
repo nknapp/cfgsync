@@ -108,7 +108,7 @@ const { testbed, testDir } = await TestBed.create(t, { ... });
 Use `deindent` when no line has trailing whitespace that matters. Use `${"\t"}` for the tab between path and mtime:
 
 ```typescript
-await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
+await testbed.run({ args: ["--config", "config.toml", "diff"]});
 testbed.assertOutput({
   code: 0,
   stdout: deindent`

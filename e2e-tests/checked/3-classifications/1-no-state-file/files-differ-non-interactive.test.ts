@@ -31,7 +31,7 @@ Deno.test("new-file-conflict", async (t) => {
   });
 
   // diff: shows unified diff comparing source vs target
-  await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
+  await testbed.run({ args: ["--config", "config.toml", "diff"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`

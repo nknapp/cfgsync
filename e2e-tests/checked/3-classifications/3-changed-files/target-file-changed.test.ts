@@ -41,7 +41,7 @@ Deno.test("both-exist-copy-to-source", async (t) => {
     stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
+  await testbed.run({ args: ["--config", "config.toml", "diff"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`

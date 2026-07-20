@@ -31,7 +31,7 @@ Deno.test("new-file-copy-to-target", async (t) => {
   // TODO: Test short status
 
   // diff: unified diff showing source content added to (missing) target
-  await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
+  await testbed.run({ args: ["--config", "config.toml", "diff"] });
   testbed.assertOutput({
     code: 0,
     // deindent's trimEnd() strips the trailing tab on the +++ line when the

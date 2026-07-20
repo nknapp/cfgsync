@@ -18,7 +18,7 @@ Deno.test("diff-conflict-shows-unified-diff", async (t) => {
     faketime: "2026-05-20T15:00:00Z",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
+  await testbed.run({ args: ["--config", "config.toml", "diff"] });
   testbed.assertOutput({
     code: 0,
     stderr: "",
