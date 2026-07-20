@@ -1,5 +1,4 @@
 import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
-import { STATE_FILE } from "@/lib/config.ts";
 
 Deno.test("new-file-copy-to-target", async (t) => {
   const { testbed, testDir } = await TestBed.create(t, {
