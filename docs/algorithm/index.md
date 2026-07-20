@@ -104,21 +104,24 @@ mtime = "2026-07-11T00:12:16.665Z"
   having files matching the glob. 
 * Verify that every source and target file was found by no more than one sync group. If a file is in multiple
   sync groups, write an error message and exit immediately.
-* The files and directories are paired up by their relative path, so we get this information on every entry (note that
+* The files are paired up by their relative path, so we get the following information on every entry (note that
   not all information must be read upfront. It can also be read when needed)
     * source file/dir (if it exists)
         * mtime
-        * hash, computed from contents
+        * hash, computed from contents (or target path, if the file is actually a symlink)
         * perms from config (after applying mapping)
+        * type (file, symlink)
         * owner from config (after applying defaults)
     * target file/dir (if it exists) 
         * mtime
-        * hash, computed from contents
+        * hash, computed from contents (or target path, if the file is actually a symlink)
+        * type (file, symlink)
         * perms
         * owner
     * state-file entry for this file (if it exists)
         * mtime at time of last sync
         * hash at time of last sync
+        * type at time of last sync
         * perms at time of last sync
         * owner at time of last sync
 
@@ -126,7 +129,7 @@ mtime = "2026-07-11T00:12:16.665Z"
 
 We assume having the following helpers (`file` is either `source` or `target`)
 
-* `a equals b` means that that `a.hash == b.hash && a.perms == b.perms && a.owner == b.owner)
+* `a equals b` means that `a.hash == b.hash && a.perms == b.perms && a.owner == b.owner & a.type == b.type`)
 * `is_changed(file)` is an abbreviation for `file.mtime != state.mtime && not is_equal(file, state)`
 
 > Note: This implementation means that files with a fabricated mtime may lead to falsely skipped files.
@@ -295,7 +298,7 @@ For all non-failed `Conflict` files, ask the user for a resolution.
 * if cli option `-i` is active:
     * Show the same diff as in 4.2 (for conflicts))
     * Show `Overwrite [t]arget   Overwrite [s]ource   [x]skip  [q]uit:`
-    * Based on the users chose set the action to
+    * Based on the user's choice, set the action to
         * `t`: `CopyToTarget`,
         * `s`: `CopyToSource`,
         * `x`: `Clean`
