@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.6.4](https://github.com/nknapp/cfgsync/compare/v0.6.3...4981123a27d77f6eb562d22420cb263e6e017016) (2026-07-20)
+## [v0.6.5](https://github.com/nknapp/cfgsync/compare/v0.6.4...9903c5cde7d9030715204c49497dde4438f22237) (2026-07-20)
 
-### Fixes
+### Features
+
+* **state:** track file type (symlink vs regular file) in state entries
+([8134904](https://github.com/nknapp/cfgsync/commit/813490475a3f663f300b81cd190b54782b3d9072))
+
+### [v0.6.4](https://github.com/nknapp/cfgsync/compare/v0.6.3...v0.6.4) (2026-07-20)
+
+#### Fixes
 
 * **sync:** do not update state for skipped conflicts
 ([4981123](https://github.com/nknapp/cfgsync/commit/4981123a27d77f6eb562d22420cb263e6e017016))
