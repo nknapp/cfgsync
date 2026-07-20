@@ -43,10 +43,12 @@ main() {
         exit 1
     fi
 
-    mise run all-local
     git add -A
     git diff-index --quiet HEAD || git commit -m "$1"
     git rebase origin/main
+
+    mise run all-local
+
     git push origin "$BRANCH" --force-with-lease
 
     if ! gh pr create --fill ; then
