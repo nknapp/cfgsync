@@ -12,15 +12,13 @@ Deno.test("map to new base path", () => {
   );
 });
 
-
-
 Deno.test("map director to new base path", () => {
   assertEquals(
-      mapToNewBasePath(
-          new URL("file:///tmp/from/subdir/test/"),
-          new URL("file:///tmp/from/"),
-          new URL("file:///tmp/to/"),
-      ),
-      new URL("file:///tmp/to/subdir/test/"),
+    mapToNewBasePath(
+      new URL("file:///tmp/from/subdir/test/"),
+      new URL("file:///tmp/from/"),
+      new URL("file:///tmp/to/"),
+    ),
+    new URL("file:///tmp/to/subdir/test/"),
   );
 });
