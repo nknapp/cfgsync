@@ -1,5 +1,5 @@
 import { deindent } from "@/lib/deindent.ts";
-import { CONFIG_TOML, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));

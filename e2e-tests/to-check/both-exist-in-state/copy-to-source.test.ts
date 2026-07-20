@@ -1,7 +1,7 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("both-exist-copy-to-source", async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -10,9 +10,11 @@ Deno.test("both-exist-copy-to-source", async (t) => {
     `,
     files: [
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+      `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | v1",
       "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/file.txt | v1",
     ],
     faketime: "2020-01-01T00:00:00Z",
   });
@@ -41,13 +43,21 @@ Deno.test("both-exist-copy-to-source", async (t) => {
     stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  const diffOutput = testbed.getStdout();
-  if (!diffOutput.includes("=== file.txt (target -> source) ===")) {
-    throw new Error(
-      `Expected diff to contain "=== file.txt (target -> source) ===" but got: ${diffOutput}`,
-    );
-  }
+  await testbed.run({ args: ["--config", "config.toml", "diff"], env: { TZ: "UTC" } });
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      === file.txt (target -> source) ===
+      --- ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
+      +++ ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
+      @@ -1 +1 @@
+      -v2
+      \ No newline at end of file
+      +v1
+      \ No newline at end of file
+    `,
+    stderr: "",
+  })
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
