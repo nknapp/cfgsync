@@ -31,7 +31,6 @@ Deno.test("overlapping-globs-status-error", async (t) => {
     `,
   });
 
-
   await testbed.run({ args: ["--config", "config.toml", "status"] });
   testbed.assertOutput({
     code: 1,
@@ -41,7 +40,6 @@ Deno.test("overlapping-globs-status-error", async (t) => {
     `,
   });
 
-
   await testbed.run({ args: ["--config", "config.toml", "diff"] });
   testbed.assertOutput({
     code: 1,
@@ -50,7 +48,6 @@ Deno.test("overlapping-globs-status-error", async (t) => {
       Error: File 'shared.conf' matches globs in both sync group 1 and sync group 2. Each file must belong to exactly one group.
     `,
   });
-
 
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({

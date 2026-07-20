@@ -12,7 +12,7 @@ Deno.test("symlinks-status-detected", async (t) => {
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | file content",
-      "user:user |      | 0 | source/link.txt -> file.txt",
+      "user:user |     | 0 | source/link.txt -> file.txt",
       "user:user | 755 | 0 | target/",
     ],
   });
@@ -40,7 +40,7 @@ Deno.test("symlinks-preserved-during-sync", async (t) => {
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
       "user:user | 644 | 0 | source/file.txt | file content",
-      "user:user |      | 0 | source/link.txt -> file.txt",
+      "user:user |     | 0 | source/link.txt -> file.txt",
       "user:user | 755 | 0 | target/",
     ],
   });
@@ -65,9 +65,9 @@ Deno.test("symlinks-preserved-during-sync", async (t) => {
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | file content",
-    "user:user |      | 0 | source/link.txt -> file.txt",
+    "user:user |     | 0 | source/link.txt -> file.txt",
     "user:user | 755 | 0 | target/",
     "user:user | 644 | 0 | target/file.txt | file content",
-    "user:user |      | 0 | target/link.txt -> file.txt",
+    "user:user |     | 0 | target/link.txt -> file.txt",
   ]);
 });

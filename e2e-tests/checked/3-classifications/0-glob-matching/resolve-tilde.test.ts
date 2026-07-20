@@ -82,7 +82,7 @@ Deno.test({ name: "resolve tilde in target path", ignore: runningOutsideDocker }
     stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"]});
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
 
   testbed.assertOutput({
     code: 0,

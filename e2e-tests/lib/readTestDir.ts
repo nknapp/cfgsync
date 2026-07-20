@@ -25,7 +25,7 @@ export async function readTestDir(
         return `${user}:${group} | ${perms} | 0 | ${path}/`;
       } else if (stat.isSymlink) {
         const linkTarget = await Deno.readLink(fullPath);
-        return `${user}:${group} |      | 0 | ${path} -> ${linkTarget}`;
+        return `${user}:${group} |     | 0 | ${path} -> ${linkTarget}`;
       } else {
         const raw = await Deno.readTextFile(fullPath);
         const contents = getContents(raw, configToml, path);

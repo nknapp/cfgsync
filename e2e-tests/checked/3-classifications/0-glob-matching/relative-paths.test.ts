@@ -43,8 +43,7 @@ Deno.test("relative-paths", async (t) => {
   await testbed.run({ args: ["--config", "subdir/config.toml", "diff"] });
   testbed.assertOutput({
     code: 0,
-    stdout:
-      deindent`
+    stdout: deindent`
         === same.txt (source -> target) ===
         --- ${testDir}/subdir/source/same.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
         +++ ${testDir}/target/same.txt

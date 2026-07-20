@@ -16,13 +16,13 @@ Deno.test("both-exist-same-content-different-mtime", async (t) => {
       "user:user | 755 | 0 | target/",
       "user:user | 644 | 0 | target/file.txt | hello",
     ],
-    faketime: "2010-01-01T10:00:00Z"
+    faketime: "2010-01-01T10:00:00Z",
   });
 
-  testbed.advance("2sec")
-  await testbed.writeTextFile("source/file.txt","bye")
-  testbed.advance("2sec")
-  await testbed.writeTextFile("target/file.txt","bye")
+  testbed.advance("2sec");
+  await testbed.writeTextFile("source/file.txt", "bye");
+  testbed.advance("2sec");
+  await testbed.writeTextFile("target/file.txt", "bye");
 
   // Test status
   await testbed.run({ args: ["--config", "config.toml", "status"] });
