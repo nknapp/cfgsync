@@ -1,13 +1,13 @@
-import { setupTestDir } from "./setupTestDir.ts";
-import { testBaseDir } from "./env.ts";
-import { RunArgs, runCfgsync } from "./runCfgsync.ts";
-import { assertEquals } from "./assert.ts";
-import { InteractiveChildProcess } from "./spawn.ts";
-import { XXH3_128 } from "xxh3-ts";
-import { Buffer } from "node:buffer";
-import { readTestDir } from "./readTestDir.ts";
-import { TestEntry, TestSpec } from "./config.ts";
-import { FakeTime } from "./faketime.ts";
+import {setupTestDir} from "./setupTestDir.ts";
+import {testBaseDir} from "./env.ts";
+import {RunArgs, runCfgsync} from "./runCfgsync.ts";
+import {assertEquals} from "./assert.ts";
+import {InteractiveChildProcess} from "./spawn.ts";
+import {XXH3_128} from "xxh3-ts";
+import {Buffer} from "node:buffer";
+import {readTestDir} from "./readTestDir.ts";
+import {TestEntry, TestSpec} from "./config.ts";
+import {FakeTime} from "./faketime.ts";
 
 export type ExecReturn = { code: number; stdout: string; stderr: string };
 
@@ -52,11 +52,6 @@ export class TestBed {
     private testDir: URL,
   ) {
   }
-
-  readTestDir() {
-    return readTestDir(this.testDir, this.spec.configToml);
-  }
-
   async deleteFile(relativePath: string) {
     await Deno.remove(new URL(relativePath, this.testDir));
   }
@@ -73,7 +68,7 @@ export class TestBed {
   }
 
   async assertTestDir(files: TestEntry[]) {
-    assertEquals(await this.readTestDir(), files);
+    assertEquals(await readTestDir(this.testDir, this.spec.configToml), files);
   }
 
   async mkdir(relativePath: string) {
