@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.6.5](https://github.com/nknapp/cfgsync/compare/v0.6.4...9903c5cde7d9030715204c49497dde4438f22237) (2026-07-20)
+## [v0.6.6](https://github.com/nknapp/cfgsync/compare/v0.6.5...7f7b703811d495389e41da1d865a4c384c7e6d24) (2026-07-21)
 
-### Features
+### Fixes
+
+* replace destination symlinks before copy to support type changes
+([459a004](https://github.com/nknapp/cfgsync/commit/459a004de1a2e4588e62cb0828b2c52f50f756f1))
+
+### [v0.6.5](https://github.com/nknapp/cfgsync/compare/v0.6.4...v0.6.5) (2026-07-20)
+
+#### Features
 
 * **state:** track file type (symlink vs regular file) in state entries
 ([8134904](https://github.com/nknapp/cfgsync/commit/813490475a3f663f300b81cd190b54782b3d9072))
