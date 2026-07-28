@@ -63,7 +63,6 @@ pub fn run(
     let mut skipped_conflicts: HashSet<(usize, String)> = HashSet::new();
 
     let bypass = security_bypass(config);
-    let mut security_notice_printed = false;
 
     for change in &changes {
         if !change.failed_checks().is_empty() {
@@ -88,23 +87,6 @@ pub fn run(
                             eprintln!(
                                 "Error: cannot copy '{}' to target (config file owner lacks write permission)",
                                 rel_path
-                            );
-                            outcome.skipped_perms += 1;
-                            continue;
-                        }
-                        SecurityAction::WarnOrPrompt => {
-                            eprintln!(
-                                "Security warning: skipping '{}' (privileged write, re-run with -i to confirm)",
-                                rel_path
-                            );
-                            eprintln!(
-                                "Security notice: running as root with a config file not owned by root."
-                            );
-                            eprintln!(
-                                "Some operations require privileges the config file owner does not have."
-                            );
-                            eprintln!(
-                                "Re-run with -i/--interactive to confirm each privileged operation, or use a root-owned config."
                             );
                             outcome.skipped_perms += 1;
                             continue;
@@ -195,23 +177,6 @@ pub fn run(
                             eprintln!(
                                 "Error: cannot delete '{}' from target (config file owner lacks write permission)",
                                 rel_path
-                            );
-                            outcome.skipped_perms += 1;
-                            continue;
-                        }
-                        SecurityAction::WarnOrPrompt => {
-                            eprintln!(
-                                "Security warning: skipping '{}' (privileged write, re-run with -i to confirm)",
-                                rel_path
-                            );
-                            eprintln!(
-                                "Security notice: running as root with a config file not owned by root."
-                            );
-                            eprintln!(
-                                "Some operations require privileges the config file owner does not have."
-                            );
-                            eprintln!(
-                                "Re-run with -i/--interactive to confirm each privileged operation, or use a root-owned config."
                             );
                             outcome.skipped_perms += 1;
                             continue;
@@ -353,26 +318,6 @@ pub fn run(
                                 outcome.skipped_perms += 1;
                                 continue;
                             }
-                            SecurityAction::WarnOrPrompt => {
-                                if !security_notice_printed {
-                                    eprintln!(
-                                        "Security notice: running as root with a config file not owned by root."
-                                    );
-                                    eprintln!(
-                                        "Some operations require privileges the config file owner does not have."
-                                    );
-                                    security_notice_printed = true;
-                                }
-                                match security_prompt(rel_path, abs_src, abs_tgt) {
-                                    Ok(true) => {}
-                                    Ok(false) => {
-                                        eprintln!("  skipped (security): {}", rel_path);
-                                        outcome.skipped_perms += 1;
-                                        continue;
-                                    }
-                                    Err(e) => return Err(e),
-                                }
-                            }
                             SecurityAction::None => {}
                         }
                         if !has_explicit_owner(config, *group_index, rel_path)
@@ -459,28 +404,6 @@ pub fn run(
                                 outcome.skipped_perms += 1;
                                 continue;
                             }
-                            SecurityAction::WarnOrPrompt => {
-                                if !security_notice_printed {
-                                    eprintln!(
-                                        "Security notice: running as root with a config file not owned by root."
-                                    );
-                                    eprintln!(
-                                        "Some operations require privileges the config file owner does not have."
-                                    );
-                                    security_notice_printed = true;
-                                }
-                                let abs_src =
-                                    config.sync_groups[*group_index].source_dir.join(rel_path);
-                                match security_prompt(rel_path, &abs_src, abs_tgt) {
-                                    Ok(true) => {}
-                                    Ok(false) => {
-                                        eprintln!("  skipped (security): {}", rel_path);
-                                        outcome.skipped_perms += 1;
-                                        continue;
-                                    }
-                                    Err(e) => return Err(e),
-                                }
-                            }
                             SecurityAction::None => {}
                         }
                     }
@@ -545,15 +468,7 @@ pub fn run(
 
         // Run hooks for groups that had files copied to target
         for &group_index in &groups_with_copy_to_target {
-            run_hook_for_group(
-                config,
-                group_index,
-                false,
-                &mut outcome,
-                bypass,
-                interactive,
-                &mut security_notice_printed,
-            )?;
+            run_hook_for_group(config, group_index, false, &mut outcome)?;
         }
 
         // Rebuild state from current filesystem
@@ -562,15 +477,7 @@ pub fn run(
         chown_state_file(&config.state_path, &config.config_path);
     } else {
         for &group_index in &groups_with_copy_to_target {
-            run_hook_for_group(
-                config,
-                group_index,
-                true,
-                &mut outcome,
-                bypass,
-                interactive,
-                &mut security_notice_printed,
-            )?;
+            run_hook_for_group(config, group_index, true, &mut outcome)?;
         }
     }
 
@@ -862,6 +769,9 @@ fn find_matching_glob<'a>(
 
 fn has_explicit_owner(config: &ResolvedConfig, group_index: usize, rel_path: &str) -> bool {
     let group = &config.sync_groups[group_index];
+    if group.owner.is_some() {
+        return true;
+    }
     find_matching_glob(group, rel_path)
         .map(|g| g.owner.is_some())
         .unwrap_or(false)
@@ -1353,48 +1263,12 @@ fn run_hook_for_group(
     group_index: usize,
     dry_run: bool,
     outcome: &mut SyncOutcome,
-    bypass: bool,
-    interactive: bool,
-    security_notice_printed: &mut bool,
 ) -> Result<(), String> {
     let group = &config.sync_groups[group_index];
     let hook_cmd = match &group.hook_after {
         Some(cmd) if !cmd.trim().is_empty() => cmd.trim(),
         _ => return Ok(()),
     };
-
-    let security = !bypass && hook_security_needed(config, group_index);
-
-    if security {
-        if !*security_notice_printed {
-            eprintln!("Security notice: running as root with a config file not owned by root.");
-            eprintln!("Some operations require privileges the config file owner does not have.");
-            if !interactive {
-                eprintln!(
-                    "Re-run with -i/--interactive to confirm each privileged operation, or use a root-owned config."
-                );
-            }
-            *security_notice_printed = true;
-        }
-        if interactive {
-            match security_prompt_hook(hook_cmd) {
-                Ok(true) => {}
-                Ok(false) => {
-                    eprintln!("  skipped hook (security): {}", hook_cmd);
-                    outcome.skipped_perms += 1;
-                    return Ok(());
-                }
-                Err(e) => return Err(e),
-            }
-        } else {
-            eprintln!(
-                "Security warning: skipping hook '{}' (privileged hook, re-run with -i to confirm)",
-                hook_cmd
-            );
-            outcome.skipped_perms += 1;
-            return Ok(());
-        }
-    }
 
     if dry_run {
         println!("[dry-run] would run hook: {}", hook_cmd);
@@ -1625,25 +1499,9 @@ fn config_owner_can_delete(config_path: &Path, target_path: &Path) -> bool {
     false
 }
 
-fn hook_security_needed(config: &ResolvedConfig, group_index: usize) -> bool {
-    let group = &config.sync_groups[group_index];
-    let Some(ref owner_spec) = group.owner else {
-        return false;
-    };
-
-    let config_uid = config_file_uid(&config.config_path);
-    if let Ok((uid, _)) = resolve_owner_uid_gid(owner_spec)
-        && let Some(uid) = uid
-    {
-        return uid.as_raw() != config_uid;
-    }
-    false
-}
-
 enum SecurityAction {
     None,
     ErrorSkip,
-    WarnOrPrompt,
 }
 
 fn security_action(
@@ -1658,7 +1516,7 @@ fn security_action(
     let has_owner = group.owner.is_some();
 
     if has_owner {
-        return SecurityAction::WarnOrPrompt;
+        return SecurityAction::None;
     }
 
     let needs_privilege = if is_delete {
@@ -1672,52 +1530,6 @@ fn security_action(
     }
 
     SecurityAction::ErrorSkip
-}
-
-fn security_prompt(rel_path: &str, abs_src: &Path, abs_tgt: &Path) -> Result<bool, String> {
-    use std::io::Write;
-
-    eprintln!("=== Security: privileged write: {} ===", rel_path);
-    eprint_diff(abs_src, abs_tgt);
-
-    eprint!("\n[y]es [n]o [q]uit: ");
-    std::io::stderr()
-        .flush()
-        .map_err(|e| format!("flush: {}", e))?;
-
-    let mut input = String::new();
-    std::io::stdin()
-        .read_line(&mut input)
-        .map_err(|e| format!("read: {}", e))?;
-
-    match input.trim().to_lowercase().as_str() {
-        "y" => Ok(true),
-        "q" => Err("Aborted by user due to security confirmation.".to_string()),
-        _ => Ok(false),
-    }
-}
-
-fn security_prompt_hook(hook_cmd: &str) -> Result<bool, String> {
-    use std::io::Write;
-
-    eprintln!("=== Security: privileged hook execution ===");
-    eprintln!("  hook: {}", hook_cmd);
-
-    eprint!("\n[y]es [n]o [q]uit: ");
-    std::io::stderr()
-        .flush()
-        .map_err(|e| format!("flush: {}", e))?;
-
-    let mut input = String::new();
-    std::io::stdin()
-        .read_line(&mut input)
-        .map_err(|e| format!("read: {}", e))?;
-
-    match input.trim().to_lowercase().as_str() {
-        "y" => Ok(true),
-        "q" => Err("Aborted by user due to security confirmation.".to_string()),
-        _ => Ok(false),
-    }
 }
 
 #[cfg(test)]
@@ -1816,7 +1628,7 @@ mod tests {
             hook_failures: 0,
         };
 
-        let _ = run_hook_for_group(&resolved, 0, false, &mut outcome, true, false, &mut false);
+        let _ = run_hook_for_group(&resolved, 0, false, &mut outcome);
         assert_eq!(outcome.hook_failures, 0);
     }
 

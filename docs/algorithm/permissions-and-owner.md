@@ -54,14 +54,21 @@ When copying files from source to target
   On Linux, symlinks always have 777, so updating the permissions is not even attempted.
   
 
-### Edge case
+### Security
+
+When running as root, cfgsync applies security checks to prevent unauthorized privilege escalation:
 
 * A file or directory without explicit owner configuration is never copied into a directory owned by another user.
   This case is treated the same as a failure to write into that directory.
 
 > This is a security feature: We need to prevent accidential creation of user-writable config files in places
-> where the user cannot write. If it is necessary to create such a file, the owner can be set explicitely in the 
-> configuration.
+> where the user cannot write. If it is necessary to create such a file, the owner **must be set** explicitly
+> in the configuration (on the sync group or the matching glob entry). Setting an explicit owner also authorizes
+> hooks configured on that group to execute without additional security prompts.
+
+**Security bypass**: When the config file is root-owned and not group- or other-writable (`mode & 0o022 == 0`),
+cfgsync considers the configuration trusted and skips all security checks entirely. This allows automated
+workflows (e.g., CI/CD) to run without interactive confirmation.
 
 
 ## Target to source

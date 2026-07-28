@@ -142,7 +142,7 @@ Deno.test({
   ]);
 });
 
-// Hook security: owner differs, user confirms, verify hook runs as configured owner
+// Hook: explicit owner → bypasses hook security, hook runs without prompt
 Deno.test({
   name: "security-hook-owner-mismatch-yes",
   ignore: runningOutsideDocker,
@@ -168,19 +168,7 @@ Deno.test({
     args: ["--config", "config.toml", "sync", "-i"],
     sudo: true,
   });
-
-  await child.waitForStderr(
-    /Security notice: running as root/,
-  );
-  await child.waitForStderr(
-    /=== Security: privileged write: file\.txt ===/,
-  );
-  await child.type("y\n");
-  await child.waitForStderr(
-    /=== Security: privileged hook execution ===/,
-  );
-  await child.type("y\n");
-  const { code, stdout } = await child.waitForExit();
+  const { code, stdout, stderr } = await child.waitForExit();
 
   assertEquals(
     stdout.trim(),
@@ -188,6 +176,7 @@ Deno.test({
       "source -> target: 1\n" +
       "target -> source: 0\ndeleted target:   0\ndeleted source:   0",
   );
+  assertEquals(stderr, "");
   assertEquals(code, 0);
 
   await testbed.assertTestDir([
@@ -201,7 +190,7 @@ Deno.test({
   ]);
 });
 
-// Hook security: owner differs, user skips
+// Hook: explicit owner → bypasses hook security, hook runs without prompt (no option to skip)
 Deno.test({
   name: "security-hook-owner-mismatch-no",
   ignore: runningOutsideDocker,
@@ -227,32 +216,21 @@ Deno.test({
     args: ["--config", "config.toml", "sync", "-i"],
     sudo: true,
   });
-
-  await child.waitForStderr(
-    /Security notice: running as root/,
-  );
-  await child.waitForStderr(
-    /=== Security: privileged write: file\.txt ===/,
-  );
-  await child.type("y\n");
-  await child.waitForStderr(
-    /=== Security: privileged hook execution ===/,
-  );
-  await child.type("n\n");
-  const { code, stdout } = await child.waitForExit();
+  const { code, stdout, stderr } = await child.waitForExit();
 
   assertEquals(
     stdout.trim(),
-    "copied file.txt -> target\n\n" +
+    "copied file.txt -> target\nrunning hook: touch ./hook-ran\n\n" +
       "source -> target: 1\n" +
-      "target -> source: 0\ndeleted target:   0\ndeleted source:   0\n" +
-      "permission skips: 1",
+      "target -> source: 0\ndeleted target:   0\ndeleted source:   0",
   );
+  assertEquals(stderr, "");
   assertEquals(code, 0);
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+    "root:root | 644 | 0 | hook-ran | ",
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "user:user | 755 | 0 | target/",
@@ -260,7 +238,7 @@ Deno.test({
   ]);
 });
 
-// Hook security: owner differs, user quits
+// Hook: explicit owner → bypasses hook security, hook runs without prompt (no option to quit from)
 Deno.test({
   name: "security-hook-owner-mismatch-quit",
   ignore: runningOutsideDocker,
@@ -286,24 +264,21 @@ Deno.test({
     args: ["--config", "config.toml", "sync", "-i"],
     sudo: true,
   });
+  const { code, stdout, stderr } = await child.waitForExit();
 
-  await child.waitForStderr(
-    /Security notice: running as root/,
+  assertEquals(
+    stdout.trim(),
+    "copied file.txt -> target\nrunning hook: touch ./hook-ran\n\n" +
+      "source -> target: 1\n" +
+      "target -> source: 0\ndeleted target:   0\ndeleted source:   0",
   );
-  await child.waitForStderr(
-    /=== Security: privileged write: file\.txt ===/,
-  );
-  await child.type("y\n");
-  await child.waitForStderr(
-    /=== Security: privileged hook execution ===/,
-  );
-  await child.type("q\n");
-  const { code } = await child.waitForExit();
-
-  assertEquals(code, 1);
+  assertEquals(stderr, "");
+  assertEquals(code, 0);
 
   await testbed.assertTestDir([
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+    "root:root | 644 | 0 | hook-ran | ",
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "user:user | 755 | 0 | target/",
@@ -358,7 +333,7 @@ Deno.test({
   ]);
 });
 
-// Non-interactive: WarnOrPrompt → warning + skip
+// Non-interactive: explicit owner → bypasses security, file is copied
 Deno.test({
   name: "security-warning-non-interactive",
   ignore: runningOutsideDocker,
@@ -384,19 +359,14 @@ Deno.test({
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
+      copied file.txt -> target
 
-      source -> target: 0
+      source -> target: 1
       target -> source: 0
       deleted target:   0
       deleted source:   0
-      permission skips: 1
     `,
-    stderr: deindent`
-      Security warning: skipping 'file.txt' (privileged write, re-run with -i to confirm)
-      Security notice: running as root with a config file not owned by root.
-      Some operations require privileges the config file owner does not have.
-      Re-run with -i/--interactive to confirm each privileged operation, or use a root-owned config.
-    `,
+    stderr: "",
   });
 
   await testbed.assertTestDir([
@@ -405,10 +375,11 @@ Deno.test({
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "root:root | 755 | 0 | target/",
+    "root:root | 644 | 0 | target/file.txt | source content",
   ]);
 });
 
-// Interactive: owner configured, user accepts file prompt
+// Interactive: explicit owner → bypasses security, file is copied without prompt
 Deno.test({
   name: "security-prompt-owner-yes",
   ignore: runningOutsideDocker,
@@ -429,27 +400,20 @@ Deno.test({
     ],
   });
 
-  const child = testbed.spawn({
-    args: ["--config", "config.toml", "sync", "-i"],
-    sudo: true,
+  await testbed.run({ args: ["--config", "config.toml", "sync", "-i"], sudo: true });
+
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      copied file.txt -> target
+
+      source -> target: 1
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
   });
-
-  await child.waitForStderr(
-    /Security notice: running as root/,
-  );
-  await child.waitForStderr(
-    /=== Security: privileged write: file\.txt ===/,
-  );
-  await child.type("y\n");
-  const { code, stdout } = await child.waitForExit();
-
-  assertEquals(
-    stdout.trim(),
-    "copied file.txt -> target\n\n" +
-      "source -> target: 1\n" +
-      "target -> source: 0\ndeleted target:   0\ndeleted source:   0",
-  );
-  assertEquals(code, 0);
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
@@ -461,7 +425,7 @@ Deno.test({
   ]);
 });
 
-// Interactive: owner configured, user skips file prompt
+// Interactive: explicit owner → bypasses security, file is copied (no prompt to skip)
 Deno.test({
   name: "security-prompt-owner-no",
   ignore: runningOutsideDocker,
@@ -482,26 +446,20 @@ Deno.test({
     ],
   });
 
-  const child = testbed.spawn({
-    args: ["--config", "config.toml", "sync", "-i"],
-    sudo: true,
+  await testbed.run({ args: ["--config", "config.toml", "sync", "-i"], sudo: true });
+
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      copied file.txt -> target
+
+      source -> target: 1
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
   });
-
-  await child.waitForStderr(
-    /Security notice: running as root/,
-  );
-  await child.waitForStderr(
-    /=== Security: privileged write: file\.txt ===/,
-  );
-  await child.type("n\n");
-  const { code, stdout } = await child.waitForExit();
-
-  assertEquals(
-    stdout.trim(),
-    "source -> target: 0\ntarget -> source: 0\ndeleted target:   0\n" +
-      "deleted source:   0\npermission skips: 1",
-  );
-  assertEquals(code, 0);
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
@@ -509,10 +467,11 @@ Deno.test({
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | source content",
     "user:user | 755 | 0 | target/",
+    "root:root | 644 | 0 | target/file.txt | source content",
   ]);
 });
 
-// Interactive: owner configured, user quits on file prompt
+// Interactive: explicit owner → bypasses security, file is copied (no prompt to quit from)
 Deno.test({
   name: "security-prompt-owner-quit",
   ignore: runningOutsideDocker,
@@ -533,39 +492,27 @@ Deno.test({
     ],
   });
 
-  const child = testbed.spawn({
-    args: ["--config", "config.toml", "sync", "-i"],
-    sudo: true,
+  await testbed.run({ args: ["--config", "config.toml", "sync", "-i"], sudo: true });
+
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
+      copied a.txt -> target
+
+      source -> target: 1
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
   });
 
-  await child.waitForStderr(
-    /Security notice: running as root/,
-  );
-  await child.waitForStderr(
-    /=== Security: privileged write: a\.txt ===/,
-  );
-  await child.type("q\n");
-  const { code, stderr } = await child.waitForExit();
-
-  assertEquals(code, 1);
-  assertEquals(
-    stderr.trim(),
-    "Security notice: running as root with a config file not owned by root.\n" +
-      "Some operations require privileges the config file owner does not have.\n" +
-      "=== Security: privileged write: a.txt ===\n" +
-      "@@ -1 +1 @@\n" +
-      "-(file missing)\n" +
-      "\\ No newline at end of file\n" +
-      "+content a\n" +
-      "\\ No newline at end of file\n" +
-      "\n[y]es [n]o [q]uit: " +
-      "Error: Aborted by user due to security confirmation.",
-  );
-
   await testbed.assertTestDir([
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/a.txt | content a",
     "user:user | 755 | 0 | target/",
+    "root:root | 644 | 0 | target/a.txt | content a",
   ]);
 });

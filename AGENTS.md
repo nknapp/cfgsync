@@ -184,12 +184,11 @@ Documented in [docs/algorithm/index.md](docs/algorithm/index.md#21-format-of-the
   config file owner if no owner set). When non-root with owner set, hook is skipped with a warning. Dry-run prints
   `[dry-run] would run hook: ...` without executing. Hook failures are non-fatal (warnings).
 - **Security confirmation**: When running as root with a config file not owned by root (or group/other-writable
-  even if root-owned), security checks apply per-operation. Groups with an `owner` configured always require
-  `WarnOrPrompt` (chown is always privilege escalation). Groups without an `owner` use `ErrorSkip` — the config
+  even if root-owned), security checks apply per-operation. Groups with an `owner` configured bypass file-operation
+  and hook security checks (the explicit owner is treated as authorization; chown proceeds without
+  interactive confirmation). Groups without an `owner` use `ErrorSkip` — the config
   owner's Unix write access to the target path is checked; if absent, an error is printed and the file is skipped
-  (no prompt). In interactive mode (`-i`), `WarnOrPrompt` shows a unified diff and prompts `[y]es [n]o [q]uit`;
-  in non-interactive mode it warns and skips. `hooks.after` triggers security when the group's `owner` differs
-  from the config file owner. Bypassed only when the config is root-owned AND not group/other-writable
+  (no prompt). Bypassed only when the config is root-owned AND not group/other-writable
   (`mode & 0o022 == 0`).
 
 ## Resources
