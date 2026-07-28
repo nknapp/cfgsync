@@ -132,7 +132,7 @@ file_type = "file"
 We assume having the following helpers (`file` is either `source` or `target`)
 
 * `a equals b` means that `a.hash == b.hash && a.perms == b.perms && a.owner == b.owner & a.type == b.type`)
-* `is_changed(file)` is an abbreviation for `file.mtime != state.mtime && not is_equal(file, state)`
+* `is_changed(file)` is an abbreviation for `file.mtime != state.mtime && not file equals state`
 
 > Note: This implementation means that files with a fabricated mtime may lead to falsely skipped files.
 > However, we do not assume bad intentions here. The major goal is to avoid unnecessary reads of the content
