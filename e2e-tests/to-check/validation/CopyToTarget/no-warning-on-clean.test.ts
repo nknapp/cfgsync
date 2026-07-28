@@ -6,7 +6,7 @@ Deno.test("no-owner-warning-on-clean", async (t) => {
       [[sync]]
       source = "./source"
       target = "./target"
-      owner = "root:root"
+      owner = "root"
       globs = ["**/*.conf"]
     `,
     files: [
@@ -30,7 +30,7 @@ Deno.test("no-owner-warning-on-clean", async (t) => {
       permission skips: 1
     `,
     stderr: deindent`
-      Owner warning: 'file.conf' should be owned by 'root:root' (run as root to fix)
+      Owner warning: 'file.conf' should be owned by 'root' (run as root to fix)
     `,
   });
 

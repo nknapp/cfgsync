@@ -6,7 +6,7 @@ Deno.test("per-glob-owner-and-permissions", async (t) => {
       [[sync]]
       source = "./source"
       target = "./target"
-      owner = "root:root"
+      owner = "root"
       file_perms = "public"
       globs = [
           "*.conf",
@@ -40,10 +40,10 @@ Deno.test("per-glob-owner-and-permissions", async (t) => {
       permission skips: 4
     `,
     stderr: deindent`
-      Owner warning: 'file.conf' should be owned by 'root:root' (run as root to fix)
+      Owner warning: 'file.conf' should be owned by 'root' (run as root to fix)
       Owner warning: 'override-owner.key' should be owned by 'nobody' (run as root to fix)
       Permission warning: 'override-perms.key' has 644, should be 600 (run as root to fix)
-      Owner warning: 'override-perms.key' should be owned by 'root:root' (run as root to fix)
+      Owner warning: 'override-perms.key' should be owned by 'root' (run as root to fix)
     `,
   });
 });

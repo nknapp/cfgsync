@@ -6,7 +6,7 @@ Deno.test("hooks-nonroot-owner-skip", async (t) => {
       [[sync]]
       source = "./source"
       target = "./target"
-      owner = "root:root"
+      owner = "root"
       hooks = { after = "touch ./target/hook-ran" }
       globs = ["**/*.txt"]
     `,
@@ -40,8 +40,8 @@ Deno.test("hooks-nonroot-owner-skip", async (t) => {
       permission skips: 1
     `,
     stderr: deindent`
-      Owner warning: 'file.txt' should be owned by 'root:root' (run as root to fix)
-      Warning: skipping hook for sync group 1 (owner 'root:root' requires root)
+      Owner warning: 'file.txt' should be owned by 'root' (run as root to fix)
+      Warning: skipping hook for sync group 1 (owner 'root' requires root)
     `,
   });
 });
