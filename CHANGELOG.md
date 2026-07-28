@@ -1,8 +1,17 @@
 # Changelog
 
-## [v0.6.8](https://github.com/nknapp/cfgsync/compare/v0.6.7...40f3acd247bb92984b4eb80c5196765896c38082) (2026-07-28)
+## [v0.6.9](https://github.com/nknapp/cfgsync/compare/v0.6.8...569974b639c82b7ba507b3840e6222c2dacd0169) (2026-07-29)
 
 ### Fixes
+
+* apply target file permissions after copy, address review comments
+([28e3277](https://github.com/nknapp/cfgsync/commit/28e3277d84e9895b12bd1171f02ac0c3b3e65104))
+* validate owner feasibility before copy, skip copy when owner cannot be set
+([0d9260a](https://github.com/nknapp/cfgsync/commit/0d9260ada535321949d1b095557c6a336545a7b3))
+
+### [v0.6.8](https://github.com/nknapp/cfgsync/compare/v0.6.7...v0.6.8) (2026-07-28)
+
+#### Fixes
 
 * validate owner format, require user:group and reject user-only specs
 ([1ef6b8c](https://github.com/nknapp/cfgsync/commit/1ef6b8c8f95cba88ab1ce94f04444a3f34ebf7cd))
