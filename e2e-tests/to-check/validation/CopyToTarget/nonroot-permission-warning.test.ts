@@ -36,10 +36,7 @@ Deno.test("nonroot-permission-warning", async (t) => {
       target -> source: 0
       deleted target:   0
       deleted source:   0
-      permission skips: 1
     `,
-    stderr: deindent`
-      Permission warning: 'file.conf' has 644, should be 600 (run as root to fix)
-    `,
+    stderr: "",
   });
 });

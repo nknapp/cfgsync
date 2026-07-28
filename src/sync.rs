@@ -61,6 +61,7 @@ pub fn run(
 
     let mut groups_with_copy_to_target: HashSet<usize> = HashSet::new();
     let mut skipped_conflicts: HashSet<(usize, String)> = HashSet::new();
+    let mut files_with_warnings: HashSet<(usize, String)> = HashSet::new();
 
     let bypass = security_bypass(config);
 
@@ -108,6 +109,12 @@ pub fn run(
                     outcome.skipped_perms += 1;
                     continue;
                 }
+                if let Some(warning) = check_owner_feasibility(config, *group_index, rel_path) {
+                    eprintln!("{}", warning);
+                    outcome.skipped_perms += 1;
+                    files_with_warnings.insert((*group_index, rel_path.to_string()));
+                    continue;
+                }
                 if dry_run {
                     println!("[dry-run] copy {} -> target", rel_path);
                     outcome.copied_to_target += 1;
@@ -118,14 +125,6 @@ pub fn run(
                             println!("copied {} -> target", rel_path);
                             outcome.copied_to_target += 1;
                             groups_with_copy_to_target.insert(*group_index);
-                            if !is_root() {
-                                warn_target_perms_owner_nonroot(
-                                    config,
-                                    *group_index,
-                                    rel_path,
-                                    &mut outcome,
-                                );
-                            }
                         }
                         Err(e) => {
                             eprintln!(
@@ -260,6 +259,15 @@ pub fn run(
 
                     match choice.as_str() {
                         "t" => {
+                            if !is_root() && has_explicit_owner(config, *group_index, rel_path) {
+                                eprintln!(
+                                    "Owner warning: '{}' should be owned by configured owner (run as root to fix)",
+                                    rel_path
+                                );
+                                outcome.skipped_perms += 1;
+                                outcome.conflicts_resolved += 1;
+                                continue;
+                            }
                             if dry_run {
                                 println!("[dry-run] would copy source -> target: {}", rel_path);
                             } else {
@@ -269,14 +277,6 @@ pub fn run(
                                         outcome.copied_to_target += 1;
                                         outcome.conflicts_resolved += 1;
                                         groups_with_copy_to_target.insert(*group_index);
-                                        if !is_root() {
-                                            warn_target_perms_owner_nonroot(
-                                                config,
-                                                *group_index,
-                                                rel_path,
-                                                &mut outcome,
-                                            );
-                                        }
                                     }
                                     Err(e) => {
                                         eprintln!("Warning: skipping '{}': {}", rel_path, e);
@@ -350,6 +350,12 @@ pub fn run(
                             continue;
                         }
                     }
+                    if let Some(warning) = check_owner_feasibility(config, *group_index, rel_path) {
+                        eprintln!("{}", warning);
+                        outcome.skipped_perms += 1;
+                        files_with_warnings.insert((*group_index, rel_path.to_string()));
+                        continue;
+                    }
                     if dry_run {
                         println!("[dry-run] copy {} -> target", rel_path);
                     } else {
@@ -358,14 +364,6 @@ pub fn run(
                                 println!("copied {} -> target", rel_path);
                                 outcome.copied_to_target += 1;
                                 groups_with_copy_to_target.insert(*group_index);
-                                if !is_root() {
-                                    warn_target_perms_owner_nonroot(
-                                        config,
-                                        *group_index,
-                                        rel_path,
-                                        &mut outcome,
-                                    );
-                                }
                             }
                             Err(e) => {
                                 eprintln!(
@@ -389,6 +387,11 @@ pub fn run(
                         validate_target_for_copy_to_source(abs_tgt, rel_path, config, *group_index)
                     {
                         eprintln!("{}", e);
+                        outcome.skipped_perms += 1;
+                        continue;
+                    }
+                    if let Some(warning) = check_owner_feasibility(config, *group_index, rel_path) {
+                        eprintln!("{}", warning);
                         outcome.skipped_perms += 1;
                         continue;
                     }
@@ -493,7 +496,7 @@ pub fn run(
         }
 
         // Rebuild state from current filesystem
-        update_state(config, state, &skipped_conflicts);
+        update_state(config, state, &skipped_conflicts, &files_with_warnings);
         state.save(&config.state_path)?;
         chown_state_file(&config.state_path, &config.config_path);
     } else {
@@ -596,7 +599,20 @@ fn update_state(
     config: &ResolvedConfig,
     state: &mut State,
     skipped_conflicts: &HashSet<(usize, String)>,
+    files_with_warnings: &HashSet<(usize, String)>,
 ) {
+    let preserved: Vec<FileEntry> = state
+        .file
+        .iter()
+        .filter(|f| {
+            config.sync_groups.iter().enumerate().any(|(gi, g)| {
+                g.target_dir.to_string_lossy() == f.group
+                    && files_with_warnings.contains(&(gi, f.path.clone()))
+            })
+        })
+        .cloned()
+        .collect();
+
     state.last_sync = crate::time::now();
     state.file.clear();
 
@@ -642,7 +658,9 @@ fn update_state(
                     continue;
                 }
 
-                if skipped_conflicts.contains(&(group_index, rel_path.clone())) {
+                if skipped_conflicts.contains(&(group_index, rel_path.clone()))
+                    || files_with_warnings.contains(&(group_index, rel_path.clone()))
+                {
                     continue;
                 }
 
@@ -682,6 +700,10 @@ fn update_state(
                 }
             }
         }
+    }
+
+    for entry in preserved {
+        state.file.push(entry);
     }
 }
 
@@ -798,56 +820,29 @@ fn has_explicit_owner(config: &ResolvedConfig, group_index: usize, rel_path: &st
         .unwrap_or(false)
 }
 
-fn warn_target_perms_owner_nonroot(
+fn check_owner_feasibility(
     config: &ResolvedConfig,
     group_index: usize,
     rel_path: &str,
-    outcome: &mut SyncOutcome,
-) {
-    use std::os::unix::fs::PermissionsExt;
-
-    let group = &config.sync_groups[group_index];
-    let glob_entry = match find_matching_glob(group, rel_path) {
-        Some(g) => g,
-        None => return,
-    };
-
-    let target_abs = group.target_dir.join(rel_path);
-    let Ok(metadata) = std::fs::symlink_metadata(&target_abs) else {
-        return;
-    };
-
-    if metadata.is_symlink() {
-        return;
+) -> Option<String> {
+    if is_root() {
+        return None;
     }
-
-    if metadata.is_file() {
-        if let Some(ref preset) = glob_entry.file_perms {
-            let src_path = group.source_dir.join(rel_path);
-            if let Ok(src_meta) = std::fs::symlink_metadata(&src_path) {
-                let src_perms = src_meta.permissions().mode() & 0o777;
-                let target_mode = preset.map_permissions(src_perms);
-                let current_mode = metadata.permissions().mode() & 0o777;
-                if current_mode != target_mode {
-                    eprintln!(
-                        "Permission warning: '{}' has {:o}, should be {:o} (run as root to fix)",
-                        rel_path, current_mode, target_mode
-                    );
-                    outcome.skipped_perms += 1;
-                }
-            }
-        }
-
-        if let Some(ref owner_spec) = glob_entry.owner
-            && !owner_spec_matches(&metadata, owner_spec)
-        {
-            eprintln!(
+    let group = &config.sync_groups[group_index];
+    let glob_entry = find_matching_glob(group, rel_path)?;
+    if glob_entry.owner.is_some() {
+        if let Some(ref owner_spec) = glob_entry.owner {
+            return Some(format!(
                 "Owner warning: '{}' should be owned by '{}' (run as root to fix)",
                 rel_path, owner_spec
-            );
-            outcome.skipped_perms += 1;
+            ));
         }
+        return Some(format!(
+            "Owner warning: '{}' has a configured owner (run as root to fix)",
+            rel_path
+        ));
     }
+    None
 }
 
 fn resolve_file_perms(path: &Path, group: &crate::config::ResolvedSyncGroup) -> String {

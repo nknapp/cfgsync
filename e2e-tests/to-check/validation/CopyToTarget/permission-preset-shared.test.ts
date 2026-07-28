@@ -46,11 +46,8 @@ Deno.test("permission-preset-shared", async (t) => {
       target -> source: 0
       deleted target:   0
       deleted source:   0
-      permission skips: 1
     `,
-    stderr: deindent`
-      Permission warning: 'file.txt' has 644, should be 664 (run as root to fix)
-    `,
+    stderr: "",
   });
 
   await testbed.assertTestDir([

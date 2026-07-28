@@ -1,6 +1,6 @@
-import { CONFIG_TOML, deindent, rootOwner, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, rootOwner, STATE_FILE, TestBed } from "@/lib/index.ts";
 
-Deno.test("no-owner-warning-on-clean", async (t) => {
+Deno.test("state-not-updated-after-warning", async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
@@ -11,12 +11,19 @@ Deno.test("no-owner-warning-on-clean", async (t) => {
     `,
     files: [
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+      `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
       "user:user | 755 | 0 | source/",
-      "user:user | 644 | 0 | source/file.conf | some content",
+      "user:user | 644 | 0 | source/file.conf | v1",
       "user:user | 755 | 0 | target/",
+      "user:user | 644 | 0 | target/file.conf | v1",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
 
+  testbed.advance("1 sec");
+  await testbed.writeTextFile("source/file.conf", "v2");
+
+  // First sync: CopyToTarget but skipped due to owner feasibility
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
     code: 0,
@@ -32,6 +39,7 @@ Deno.test("no-owner-warning-on-clean", async (t) => {
     `,
   });
 
+  // Second sync: source still changed, should skip again
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
     code: 0,
