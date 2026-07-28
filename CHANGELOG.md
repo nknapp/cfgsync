@@ -1,8 +1,19 @@
 # Changelog
 
-## [v0.6.7](https://github.com/nknapp/cfgsync/compare/v0.6.6...1a5a3822880c8c53656bbcaabe4aee558871a8aa) (2026-07-28)
+## [v0.6.8](https://github.com/nknapp/cfgsync/compare/v0.6.7...40f3acd247bb92984b4eb80c5196765896c38082) (2026-07-28)
 
 ### Fixes
+
+* validate owner format, require user:group and reject user-only specs
+([1ef6b8c](https://github.com/nknapp/cfgsync/commit/1ef6b8c8f95cba88ab1ce94f04444a3f34ebf7cd))
+* use root (no group) in test owner specs for macOS compatibility
+([9e819b2](https://github.com/nknapp/cfgsync/commit/9e819b2189ea7de94f8562b4a9dcee61886eadb6))
+* only emit owner/permission warnings for files that are actually copied
+([de4277e](https://github.com/nknapp/cfgsync/commit/de4277e06850d0257b945dec0607869ebc4b4581))
+
+### [v0.6.7](https://github.com/nknapp/cfgsync/compare/v0.6.6...v0.6.7) (2026-07-28)
+
+#### Fixes
 
 * address review comments — remove redundant tests, use run over spawn,
 simplify AGENTS.md
