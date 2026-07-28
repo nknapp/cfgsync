@@ -197,11 +197,11 @@ Verify that the actions can be executed
     * Check that the correct file owner can be set.
       (i.e., either `cfgsync` is running as root or as the intended owner of the target file)
 * `CopyToSource`:
-* Check that the state file can be written
-* Check that the source file can be written or created.
-* Check that missing parent directories can be created.
-* Check that the correct file owner can be set.
-  (i.e., either `cfgsync` is running as root or as the intended owner of the **config file**)
+    * Check that the state file can be written
+    * Check that the source file can be written or created.
+    * Check that missing parent directories can be created.
+    * Check that the correct file owner can be set.
+      (i.e., either `cfgsync` is running as root or as the intended owner of the **config file**)
 * `DeleteSource`:
     * Check that the state file can be written
     * Check the source file can be deleted

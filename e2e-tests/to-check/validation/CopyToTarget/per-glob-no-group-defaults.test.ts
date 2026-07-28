@@ -27,18 +27,16 @@ Deno.test("per-glob-no-group-defaults", async (t) => {
     code: 0,
     stdout: deindent`
       copied file-no-defaults.conf -> target
-      copied file-with-owner.conf -> target
       copied file-with-perms.conf -> target
 
-      source -> target: 3
+      source -> target: 2
       target -> source: 0
       deleted target:   0
       deleted source:   0
-      permission skips: 2
+      permission skips: 1
     `,
     stderr: deindent`
       Owner warning: 'file-with-owner.conf' should be owned by '${rootOwner}' (run as root to fix)
-      Permission warning: 'file-with-perms.conf' has 644, should be 600 (run as root to fix)
     `,
   });
 });

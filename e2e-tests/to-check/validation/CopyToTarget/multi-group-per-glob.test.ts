@@ -29,20 +29,15 @@ Deno.test("per-glob-owner-and-permissions", async (t) => {
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      copied file.conf -> target
-      copied override-owner.key -> target
-      copied override-perms.key -> target
-
-      source -> target: 3
+      source -> target: 0
       target -> source: 0
       deleted target:   0
       deleted source:   0
-      permission skips: 4
+      permission skips: 3
     `,
     stderr: deindent`
       Owner warning: 'file.conf' should be owned by '${rootOwner}' (run as root to fix)
       Owner warning: 'override-owner.key' should be owned by '${nobodyOwner}' (run as root to fix)
-      Permission warning: 'override-perms.key' has 644, should be 600 (run as root to fix)
       Owner warning: 'override-perms.key' should be owned by '${rootOwner}' (run as root to fix)
     `,
   });

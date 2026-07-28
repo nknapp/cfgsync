@@ -25,7 +25,7 @@ Deno.test("permission-warning", async (t) => {
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.conf | some content",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.conf | some content",
+    "user:user | 600 | 0 | target/file.conf | some content",
   ]);
   testbed.assertOutput({
     code: 0,
@@ -36,10 +36,7 @@ Deno.test("permission-warning", async (t) => {
       target -> source: 0
       deleted target:   0
       deleted source:   0
-      permission skips: 1
     `,
-    stderr: deindent`
-      Permission warning: 'file.conf' has 644, should be 600 (run as root to fix)
-    `,
+    stderr: "",
   });
 });

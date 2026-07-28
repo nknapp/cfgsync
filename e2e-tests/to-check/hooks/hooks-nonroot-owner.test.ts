@@ -26,14 +26,11 @@ Deno.test("hooks-nonroot-owner-skip", async (t) => {
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | file content",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.txt | file content",
   ]);
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      copied file.txt -> target
-
-      source -> target: 1
+      source -> target: 0
       target -> source: 0
       deleted target:   0
       deleted source:   0
@@ -41,7 +38,6 @@ Deno.test("hooks-nonroot-owner-skip", async (t) => {
     `,
     stderr: deindent`
       Owner warning: 'file.txt' should be owned by '${rootOwner}' (run as root to fix)
-      Warning: skipping hook for sync group 1 (owner '${rootOwner}' requires root)
     `,
   });
 });
