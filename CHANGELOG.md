@@ -1,8 +1,18 @@
 # Changelog
 
-## [v0.6.6](https://github.com/nknapp/cfgsync/compare/v0.6.5...7f7b703811d495389e41da1d865a4c384c7e6d24) (2026-07-21)
+## [v0.6.7](https://github.com/nknapp/cfgsync/compare/v0.6.6...1a5a3822880c8c53656bbcaabe4aee558871a8aa) (2026-07-28)
 
 ### Fixes
+
+* address review comments — remove redundant tests, use run over spawn,
+simplify AGENTS.md
+([9bcdf0a](https://github.com/nknapp/cfgsync/commit/9bcdf0a0e7abfad13af0dd69abd92c5b726f9f28))
+* treat explicit owner as authorization, bypassing security checks
+([665b420](https://github.com/nknapp/cfgsync/commit/665b420e69526b66c6d64fe31bc3560fd0733a94))
+
+### [v0.6.6](https://github.com/nknapp/cfgsync/compare/v0.6.5...v0.6.6) (2026-07-20)
+
+#### Fixes
 
 * replace destination symlinks before copy to support type changes
 ([459a004](https://github.com/nknapp/cfgsync/commit/459a004de1a2e4588e62cb0828b2c52f50f756f1))
