@@ -1,4 +1,11 @@
-import { CONFIG_TOML, deindent, runningOutsideDocker, STATE_FILE, TestBed } from "@/lib/index.ts";
+import {
+  CONFIG_TOML,
+  deindent,
+  rootOwner,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 Deno.test({
   name: "hook-runs-as-configured-owner",
@@ -9,7 +16,7 @@ Deno.test({
       [[sync]]
       source = "./source"
       target = "./target"
-      owner = "root:root"
+      owner = "${rootOwner}"
       hooks = { after = "whoami > ./target/hook-owner-marker" }
       globs = ["**/*.txt"]
     `,

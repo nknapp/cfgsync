@@ -1101,7 +1101,7 @@ fn warn_directory_permission_mismatch(
 fn owner_spec_matches(metadata: &std::fs::Metadata, owner_spec: &str) -> bool {
     use std::os::unix::fs::MetadataExt;
     let Ok((uid, gid)) = resolve_owner_uid_gid(owner_spec) else {
-        return true;
+        return false;
     };
     let actual_uid = metadata.uid();
     let actual_gid = metadata.gid();
@@ -1131,16 +1131,20 @@ fn resolve_owner_uid_gid(
     owner_spec: &str,
 ) -> Result<(Option<nix::unistd::Uid>, Option<nix::unistd::Gid>), String> {
     let parts: Vec<&str> = owner_spec.split(':').collect();
-    if parts.len() > 2 {
-        return Err(format!("Invalid owner format '{}'", owner_spec));
+    if parts.len() != 2 {
+        return Err(format!(
+            "Invalid owner format '{}' (expected 'user:group')",
+            owner_spec
+        ));
     }
-
     let user_name = parts[0];
-    let group_name = if parts.len() == 2 && !parts[1].is_empty() {
-        Some(parts[1])
-    } else {
-        None
-    };
+    let group_name = parts[1];
+    if user_name.is_empty() || group_name.is_empty() {
+        return Err(format!(
+            "Invalid owner format '{}' (expected 'user:group')",
+            owner_spec
+        ));
+    }
 
     let uid = if let Some(user) = nix::unistd::User::from_name(user_name)
         .map_err(|e| format!("Cannot look up user '{}': {}", user_name, e))?
@@ -1150,16 +1154,12 @@ fn resolve_owner_uid_gid(
         return Err(format!("User '{}' not found", user_name));
     };
 
-    let gid = if let Some(group) = group_name {
-        if let Some(group) = nix::unistd::Group::from_name(group)
-            .map_err(|e| format!("Cannot look up group '{}': {}", group, e))?
-        {
-            Some(group.gid)
-        } else {
-            return Err(format!("Group '{}' not found", group));
-        }
+    let gid = if let Some(group) = nix::unistd::Group::from_name(group_name)
+        .map_err(|e| format!("Cannot look up group '{}': {}", group_name, e))?
+    {
+        Some(group.gid)
     } else {
-        None
+        return Err(format!("Group '{}' not found", group_name));
     };
 
     Ok((uid, gid))

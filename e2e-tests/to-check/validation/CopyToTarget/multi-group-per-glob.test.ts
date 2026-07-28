@@ -1,4 +1,4 @@
-import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, nobodyOwner, rootOwner, TestBed } from "@/lib/index.ts";
 
 Deno.test("per-glob-owner-and-permissions", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -6,12 +6,12 @@ Deno.test("per-glob-owner-and-permissions", async (t) => {
       [[sync]]
       source = "./source"
       target = "./target"
-      owner = "root"
+      owner = "${rootOwner}"
       file_perms = "public"
       globs = [
           "*.conf",
           { pattern = "override-perms.key", file_perms = "private" },
-          { pattern = "override-owner.key", file_perms = "public", owner = "nobody" },
+          { pattern = "override-owner.key", file_perms = "public", owner = "${nobodyOwner}" },
       ]
     `,
     files: [
@@ -40,10 +40,10 @@ Deno.test("per-glob-owner-and-permissions", async (t) => {
       permission skips: 4
     `,
     stderr: deindent`
-      Owner warning: 'file.conf' should be owned by 'root' (run as root to fix)
-      Owner warning: 'override-owner.key' should be owned by 'nobody' (run as root to fix)
+      Owner warning: 'file.conf' should be owned by '${rootOwner}' (run as root to fix)
+      Owner warning: 'override-owner.key' should be owned by '${nobodyOwner}' (run as root to fix)
       Permission warning: 'override-perms.key' has 644, should be 600 (run as root to fix)
-      Owner warning: 'override-perms.key' should be owned by 'root' (run as root to fix)
+      Owner warning: 'override-perms.key' should be owned by '${rootOwner}' (run as root to fix)
     `,
   });
 });

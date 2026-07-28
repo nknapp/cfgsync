@@ -1,4 +1,11 @@
-import { assertEquals, CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import {
+  assertEquals,
+  CONFIG_TOML,
+  deindent,
+  rootOwner,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 Deno.test("deviating-dir-config", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -10,7 +17,7 @@ Deno.test("deviating-dir-config", async (t) => {
 
       [[sync.deviating]]
       path = "./target/special-dir"
-      owner = "root:root"
+      owner = "${rootOwner}"
     `,
     files: [
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,

@@ -1,4 +1,11 @@
-import { CONFIG_TOML, deindent, runningOutsideDocker, STATE_FILE, TestBed } from "@/lib/index.ts";
+import {
+  CONFIG_TOML,
+  deindent,
+  rootOwner,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 Deno.test({
   name: "copy-to-source-respects-config-owner",
@@ -10,7 +17,7 @@ Deno.test({
       source = "./source"
       target = "./target"
       globs = ["**/*.txt"]
-      owner = "root:root"
+      owner = "${rootOwner}"
     `,
     files: [
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,

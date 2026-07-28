@@ -1,4 +1,11 @@
-import { CONFIG_TOML, deindent, runningOutsideDocker, STATE_FILE, TestBed } from "@/lib/index.ts";
+import {
+  CONFIG_TOML,
+  deindent,
+  rootOwner,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 Deno.test({
   name: "chown-applied-when-root",
@@ -10,7 +17,7 @@ Deno.test({
       source = "./source"
       target = "./target"
       globs = ["**/*.conf"]
-      owner = "root:root"
+      owner = "${rootOwner}"
     `,
     files: [
       `root:root | 644 | 0 | config.toml | ${CONFIG_TOML}`,
