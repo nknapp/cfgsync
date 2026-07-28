@@ -137,8 +137,8 @@ Test files (35 total):
 `diff-conflict`, `identical-untracked`, `ignore-non-matching`, `multi-group-independent`, `multi-group-overlap`,
 `multi-group-owner`, `multi-group-per-glob`, `per-glob-no-group-defaults`, `relative-paths`, `schema-json`,
 `status-short`, `sync-dry-run`, `hooks`, `hooks-nonroot-owner`, `hooks-dry-run`, `hooks-watch`, `hooks-unchanged`,
-`hooks-not-run-on-copy-to-source`, `security-root-target-confirm` (7 tests: confirm yes/no/quit,
-not-triggered-by-root-config, triggered-by-group-writable, not-triggered-non-root, hook confirm yes/no/quit).
+`hooks-not-run-on-copy-to-source`, `security-root-target-confirm` (7 tests: bypass root-owned config, bypass non-root,
+error-skip no-owner, hook with owner, hook no-owner, non-interactive with owner, interactive with owner).
 
 **Rule**: For every new feature, an e2e test must be added. The e2e test framework should not be changed without good
 reason.
@@ -184,13 +184,8 @@ Documented in [docs/algorithm/index.md](docs/algorithm/index.md#21-format-of-the
   config file owner if no owner set). When non-root with owner set, hook is skipped with a warning. Dry-run prints
   `[dry-run] would run hook: ...` without executing. Hook failures are non-fatal (warnings).
 - **Security confirmation**: When running as root with a config file not owned by root (or group/other-writable
-  even if root-owned), security checks apply per-operation. Groups with an `owner` configured always require
-  `WarnOrPrompt` (chown is always privilege escalation). Groups without an `owner` use `ErrorSkip` — the config
-  owner's Unix write access to the target path is checked; if absent, an error is printed and the file is skipped
-  (no prompt). In interactive mode (`-i`), `WarnOrPrompt` shows a unified diff and prompts `[y]es [n]o [q]uit`;
-  in non-interactive mode it warns and skips. `hooks.after` triggers security when the group's `owner` differs
-  from the config file owner. Bypassed only when the config is root-owned AND not group/other-writable
-  (`mode & 0o022 == 0`).
+  even if root-owned), security checks apply per-operation. See `docs/algorithm/permissions-and-owner.md` for the
+  full specification.
 
 ## Resources
 
