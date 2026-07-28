@@ -276,14 +276,14 @@ pub fn run(
                                     Ok(()) => {
                                         println!("resolved: {} (kept source)", rel_path);
                                         outcome.copied_to_target += 1;
-                                            outcome.conflicts_resolved += 1;
-                                            groups_with_copy_to_target.insert(*group_index);
-                                            apply_target_permissions(
-                                                config,
-                                                *group_index,
-                                                rel_path,
-                                                &mut outcome,
-                                            );
+                                        outcome.conflicts_resolved += 1;
+                                        groups_with_copy_to_target.insert(*group_index);
+                                        apply_target_permissions(
+                                            config,
+                                            *group_index,
+                                            rel_path,
+                                            &mut outcome,
+                                        );
                                     }
                                     Err(e) => {
                                         eprintln!("Warning: skipping '{}': {}", rel_path, e);
