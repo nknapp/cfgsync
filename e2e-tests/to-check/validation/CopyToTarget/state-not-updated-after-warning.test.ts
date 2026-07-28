@@ -1,6 +1,6 @@
 import { CONFIG_TOML, deindent, rootOwner, STATE_FILE, TestBed } from "@/lib/index.ts";
 
-Deno.test("state-not-updated-after-warning", async (t) => {
+Deno.test("state-should-not-be-updated-after-warning", async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]

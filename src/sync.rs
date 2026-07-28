@@ -125,6 +125,7 @@ pub fn run(
                             println!("copied {} -> target", rel_path);
                             outcome.copied_to_target += 1;
                             groups_with_copy_to_target.insert(*group_index);
+                            apply_target_permissions(config, *group_index, rel_path, &mut outcome);
                         }
                         Err(e) => {
                             eprintln!(
@@ -275,8 +276,14 @@ pub fn run(
                                     Ok(()) => {
                                         println!("resolved: {} (kept source)", rel_path);
                                         outcome.copied_to_target += 1;
-                                        outcome.conflicts_resolved += 1;
-                                        groups_with_copy_to_target.insert(*group_index);
+                                            outcome.conflicts_resolved += 1;
+                                            groups_with_copy_to_target.insert(*group_index);
+                                            apply_target_permissions(
+                                                config,
+                                                *group_index,
+                                                rel_path,
+                                                &mut outcome,
+                                            );
                                     }
                                     Err(e) => {
                                         eprintln!("Warning: skipping '{}': {}", rel_path, e);
@@ -364,6 +371,12 @@ pub fn run(
                                 println!("copied {} -> target", rel_path);
                                 outcome.copied_to_target += 1;
                                 groups_with_copy_to_target.insert(*group_index);
+                                apply_target_permissions(
+                                    config,
+                                    *group_index,
+                                    rel_path,
+                                    &mut outcome,
+                                );
                             }
                             Err(e) => {
                                 eprintln!(
@@ -818,6 +831,51 @@ fn has_explicit_owner(config: &ResolvedConfig, group_index: usize, rel_path: &st
     find_matching_glob(group, rel_path)
         .map(|g| g.owner.is_some())
         .unwrap_or(false)
+}
+
+fn apply_target_permissions(
+    config: &ResolvedConfig,
+    group_index: usize,
+    rel_path: &str,
+    outcome: &mut SyncOutcome,
+) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let group = &config.sync_groups[group_index];
+    let glob_entry = match find_matching_glob(group, rel_path) {
+        Some(g) => g,
+        None => return,
+    };
+
+    let preset = match glob_entry.file_perms {
+        Some(ref p) => p,
+        None => return,
+    };
+
+    let target_path = group.target_dir.join(rel_path);
+    let Ok(target_meta) = std::fs::symlink_metadata(&target_path) else {
+        return;
+    };
+    if target_meta.is_symlink() {
+        return;
+    }
+
+    let src_path = group.source_dir.join(rel_path);
+    let src_perms = std::fs::symlink_metadata(&src_path)
+        .map(|m| m.permissions().mode() & 0o777)
+        .unwrap_or(0o644);
+
+    let target_mode = preset.map_permissions(src_perms);
+    let perms = std::fs::Permissions::from_mode(target_mode);
+    if let Err(_e) = std::fs::set_permissions(&target_path, perms) {
+        eprintln!(
+            "Permission warning: '{}' has {:o}, should be {:o} (run as root to fix)",
+            rel_path,
+            target_meta.permissions().mode() & 0o777,
+            target_mode
+        );
+        outcome.skipped_perms += 1;
+    }
 }
 
 fn check_owner_feasibility(

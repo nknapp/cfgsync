@@ -56,6 +56,6 @@ Deno.test("permission-preset-shared", async (t) => {
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | some content",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.txt | some content",
+    "user:user | 664 | 0 | target/file.txt | some content",
   ]);
 });
