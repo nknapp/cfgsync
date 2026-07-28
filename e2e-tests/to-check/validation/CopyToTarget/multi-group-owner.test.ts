@@ -1,4 +1,11 @@
-import { CONFIG_TOML, deindent, runningOutsideDocker, STATE_FILE, TestBed } from "@/lib/index.ts";
+import {
+  CONFIG_TOML,
+  deindent,
+  rootOwner,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 Deno.test({
   name: "multi-group-owner",
@@ -10,7 +17,7 @@ Deno.test({
       source = "./source-with-owner"
       target = "./target-with-owner"
       globs = ["**/*.conf"]
-      owner = "root:root"
+      owner = "${rootOwner}"
 
       [[sync]]
       source = "./source-no-owner"

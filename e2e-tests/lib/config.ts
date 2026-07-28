@@ -49,3 +49,9 @@ export function groupToId(group: TestGroup): number {
     `Group must be one of ${Object.keys(groupIdMap)} but was '${group}'`,
   );
 }
+
+const isMacos = Deno.build.os === "darwin";
+
+export const rootOwner = isMacos ? "root:wheel" : "root:root";
+
+export const nobodyOwner = "nobody:daemon";

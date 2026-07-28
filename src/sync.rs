@@ -118,6 +118,14 @@ pub fn run(
                             println!("copied {} -> target", rel_path);
                             outcome.copied_to_target += 1;
                             groups_with_copy_to_target.insert(*group_index);
+                            if !is_root() {
+                                warn_target_perms_owner_nonroot(
+                                    config,
+                                    *group_index,
+                                    rel_path,
+                                    &mut outcome,
+                                );
+                            }
                         }
                         Err(e) => {
                             eprintln!(
@@ -261,6 +269,14 @@ pub fn run(
                                         outcome.copied_to_target += 1;
                                         outcome.conflicts_resolved += 1;
                                         groups_with_copy_to_target.insert(*group_index);
+                                        if !is_root() {
+                                            warn_target_perms_owner_nonroot(
+                                                config,
+                                                *group_index,
+                                                rel_path,
+                                                &mut outcome,
+                                            );
+                                        }
                                     }
                                     Err(e) => {
                                         eprintln!("Warning: skipping '{}': {}", rel_path, e);
@@ -342,6 +358,14 @@ pub fn run(
                                 println!("copied {} -> target", rel_path);
                                 outcome.copied_to_target += 1;
                                 groups_with_copy_to_target.insert(*group_index);
+                                if !is_root() {
+                                    warn_target_perms_owner_nonroot(
+                                        config,
+                                        *group_index,
+                                        rel_path,
+                                        &mut outcome,
+                                    );
+                                }
                             }
                             Err(e) => {
                                 eprintln!(
@@ -457,11 +481,8 @@ pub fn run(
     }
 
     if !dry_run {
-        // Enforce permissions/owner on target files
         if is_root() {
             enforce_permissions_root(config, state)?;
-        } else {
-            check_permissions_nonroot(config, &mut outcome);
         }
 
         check_deviating_directories(config);
@@ -777,6 +798,58 @@ fn has_explicit_owner(config: &ResolvedConfig, group_index: usize, rel_path: &st
         .unwrap_or(false)
 }
 
+fn warn_target_perms_owner_nonroot(
+    config: &ResolvedConfig,
+    group_index: usize,
+    rel_path: &str,
+    outcome: &mut SyncOutcome,
+) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let group = &config.sync_groups[group_index];
+    let glob_entry = match find_matching_glob(group, rel_path) {
+        Some(g) => g,
+        None => return,
+    };
+
+    let target_abs = group.target_dir.join(rel_path);
+    let Ok(metadata) = std::fs::symlink_metadata(&target_abs) else {
+        return;
+    };
+
+    if metadata.is_symlink() {
+        return;
+    }
+
+    if metadata.is_file() {
+        if let Some(ref preset) = glob_entry.file_perms {
+            let src_path = group.source_dir.join(rel_path);
+            if let Ok(src_meta) = std::fs::symlink_metadata(&src_path) {
+                let src_perms = src_meta.permissions().mode() & 0o777;
+                let target_mode = preset.map_permissions(src_perms);
+                let current_mode = metadata.permissions().mode() & 0o777;
+                if current_mode != target_mode {
+                    eprintln!(
+                        "Permission warning: '{}' has {:o}, should be {:o} (run as root to fix)",
+                        rel_path, current_mode, target_mode
+                    );
+                    outcome.skipped_perms += 1;
+                }
+            }
+        }
+
+        if let Some(ref owner_spec) = glob_entry.owner
+            && !owner_spec_matches(&metadata, owner_spec)
+        {
+            eprintln!(
+                "Owner warning: '{}' should be owned by '{}' (run as root to fix)",
+                rel_path, owner_spec
+            );
+            outcome.skipped_perms += 1;
+        }
+    }
+}
+
 fn resolve_file_perms(path: &Path, group: &crate::config::ResolvedSyncGroup) -> String {
     use std::os::unix::fs::PermissionsExt;
     if let Ok(metadata) = std::fs::symlink_metadata(path) {
@@ -1028,7 +1101,7 @@ fn warn_directory_permission_mismatch(
 fn owner_spec_matches(metadata: &std::fs::Metadata, owner_spec: &str) -> bool {
     use std::os::unix::fs::MetadataExt;
     let Ok((uid, gid)) = resolve_owner_uid_gid(owner_spec) else {
-        return true;
+        return false;
     };
     let actual_uid = metadata.uid();
     let actual_gid = metadata.gid();
@@ -1058,16 +1131,20 @@ fn resolve_owner_uid_gid(
     owner_spec: &str,
 ) -> Result<(Option<nix::unistd::Uid>, Option<nix::unistd::Gid>), String> {
     let parts: Vec<&str> = owner_spec.split(':').collect();
-    if parts.len() > 2 {
-        return Err(format!("Invalid owner format '{}'", owner_spec));
+    if parts.len() != 2 {
+        return Err(format!(
+            "Invalid owner format '{}' (expected 'user:group')",
+            owner_spec
+        ));
     }
-
     let user_name = parts[0];
-    let group_name = if parts.len() == 2 && !parts[1].is_empty() {
-        Some(parts[1])
-    } else {
-        None
-    };
+    let group_name = parts[1];
+    if user_name.is_empty() || group_name.is_empty() {
+        return Err(format!(
+            "Invalid owner format '{}' (expected 'user:group')",
+            owner_spec
+        ));
+    }
 
     let uid = if let Some(user) = nix::unistd::User::from_name(user_name)
         .map_err(|e| format!("Cannot look up user '{}': {}", user_name, e))?
@@ -1077,145 +1154,15 @@ fn resolve_owner_uid_gid(
         return Err(format!("User '{}' not found", user_name));
     };
 
-    let gid = if let Some(group) = group_name {
-        if let Some(group) = nix::unistd::Group::from_name(group)
-            .map_err(|e| format!("Cannot look up group '{}': {}", group, e))?
-        {
-            Some(group.gid)
-        } else {
-            return Err(format!("Group '{}' not found", group));
-        }
+    let gid = if let Some(group) = nix::unistd::Group::from_name(group_name)
+        .map_err(|e| format!("Cannot look up group '{}': {}", group_name, e))?
+    {
+        Some(group.gid)
     } else {
-        None
+        return Err(format!("Group '{}' not found", group_name));
     };
 
     Ok((uid, gid))
-}
-
-fn check_permissions_nonroot(config: &ResolvedConfig, outcome: &mut SyncOutcome) {
-    use std::os::unix::fs::{MetadataExt, PermissionsExt};
-
-    for group in &config.sync_groups {
-        for glob_entry in &group.globs {
-            let has_perm_requirements = glob_entry.file_perms.is_some()
-                || glob_entry.dir_perms.is_some()
-                || glob_entry.owner.is_some();
-            if !has_perm_requirements {
-                continue;
-            }
-
-            let pattern_str = group
-                .target_dir
-                .join(&glob_entry.pattern)
-                .to_string_lossy()
-                .to_string();
-
-            let paths = match glob::glob(&pattern_str) {
-                Ok(p) => p,
-                Err(e) => {
-                    eprintln!("Warning: invalid glob '{}': {}", pattern_str, e);
-                    continue;
-                }
-            };
-
-            for entry in paths {
-                let abs_path = match entry {
-                    Ok(p) => p,
-                    Err(e) => {
-                        eprintln!("Warning: glob error for '{}': {}", pattern_str, e);
-                        continue;
-                    }
-                };
-
-                if abs_path.is_symlink() {
-                    continue;
-                }
-
-                let rel_path = match abs_path.strip_prefix(&group.target_dir) {
-                    Ok(p) => p.to_string_lossy().to_string(),
-                    Err(_) => continue,
-                };
-
-                if abs_path.is_file() {
-                    if let Some(ref preset) = glob_entry.file_perms
-                        && let Ok(metadata) = std::fs::metadata(&abs_path)
-                    {
-                        let src_path = group.source_dir.join(&rel_path);
-                        if let Ok(src_meta) = std::fs::symlink_metadata(&src_path) {
-                            let src_perms = src_meta.permissions().mode() & 0o777;
-                            let target_mode = preset.map_permissions(src_perms);
-                            let current_mode = metadata.permissions().mode() & 0o777;
-                            if current_mode != target_mode {
-                                eprintln!(
-                                    "Permission warning: '{}' has {:o}, should be {:o} (run as root to fix)",
-                                    rel_path, current_mode, target_mode
-                                );
-                                outcome.skipped_perms += 1;
-                            }
-                        }
-                    }
-
-                    if let Some(ref _owner_spec) = glob_entry.owner
-                        && let Ok(metadata) = std::fs::metadata(&abs_path)
-                    {
-                        let _current_uid = metadata.uid();
-                        eprintln!(
-                            "Owner warning: '{}' should be owned by '{}' (run as root to fix)",
-                            rel_path, _owner_spec
-                        );
-                        outcome.skipped_perms += 1;
-                    }
-                } else if abs_path.is_dir()
-                    && check_directory_permission_warning(&abs_path, &rel_path, glob_entry, group)
-                {
-                    outcome.skipped_perms += 1;
-                }
-            }
-        }
-    }
-}
-
-fn check_directory_permission_warning(
-    abs_path: &Path,
-    rel_path: &str,
-    glob_entry: &crate::config::ResolvedGlob,
-    group: &crate::config::ResolvedSyncGroup,
-) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-
-    let metadata = match std::fs::symlink_metadata(abs_path) {
-        Ok(m) => m,
-        Err(_) => return false,
-    };
-    let actual_mode = metadata.permissions().mode() & 0o777;
-    let mut warned = false;
-
-    if let Some(ref preset) = glob_entry.dir_perms {
-        let src_path = group.source_dir.join(rel_path);
-        let src_perms = std::fs::symlink_metadata(&src_path)
-            .map(|m| m.permissions().mode() & 0o777)
-            .unwrap_or(0o755);
-        let expected_mode = preset.map_permissions(src_perms);
-        if actual_mode != expected_mode {
-            eprintln!(
-                "Permission warning: directory '{}' has {:o}, should be {:o} (run as root to fix)",
-                rel_path, actual_mode, expected_mode
-            );
-            warned = true;
-        }
-    }
-
-    if let Some(ref owner_spec) = glob_entry.owner
-        && !owner_spec_matches(&metadata, owner_spec)
-    {
-        eprintln!(
-            "Owner warning: directory '{}' should be owned by '{}' (run as root to fix)",
-            rel_path, owner_spec
-        );
-        warned = true;
-    }
-
-    warned
 }
 
 fn check_deviating_directories(config: &ResolvedConfig) {

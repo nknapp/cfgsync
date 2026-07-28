@@ -1,4 +1,4 @@
-import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, rootOwner, TestBed } from "@/lib/index.ts";
 
 Deno.test("per-glob-no-group-defaults", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -8,7 +8,7 @@ Deno.test("per-glob-no-group-defaults", async (t) => {
       target = "./target"
       globs = [
           { pattern = "file-with-perms.conf", file_perms = "private" },
-          { pattern = "file-with-owner.conf", owner = "root:root" },
+          { pattern = "file-with-owner.conf", owner = "${rootOwner}" },
           { pattern = "file-no-defaults.conf" },
       ]
     `,
@@ -37,8 +37,8 @@ Deno.test("per-glob-no-group-defaults", async (t) => {
       permission skips: 2
     `,
     stderr: deindent`
+      Owner warning: 'file-with-owner.conf' should be owned by '${rootOwner}' (run as root to fix)
       Permission warning: 'file-with-perms.conf' has 644, should be 600 (run as root to fix)
-      Owner warning: 'file-with-owner.conf' should be owned by 'root:root' (run as root to fix)
     `,
   });
 });

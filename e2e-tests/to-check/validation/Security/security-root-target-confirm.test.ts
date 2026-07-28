@@ -2,6 +2,7 @@ import {
   assertEquals,
   CONFIG_TOML,
   deindent,
+  rootOwner,
   runningOutsideDocker,
   STATE_FILE,
   TestBed,
@@ -153,7 +154,7 @@ Deno.test({
       source = "./source"
       target = "./target"
       hooks = { after = "whoami > ./hook-ran" }
-      owner = "root:root"
+      owner = "${rootOwner}"
       globs = ["**/*.txt"]
     `,
     files: [
@@ -248,7 +249,7 @@ Deno.test({
       [[sync]]
       source = "./source"
       target = "./target"
-      owner = "root:root"
+      owner = "${rootOwner}"
       globs = ["**/*.txt"]
     `,
     files: [
@@ -294,7 +295,7 @@ Deno.test({
       [[sync]]
       source = "./source"
       target = "./target"
-      owner = "root:root"
+      owner = "${rootOwner}"
       globs = ["**/*.txt"]
     `,
     files: [
