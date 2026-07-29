@@ -35,10 +35,6 @@ each sync group defines
         * optional file owner for files and directories in the target directory
         * optional file permissions for files in the target directory
         * optional directory permissions for directories in the target directory
-* a list of deviating directories concerning the owner
-    * path (no glob)
-    * optional expected permission
-    * optional expected owner
 
 ## 1a. Permission and owner fallbacks
 
@@ -221,28 +217,28 @@ Verify that the actions can be executed
 * `Conflict`:
     * Check if any of `CopyToTarget` or `CopyToSource` are possible.
 
-All failed checks are collected and attached for each file record for use in later steps.
+All failed checks are immediately logged as warnings. For the next steps, a file is only considered "valid" if EVERY check for that file passes.
 
 # 5. Execute changes
 
 ### 5.1 Command: `status`
 
-Show the number of files without failed checks the following categories
+Show the number of valid files (without any failed checks) in the following categories
 
-| Long                   | Short | Count computed via number of     |
-|------------------------|-------|----------------------------------|
-| source to target:      | →     | `CopyToTarget` +  `DeleteTarget` |
-| target to source:      | ←     | `CopyToSource` + `DeleteSource`  |
-| conflict:              | ↯     | `Conflict`                       |
-| state update required: | ↺     | `UpdateState`                    |
-| clean:                 |       | `Clean`                          |
+| Long                   | Short | Count computed via number of    |
+|------------------------|-------|---------------------------------|
+| source to target:      | →     | `CopyToTarget` + `DeleteTarget` |
+| target to source:      | ←     | `CopyToSource` + `DeleteSource` |
+| conflict:              | ↯     | `Conflict`                      |
+| state update required: | ↺     | `UpdateState`                   |
+| clean:                 |       | `Clean`                         |
 
-In the short form, only value `>0` are shown, "clean" is omitted (e.g., 3→ 2← 1↯ ↺2)
+In the short form, only value `> 0` are shown, "clean" is omitted (e.g., 3→ 2← 1↯ ↺2)
 If all files are "clean", show a `✓`.
 
 ### 5.2 Command: `diff`:
 
-For each file show based on the action from step 3:
+For each valid file, show based on the action from step 3:
 
 * `CopyToTarget`
 
@@ -299,9 +295,7 @@ Where `new-owner` and `new-perms` are the owner and permission valus derived fro
 
 ### 5.3 Command: `sync`
 
-For all files marked as `failed`, print a warning, but continue with the operation.
-
-For all non-failed `Conflict` files, ask the user for a resolution.
+For all valid `Conflict` files, ask the user for a resolution.
 
 * if cli option `-i` is active:
     * Show the same diff as in 4.2 (for conflicts))
@@ -321,7 +315,7 @@ For all non-failed `Conflict` files, ask the user for a resolution.
       Aborting due to N conflict(s). Use -i/--interactive to resolve.
       ```
 
-For each non-failed file, perform the determined action. Because of the checks
+For each valid file, perform the determined action. Because of the checks
 in [step 4](#4-validate-action-feasibility),
 we expect all actions to pass without errors. If errors happen, revert the file where the error occurred,
 print an error message, and continue with the next file.
@@ -330,7 +324,7 @@ print an error message, and continue with the next file.
     * Ensure that a state entry for the path exists with the hash.
     * Update the mtime of both files to the newest of both mtimes and set this time in the state as last_sync
 * `CopyToTarget`
-    * Create missing parent directories in the target folder an set the correct owner and permissions
+    * Create missing parent directories in the target folder and set the correct owner and permissions
     * Copy the source file to the target directory
     * Ensure that permissions and owner match the configured values
       (see [permissions-and-owner](./permissions-and-owner.md)
