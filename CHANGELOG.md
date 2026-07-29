@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.6.11](https://github.com/nknapp/cfgsync/compare/v0.6.10...24428cf68e4a232f4028e8444fe541031d391407) (2026-07-29)
+## [v0.6.12](https://github.com/nknapp/cfgsync/compare/v0.6.11...835ac0ed58f57ca94a35ba260c68a2d0d5fde804) (2026-07-29)
 
 ### Fixes
+
+* skip perms/owner check in is_changed when mtime matches state
+([9cb1906](https://github.com/nknapp/cfgsync/commit/9cb19069dc185a5d6fffc4ebf15e1621196e1ba0))
+
+### [v0.6.11](https://github.com/nknapp/cfgsync/compare/v0.6.10...v0.6.11) (2026-07-29)
+
+#### Fixes
 
 * use configured owner/perms for source in no-state-file classification
 ([16c1e42](https://github.com/nknapp/cfgsync/commit/16c1e42285351f550fa349b2250718e0e0bcfc49))
