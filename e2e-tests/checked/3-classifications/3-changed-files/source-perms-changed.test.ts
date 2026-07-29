@@ -1,7 +1,7 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("source-perms-changed-copy-to-target", async (t) => {
-  const { testbed, testDir } = await TestBed.create(t, {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -19,21 +19,16 @@ Deno.test("source-perms-changed-copy-to-target", async (t) => {
     faketime: "2020-01-01T00:00:00Z",
   });
 
-  const configWithPerms = deindent`
+  testbed.advance("1 sec");
+  await testbed.updateConfig(deindent`
     [[sync]]
     source = "./source"
     target = "./target"
     file_perms = "private"
     globs = ["**/*.txt"]
-  `;
-  await Deno.writeTextFile(`${testDir}/config2.toml`, configWithPerms);
-  await Deno.copyFile(
-    `${testDir}/config.cfgsync.state`,
-    `${testDir}/config2.cfgsync.state`,
-  );
-  testbed.advance("1 sec");
+  `);
 
-  await testbed.run({ args: ["--config", "config2.toml", "status"] });
+  await testbed.run({ args: ["--config", "config.toml", "status"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
@@ -43,7 +38,7 @@ Deno.test("source-perms-changed-copy-to-target", async (t) => {
     stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config2.toml", "sync"] });
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
@@ -56,9 +51,6 @@ Deno.test("source-perms-changed-copy-to-target", async (t) => {
     `,
     stderr: "",
   });
-
-  await Deno.remove(`${testDir}/config2.toml`);
-  await Deno.remove(`${testDir}/config2.cfgsync.state`);
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,

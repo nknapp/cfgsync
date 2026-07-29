@@ -71,6 +71,12 @@ export class TestBed {
     await Deno.utime(path, this.mtime(), this.mtime());
   }
 
+  async updateConfig(newConfigToml: string) {
+    this.spec.configToml = newConfigToml;
+    await Deno.writeTextFile(new URL("config.toml", this.testDir), newConfigToml);
+    await Deno.utime(new URL("config.toml", this.testDir), this.mtime(), this.mtime());
+  }
+
   async readTextFile(relativePath: string): Promise<string> {
     const path = new URL(relativePath, this.testDir);
     return await Deno.readTextFile(path);
