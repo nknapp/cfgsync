@@ -16,7 +16,6 @@ Deno.test({
       [[sync]]
       source = "./source"
       target = "./target"
-      owner = "${rootOwner}"
       globs = ["**/*.conf"]
     `,
     files: [
@@ -31,6 +30,13 @@ Deno.test({
   });
 
   testbed.advance("1 sec");
+  await testbed.updateConfig(deindent`
+    [[sync]]
+    source = "./source"
+    target = "./target"
+    owner = "${rootOwner}"
+    globs = ["**/*.conf"]
+  `);
   await testbed.writeTextFile("source/file.conf", "v2");
 
   // First sync: CopyToTarget but skipped due to owner feasibility

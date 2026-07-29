@@ -38,6 +38,9 @@ See `bin/git-commit-and-push --help`.
 
 **After pushing, if the PR was merged**, stop and inform the user — a new branch is needed.
 
+**If the CI pipeline fails for any reason**, investigate and fix it regardless of whose fault it is or whether the failure is
+related to your changes. Even infrastructure flakes, cache misses, or pre-existing configuration issues must be resolved.
+
 ## Verification (mandatory)
 
 After making any code changes, you MUST run the full verification as a single command:

@@ -8,6 +8,13 @@ runs:
     - run: rustup component add rustfmt clippy
       shell: bash
     - uses: Swatinem/rust-cache@v2
+    - uses: denoland/setup-deno@v2
+    - uses: actions/cache@v4
+      with:
+        path: ~/.cache/deno
+        key: ${{ runner.os }}-deno-${{ hashFiles('e2e-tests/deno.lock') }}
+    - run: deno install --config e2e-tests/deno.json
+      shell: bash
     - name: Install cross-compilation deps (ARM64 musl)
       if: runner.os == 'Linux'
       run: |
