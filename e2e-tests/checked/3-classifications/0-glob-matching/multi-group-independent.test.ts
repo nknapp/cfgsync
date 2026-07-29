@@ -26,52 +26,38 @@ Deno.test("multi-group-independent", async (t) => {
   });
 
   // Status and diff
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+  await testbed.testStatus("config.toml", {
+    short: deindent`
       2→
     `,
-    stderr: "",
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "status"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+    normal: deindent`
       source -> target: 2
       target -> source: 0
     `,
-    stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      === file.txt (source -> target) ===
-      --- ${testDir}/source-a/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
-      +++ ${testDir}/target-a/file.txt${"\t"}
-      @@ -1 +1 @@
-      -content from group a
-      \ No newline at end of file
-      +(file missing)
-      \ No newline at end of file
-      
-      === file.conf (source -> target) ===
-      --- ${testDir}/source-b/file.conf${"\t"}2020-01-01 00:00:00.000000000 +0000
-      +++ ${testDir}/target-b/file.conf${"\t"}
-      @@ -1 +1 @@
-      -content from group b
-      \ No newline at end of file
-      +(file missing)
-      \ No newline at end of file`,
-    stderr: "",
-  });
+  await testbed.testDiff("config.toml", deindent`
+    === file.txt (source -> target) ===
+    --- ${testDir}/source-a/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
+    +++ ${testDir}/target-a/file.txt${"\t"}
+    @@ -1 +1 @@
+    -content from group a
+    \ No newline at end of file
+    +(file missing)
+    \ No newline at end of file
+    
+    === file.conf (source -> target) ===
+    --- ${testDir}/source-b/file.conf${"\t"}2020-01-01 00:00:00.000000000 +0000
+    +++ ${testDir}/target-b/file.conf${"\t"}
+    @@ -1 +1 @@
+    -content from group b
+    \ No newline at end of file
+    +(file missing)
+    \ No newline at end of file`,
+  );
 
   // First sync: both groups copy to target
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied file.txt -> target

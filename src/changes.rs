@@ -291,7 +291,8 @@ fn classify_entry(
                     let tgt_hash =
                         compute_file_hash(abs_tgt, _t.is_symlink, _t.symlink_target.as_deref());
                     let perms_equal = file_perms_match(abs_src, abs_tgt);
-                    if src_hash.is_some() && src_hash == tgt_hash && perms_equal {
+                    let owner_equal = file_owner_matches(abs_src, abs_tgt);
+                    if src_hash.is_some() && src_hash == tgt_hash && perms_equal && owner_equal {
                         Change::UpdateState {
                             group_index: gi,
                             rel_path: rel,
@@ -456,7 +457,8 @@ fn is_changed(file: &DiscoveredFile, abs_path: &Path, state_entry: &FileEntry) -
 
     let state_mtime = parse_mtime_to_i64(&state_entry.mtime).unwrap_or(0);
     if file.mtime == state_mtime {
-        return false;
+        return perms_differ_from_state(abs_path, state_entry)
+            || owner_differs_from_state(abs_path, state_entry);
     }
 
     let file_hash = compute_file_hash(abs_path, file.is_symlink, file.symlink_target.as_deref());
@@ -464,7 +466,74 @@ fn is_changed(file: &DiscoveredFile, abs_path: &Path, state_entry: &FileEntry) -
         return true;
     };
 
-    file_hash != state_entry.hash
+    if file_hash != state_entry.hash {
+        return true;
+    }
+
+    perms_differ_from_state(abs_path, state_entry)
+        || owner_differs_from_state(abs_path, state_entry)
+}
+
+fn perms_differ_from_state(abs_path: &Path, state_entry: &FileEntry) -> bool {
+    let Ok(metadata) = std::fs::symlink_metadata(abs_path) else {
+        return true;
+    };
+    if metadata.file_type().is_symlink() {
+        return false;
+    }
+    let actual_mode = metadata.permissions().mode() & 0o777;
+    let state_perms = u32::from_str_radix(&state_entry.perms, 8).unwrap_or(0);
+    actual_mode != state_perms
+}
+
+fn owner_differs_from_state(abs_path: &Path, state_entry: &FileEntry) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(metadata) = std::fs::symlink_metadata(abs_path) else {
+        return true;
+    };
+    if metadata.file_type().is_symlink() {
+        return false;
+    }
+    let actual_uid = metadata.uid();
+    let actual_gid = metadata.gid();
+
+    let parts: Vec<&str> = state_entry.owner.splitn(2, ':').collect();
+    if parts.len() != 2 {
+        return false;
+    }
+
+    if let (Ok(exp_uid), Ok(exp_gid)) = (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
+        return actual_uid != exp_uid || actual_gid != exp_gid;
+    }
+
+    let exp_uid = nix::unistd::User::from_name(parts[0])
+        .ok()
+        .flatten()
+        .map(|u| u.uid.as_raw());
+    let exp_gid = nix::unistd::Group::from_name(parts[1])
+        .ok()
+        .flatten()
+        .map(|g| g.gid.as_raw());
+
+    match (exp_uid, exp_gid) {
+        (Some(eu), Some(eg)) => actual_uid != eu || actual_gid != eg,
+        _ => false,
+    }
+}
+
+fn file_owner_matches(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let meta_a = std::fs::symlink_metadata(a);
+    let meta_b = std::fs::symlink_metadata(b);
+    match (meta_a, meta_b) {
+        (Ok(ma), Ok(mb)) => {
+            if ma.file_type().is_symlink() || mb.file_type().is_symlink() {
+                return true;
+            }
+            ma.uid() == mb.uid() && ma.gid() == mb.gid()
+        }
+        _ => false,
+    }
 }
 
 fn file_perms_match(a: &Path, b: &Path) -> bool {
@@ -656,6 +725,7 @@ fn validate_action(change: &mut Change, config: &ResolvedConfig) {
             abs_tgt,
             failed_checks,
             rel_path,
+            group_index,
             ..
         } => {
             check_state_writable(failed_checks, config);
@@ -674,6 +744,21 @@ fn validate_action(change: &mut Change, config: &ResolvedConfig) {
                     parent.display()
                 ));
             }
+            validate_target_perms_for_copy_to_source(
+                abs_tgt,
+                rel_path,
+                *group_index,
+                config,
+                failed_checks,
+            );
+            validate_target_owner_for_copy_to_source(
+                abs_tgt,
+                rel_path,
+                *group_index,
+                config,
+                failed_checks,
+            );
+            validate_copy_to_source_user(&config.config_path, failed_checks);
         }
         Change::DeleteTarget {
             abs_tgt,
@@ -742,9 +827,120 @@ fn check_state_writable(failed_checks: &mut Vec<String>, config: &ResolvedConfig
     }
 }
 
+fn validate_target_perms_for_copy_to_source(
+    abs_tgt: &Path,
+    rel_path: &str,
+    group_index: usize,
+    config: &ResolvedConfig,
+    failed_checks: &mut Vec<String>,
+) {
+    use std::os::unix::fs::PermissionsExt;
+    let Ok(metadata) = std::fs::symlink_metadata(abs_tgt) else {
+        return;
+    };
+    if metadata.file_type().is_symlink() {
+        return;
+    }
+    let actual_mode = metadata.permissions().mode() & 0o777;
+
+    let group = &config.sync_groups[group_index];
+    let glob = crate::sync::find_matching_glob(group, rel_path);
+
+    if let Some(glob_entry) = glob
+        && let Some(ref preset) = glob_entry.file_perms
+    {
+        let reversed = preset.reverse_map_permissions(actual_mode);
+        let expected = preset.map_permissions(reversed);
+        if actual_mode != expected {
+            failed_checks.push(format!(
+                "target file '{}' has permissions {:o}, expected {:o}",
+                rel_path, actual_mode, expected
+            ));
+            return;
+        }
+    }
+
+    if actual_mode != 0o644 && actual_mode != 0o755 {
+        failed_checks.push(format!(
+            "target file '{}' has permissions {:o}, must be 644 or 755 when no file_perms is configured",
+            rel_path, actual_mode
+        ));
+    }
+}
+
+fn validate_target_owner_for_copy_to_source(
+    abs_tgt: &Path,
+    rel_path: &str,
+    group_index: usize,
+    config: &ResolvedConfig,
+    failed_checks: &mut Vec<String>,
+) {
+    let group = &config.sync_groups[group_index];
+    let glob = crate::sync::find_matching_glob(group, rel_path);
+
+    let expected_owner = if let Some(glob_entry) = glob
+        && let Some(ref owner_spec) = glob_entry.owner
+    {
+        owner_spec.clone()
+    } else if let Some(ref owner_spec) = group.owner {
+        owner_spec.clone()
+    } else {
+        format_owner_from_file_metadata(&config.config_path)
+    };
+
+    let actual_owner = format_owner_from_file_metadata(abs_tgt);
+    if actual_owner != expected_owner {
+        failed_checks.push(format!(
+            "target file '{}' is owned by {}, expected '{}'",
+            rel_path, actual_owner, expected_owner
+        ));
+    }
+}
+
+fn format_owner_from_file_metadata(path: &Path) -> String {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(metadata) = std::fs::symlink_metadata(path) else {
+        return String::new();
+    };
+    let uid = metadata.uid();
+    let gid = metadata.gid();
+    let user = nix::unistd::User::from_uid(nix::unistd::Uid::from_raw(uid))
+        .ok()
+        .flatten()
+        .map(|u| u.name)
+        .unwrap_or_else(|| uid.to_string());
+    let group = nix::unistd::Group::from_gid(nix::unistd::Gid::from_raw(gid))
+        .ok()
+        .flatten()
+        .map(|g| g.name)
+        .unwrap_or_else(|| gid.to_string());
+    format!("{}:{}", user, group)
+}
+
+fn validate_copy_to_source_user(config_path: &Path, failed_checks: &mut Vec<String>) {
+    use std::os::unix::fs::MetadataExt;
+    if !crate::sync::is_root() {
+        let Ok(config_meta) = std::fs::metadata(config_path) else {
+            return;
+        };
+        let current_uid = nix::unistd::Uid::current().as_raw();
+        let config_uid = config_meta.uid();
+        if current_uid != config_uid {
+            failed_checks.push(format!(
+                "cannot copy to source: must run as root or as the config file owner (uid {})",
+                config_uid
+            ));
+        }
+    }
+}
+
 pub fn count_changes(changes: &[Change]) -> ChangeCounts {
     let mut counts = ChangeCounts::default();
     for change in changes {
+        if !change.failed_checks().is_empty() {
+            counts.failed += 1;
+            continue;
+        }
         match change {
             Change::CopyToTarget { .. } => counts.copy_to_target += 1,
             Change::CopyToSource { .. } => counts.copy_to_source += 1,

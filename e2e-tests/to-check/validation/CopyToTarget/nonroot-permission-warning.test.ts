@@ -17,17 +17,7 @@ Deno.test("nonroot-permission-warning", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-
-  await testbed.assertTestDir([
-    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
-    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
-    "user:user | 755 | 0 | source/",
-    "user:user | 644 | 0 | source/file.conf | my config",
-    "user:user | 755 | 0 | target/",
-    "user:user | 600 | 0 | target/file.conf | my config",
-  ]);
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied file.conf -> target
@@ -39,4 +29,13 @@ Deno.test("nonroot-permission-warning", async (t) => {
     `,
     stderr: "",
   });
+
+  await testbed.assertTestDir([
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+    "user:user | 755 | 0 | source/",
+    "user:user | 644 | 0 | source/file.conf | my config",
+    "user:user | 755 | 0 | target/",
+    "user:user | 600 | 0 | target/file.conf | my config",
+  ]);
 });

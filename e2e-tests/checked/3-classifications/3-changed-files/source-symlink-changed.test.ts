@@ -26,8 +26,7 @@ Deno.test("sync-changed-symlink-replaces-symlink", async (t) => {
   await Deno.symlink("hello-new.txt", `${testDir}/source/link.txt`);
 
   // Sync detects the type change (file -> symlink) and copies to target
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied link.txt -> target
@@ -77,8 +76,7 @@ Deno.test("sync-changed-symlink-replaces-file", async (t) => {
   await Deno.symlink("hello", `${testDir}/source/link.txt`);
 
   // Sync detects the type change (file -> symlink) and copies to target
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied link.txt -> target
@@ -126,8 +124,7 @@ Deno.test("sync-changed-file-replaces-symlink", async (t) => {
   await testbed.writeTextFile("source/link.txt", "file contents");
 
   // Sync detects the type change (file -> symlink) and copies to target
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied link.txt -> target
@@ -175,8 +172,7 @@ Deno.test("sync-changed-broken-symlink-replaces-broken-symlink", async (t) => {
   await Deno.symlink("hello-new.txt", `${testDir}/source/link.txt`);
 
   // Sync detects the type change (file -> symlink) and copies to target
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied link.txt -> target

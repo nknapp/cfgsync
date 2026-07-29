@@ -71,6 +71,12 @@ export class TestBed {
     await Deno.utime(path, this.mtime(), this.mtime());
   }
 
+  async updateConfig(newConfigToml: string) {
+    this.spec.configToml = newConfigToml;
+    await Deno.writeTextFile(new URL("config.toml", this.testDir), newConfigToml);
+    await Deno.utime(new URL("config.toml", this.testDir), this.mtime(), this.mtime());
+  }
+
   async readTextFile(relativePath: string): Promise<string> {
     const path = new URL(relativePath, this.testDir);
     return await Deno.readTextFile(path);
@@ -84,6 +90,38 @@ export class TestBed {
     const path = new URL(relativePath, this.testDir);
     await Deno.mkdir(path);
     await Deno.utime(path, this.mtime(), this.mtime());
+  }
+
+  async chmod(relativePath: string, mode: number) {
+    const path = new URL(relativePath, this.testDir);
+    await Deno.chmod(path, mode);
+    await Deno.utime(path, this.mtime(), this.mtime());
+  }
+
+  async chown(relativePath: string, owner: string) {
+    const path = new URL(relativePath, this.testDir);
+    const [user, group] = owner.split(":");
+    const chown = new Deno.Command("sudo", {
+      args: ["chown", `${user}:${group}`, path.pathname],
+    });
+    const chownOut = await chown.output();
+    if (!chownOut.success) {
+      throw new Error(
+        `sudo chown failed: ${new TextDecoder().decode(chownOut.stderr)}`,
+      );
+    }
+    const touch = new Deno.Command("sudo", {
+      args: ["touch", "-d", this.mtime().toISOString(), path.pathname],
+    });
+    await touch.output();
+  }
+
+  async symlink(relativePath: string, target: string) {
+    const path = new URL(relativePath, this.testDir);
+    await Deno.symlink(target, path);
+    await (new Deno.Command("touch", {
+      args: ["-h", "-d", this.mtime().toISOString(), path.pathname],
+    })).output();
   }
 
   private mtime(): Date {
@@ -132,6 +170,23 @@ export class TestBed {
       throw new Error("Call 'run' before getting exit code");
     }
     return this.lastRun.code;
+  }
+
+  async testSync(configPath: string, expectedOutput: ExecReturn) {
+    await this.run({ args: ["--config", configPath, "sync"] });
+    this.assertOutput(expectedOutput);
+  }
+
+  async testStatus(configPath: string, expectedOutput: { short: string; normal: string }) {
+    await this.run({ args: ["--config", configPath, "status", "--short"] });
+    this.assertOutput({ code: 0, stdout: expectedOutput.short, stderr: "" });
+    await this.run({ args: ["--config", configPath, "status"] });
+    this.assertOutput({ code: 0, stdout: expectedOutput.normal, stderr: "" });
+  }
+
+  async testDiff(configPath: string, expectedOutput: string) {
+    await this.run({ args: ["--config", configPath, "diff"] });
+    this.assertOutput({ code: 0, stdout: expectedOutput, stderr: "" });
   }
 
   assertOutput(expectedOutput: ExecReturn) {

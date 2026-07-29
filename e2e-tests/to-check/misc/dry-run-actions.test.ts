@@ -75,8 +75,7 @@ Deno.test("dry-run-then-real-sync", async (t) => {
     "user:user | 755 | 0 | target/",
   ]);
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied file.txt -> target

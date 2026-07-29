@@ -1,7 +1,17 @@
-import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import {
+  CONFIG_TOML,
+  deindent,
+  rootOwner,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
-Deno.test("both-exist-clean", async (t) => {
-  const { testbed } = await TestBed.create(t, {
+Deno.test({
+  name: "target-owner-invalid-skipped-by-validation",
+  ignore: runningOutsideDocker,
+}, async (t) => {
+  const { testbed, username, groupname } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -16,39 +26,44 @@ Deno.test("both-exist-clean", async (t) => {
       "user:user | 755 | 0 | target/",
       "user:user | 644 | 0 | target/file.txt | hello",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
 
-  // Test status
-  await testbed.testStatus("config.toml", {
-    short: deindent`
-      ✓
-    `,
-    normal: deindent`
+  testbed.advance("1 sec");
+  await testbed.chown("target/file.txt", rootOwner);
+
+  await testbed.run({ args: ["--config", "config.toml", "status"] });
+  testbed.assertOutput({
+    code: 0,
+    stdout: deindent`
       source -> target: 0
       target -> source: 0
+      failed:           1
     `,
+    stderr: "",
   });
 
-  // Test diff (no changes = empty output)
-  await testbed.testDiff("config.toml", "");
-
-  // Test sync
-  await testbed.testSync("config.toml", {
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
+  testbed.assertOutput({
     code: 0,
     stdout: deindent`
       source -> target: 0
       target -> source: 0
       deleted target:   0
       deleted source:   0
+      permission skips: 1
     `,
-    stderr: "",
+    stderr: deindent`
+      Warning: skipping 'file.txt': target file 'file.txt' is owned by ${rootOwner}, expected '${username}:${groupname}'
+    `,
   });
+
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
     "user:user | 644 | 0 | source/file.txt | hello",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.txt | hello",
+    `root:root | 644 | 0 | target/file.txt | hello`,
   ]);
 });

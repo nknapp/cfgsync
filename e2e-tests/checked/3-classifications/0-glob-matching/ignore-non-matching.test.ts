@@ -19,7 +19,19 @@ Deno.test("ignore-non-matching", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
+  await testbed.testSync("config.toml", {
+    code: 0,
+    stdout: deindent`
+      copied file.txt -> target
+      copied target -> unmatched-target.txt
+
+      source -> target: 1
+      target -> source: 1
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
+  });
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
@@ -33,17 +45,4 @@ Deno.test("ignore-non-matching", async (t) => {
     "user:user | 644 | 0 | target/not-matched.conf | should not be synced",
     "user:user | 644 | 0 | target/unmatched-target.txt | target file content",
   ]);
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      copied file.txt -> target
-      copied target -> unmatched-target.txt
-
-      source -> target: 1
-      target -> source: 1
-      deleted target:   0
-      deleted source:   0
-    `,
-    stderr: "",
-  });
 });

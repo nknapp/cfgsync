@@ -802,7 +802,7 @@ fn validate_target_for_copy_to_source(
     Ok(())
 }
 
-fn find_matching_glob<'a>(
+pub fn find_matching_glob<'a>(
     group: &'a crate::config::ResolvedSyncGroup,
     rel_path: &str,
 ) -> Option<&'a crate::config::ResolvedGlob> {
@@ -1000,7 +1000,7 @@ fn chown_state_file(state_path: &Path, config_path: &Path) {
     let _ = nix::unistd::chown(state_path, Some(uid), Some(gid));
 }
 
-fn is_root() -> bool {
+pub fn is_root() -> bool {
     unsafe { nix::libc::geteuid() == 0 }
 }
 

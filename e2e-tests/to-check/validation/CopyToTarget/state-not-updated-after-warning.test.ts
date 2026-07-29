@@ -1,6 +1,16 @@
-import { CONFIG_TOML, deindent, rootOwner, STATE_FILE, TestBed } from "@/lib/index.ts";
+import {
+  CONFIG_TOML,
+  deindent,
+  rootOwner,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
-Deno.test("state-should-not-be-updated-after-warning", async (t) => {
+Deno.test({
+  name: "state-should-not-be-updated-after-warning",
+  ignore: runningOutsideDocker,
+}, async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]

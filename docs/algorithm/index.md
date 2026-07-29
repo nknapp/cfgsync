@@ -122,7 +122,7 @@ file_type = "file"
         * perms
         * owner
     * `state`: entry for this file in the state-file (if it exists). This represents the values of the target file
-       at the time of the last successful sync (which is the same as the values for `source` at that time. 
+      at the time of the last successful sync (which is the same as the values for `source` at that time).
         * mtime
         * hash
         * type (file, symlink)
@@ -202,8 +202,12 @@ Verify that the actions can be executed
     * Check that the state file can be written
     * Check that the source file can be written or created.
     * Check that missing parent directories can be created.
-    * Check that the correct file owner can be set.
-      (i.e., either `cfgsync` is running as root or as the intended owner of the **config file**)
+    * Check that the owner of the target file matches the owner configuration for that file.
+    * Check that the permissions of the target file are a valid value from the target column of
+      the [permission mapping](./permissions-and-owner.md#permissions) for the configured permissions
+      (i.e., 600 or 700 if permissions are set to "private"; 644 or 755 if permissions are set to "public" or are
+      omitted)
+    * Check that either `cfgsync` is running as root or as the owner of the **config file**
 * `DeleteSource`:
     * Check that the state file can be written
     * Check the source file can be deleted
@@ -217,7 +221,8 @@ Verify that the actions can be executed
 * `Conflict`:
     * Check if any of `CopyToTarget` or `CopyToSource` are possible.
 
-All failed checks are immediately logged as warnings. For the next steps, a file is only considered "valid" if EVERY check for that file passes.
+All failed checks are immediately logged as warnings. For the next steps, a file is only considered "valid" if EVERY
+check for that file passes.
 
 # 5. Execute changes
 

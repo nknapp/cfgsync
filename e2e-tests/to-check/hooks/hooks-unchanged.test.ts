@@ -16,15 +16,7 @@ Deno.test("hooks-not-run-on-unchanged", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-
-  await testbed.assertTestDir([
-    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
-    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
-    "user:user | 755 | 0 | source/",
-    "user:user | 755 | 0 | target/",
-  ]);
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
 
@@ -35,4 +27,11 @@ Deno.test("hooks-not-run-on-unchanged", async (t) => {
     `,
     stderr: "",
   });
+
+  await testbed.assertTestDir([
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+    "user:user | 755 | 0 | source/",
+    "user:user | 755 | 0 | target/",
+  ]);
 });
