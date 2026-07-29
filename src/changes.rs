@@ -290,8 +290,10 @@ fn classify_entry(
                         compute_file_hash(abs_src, _s.is_symlink, _s.symlink_target.as_deref());
                     let tgt_hash =
                         compute_file_hash(abs_tgt, _t.is_symlink, _t.symlink_target.as_deref());
-                    let perms_equal = file_perms_match(abs_src, abs_tgt);
-                    let owner_equal = file_owner_matches(abs_src, abs_tgt);
+                    let perms_equal =
+                        source_configured_perms_match_target(abs_src, abs_tgt, globs, source_dir);
+                    let owner_equal =
+                        source_configured_owner_matches_target(abs_src, abs_tgt, globs, source_dir);
                     if src_hash.is_some() && src_hash == tgt_hash && perms_equal && owner_equal {
                         Change::UpdateState {
                             group_index: gi,
@@ -521,34 +523,102 @@ fn owner_differs_from_state(abs_path: &Path, state_entry: &FileEntry) -> bool {
     }
 }
 
-fn file_owner_matches(a: &Path, b: &Path) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    let meta_a = std::fs::symlink_metadata(a);
-    let meta_b = std::fs::symlink_metadata(b);
-    match (meta_a, meta_b) {
-        (Ok(ma), Ok(mb)) => {
-            if ma.file_type().is_symlink() || mb.file_type().is_symlink() {
-                return true;
-            }
-            ma.uid() == mb.uid() && ma.gid() == mb.gid()
+fn find_glob_for_source<'a>(
+    abs_src: &Path,
+    globs: &'a [ResolvedGlob],
+    source_dir: &Path,
+) -> Option<&'a ResolvedGlob> {
+    let src_str = abs_src.to_string_lossy();
+    globs.iter().find(|glob_entry| {
+        let pattern_str = source_dir
+            .join(&glob_entry.pattern)
+            .to_string_lossy()
+            .to_string();
+        if let Ok(pattern) = glob::Pattern::new(&pattern_str) {
+            pattern.matches(&src_str)
+        } else {
+            false
         }
+    })
+}
+
+fn source_configured_owner_matches_target(
+    abs_src: &Path,
+    abs_tgt: &Path,
+    globs: &[ResolvedGlob],
+    source_dir: &Path,
+) -> bool {
+    let matching_glob = find_glob_for_source(abs_src, globs, source_dir);
+
+    let configured_owner = match matching_glob.and_then(|g| g.owner.as_deref()) {
+        Some(owner) => owner,
+        None => return true,
+    };
+
+    use std::os::unix::fs::MetadataExt;
+    let Ok(meta) = std::fs::symlink_metadata(abs_tgt) else {
+        return false;
+    };
+    if meta.file_type().is_symlink() {
+        return true;
+    }
+
+    let parts: Vec<&str> = configured_owner.splitn(2, ':').collect();
+    if parts.len() != 2 {
+        return false;
+    }
+
+    if let (Ok(exp_uid), Ok(exp_gid)) = (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
+        return meta.uid() == exp_uid && meta.gid() == exp_gid;
+    }
+
+    let exp_uid = nix::unistd::User::from_name(parts[0])
+        .ok()
+        .flatten()
+        .map(|u| u.uid.as_raw());
+    let exp_gid = nix::unistd::Group::from_name(parts[1])
+        .ok()
+        .flatten()
+        .map(|g| g.gid.as_raw());
+
+    match (exp_uid, exp_gid) {
+        (Some(eu), Some(eg)) => meta.uid() == eu && meta.gid() == eg,
         _ => false,
     }
 }
 
-fn file_perms_match(a: &Path, b: &Path) -> bool {
+fn source_configured_perms_match_target(
+    abs_src: &Path,
+    abs_tgt: &Path,
+    globs: &[ResolvedGlob],
+    source_dir: &Path,
+) -> bool {
+    let matching_glob = find_glob_for_source(abs_src, globs, source_dir);
+
+    let file_perms = match matching_glob.and_then(|g| g.file_perms.as_ref()) {
+        Some(preset) => preset,
+        None => return true,
+    };
+
     use std::os::unix::fs::PermissionsExt;
-    let meta_a = std::fs::symlink_metadata(a);
-    let meta_b = std::fs::symlink_metadata(b);
-    match (meta_a, meta_b) {
-        (Ok(ma), Ok(mb)) => {
-            if ma.file_type().is_symlink() || mb.file_type().is_symlink() {
-                return true;
-            }
-            (ma.permissions().mode() & 0o777) == (mb.permissions().mode() & 0o777)
-        }
-        _ => false,
+    let Ok(src_meta) = std::fs::symlink_metadata(abs_src) else {
+        return false;
+    };
+    if src_meta.file_type().is_symlink() {
+        return true;
     }
+    let src_perms = src_meta.permissions().mode() & 0o777;
+    let configured_perms = file_perms.map_permissions(src_perms);
+
+    let Ok(tgt_meta) = std::fs::symlink_metadata(abs_tgt) else {
+        return false;
+    };
+    if tgt_meta.file_type().is_symlink() {
+        return true;
+    }
+    let tgt_perms = tgt_meta.permissions().mode() & 0o777;
+
+    configured_perms == tgt_perms
 }
 
 fn compute_file_hash(
