@@ -1,48 +1,27 @@
-import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, rootOwner, TestBed } from "@/lib/index.ts";
 
-Deno.test("new-file-conflict", async (t) => {
-  const { testbed, testDir } = await TestBed.create(t, {
+// One file in source and in target, no state file, both files have equal content but different permissions
+// (after applying configured owner)
+Deno.test("conflict-no-state different permissions", async (t) => {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
       target = "./target"
-      globs = ["**/*.txt"]
+      owner = "${rootOwner}"
+      globs = ["**/*.conf"]
     `,
     files: [
       `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
       "user:user | 755 | 0 | source/",
-      "user:user | 644 | 0 | source/file.txt | source version\n",
+      "user:user | 644 | 0 | source/file.conf | v1",
       "user:user | 755 | 0 | target/",
-      "user:user | 644 | 0 | target/file.txt | target version\n",
+      "user:user | 644 | 0 | target/file.conf | v1",
     ],
     faketime: "2020-01-01T00:00:00Z",
   });
 
-  await testbed.testStatus("config.toml", {
-    short: deindent`
-      1↯
-    `,
-    normal: deindent`
-      source -> target: 0
-      target -> source: 0
-      conflict:         1
-    `
-  })
-
-  // diff: shows unified diff comparing source vs target
-  await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      === file.txt (CONFLICT) ===
-      --- ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
-      +++ ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
-      @@ -1 +1 @@
-      -source version
-      +target version
-    `,
-    stderr: "",
-  });
+  testbed.advance("1 sec");
 
   // sync (no -i): aborts with conflict error
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
