@@ -29,7 +29,7 @@ Deno.test("copy-to-source-permission-check", async (t) => {
       permission skips: 1
     `,
     stderr: deindent`
-      Warning: skipping 'file.conf' (target file has unexpected permissions 644, expected 600 for this preset)
+      Warning: skipping 'file.conf': target file 'file.conf' has permissions 644, expected 600
     `,
   });
 });

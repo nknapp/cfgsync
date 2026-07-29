@@ -8,10 +8,10 @@ import {
 } from "@/lib/index.ts";
 
 Deno.test({
-  name: "target-owner-changed-copy-to-source",
+  name: "target-owner-invalid-skipped-by-validation",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, username, groupname } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -37,16 +37,8 @@ Deno.test({
     code: 0,
     stdout: deindent`
       source -> target: 0
-      target -> source: 1
-    `,
-    stderr: "",
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      1←
+      target -> source: 0
+      failed:           1
     `,
     stderr: "",
   });
@@ -55,21 +47,22 @@ Deno.test({
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      copied target -> file.txt
-
       source -> target: 0
-      target -> source: 1
+      target -> source: 0
       deleted target:   0
       deleted source:   0
+      permission skips: 1
     `,
-    stderr: "",
+    stderr: deindent`
+      Warning: skipping 'file.txt': target file 'file.txt' is owned by ${rootOwner}, expected '${username}:${groupname}'
+    `,
   });
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
-    `user:user | 644 | 0 | source/file.txt | hello`,
+    "user:user | 644 | 0 | source/file.txt | hello",
     "user:user | 755 | 0 | target/",
     `root:root | 644 | 0 | target/file.txt | hello`,
   ]);

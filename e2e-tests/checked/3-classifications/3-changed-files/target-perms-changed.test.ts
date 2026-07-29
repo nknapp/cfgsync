@@ -1,7 +1,7 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
-Deno.test("target-perms-changed-copy-to-source", async (t) => {
-  const { testbed, testDir } = await TestBed.create(t, {
+Deno.test("target-perms-invalid-skipped-by-validation", async (t) => {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -27,27 +27,8 @@ Deno.test("target-perms-changed-copy-to-source", async (t) => {
     code: 0,
     stdout: deindent`
       source -> target: 0
-      target -> source: 1
-    `,
-    stderr: "",
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      1←
-    `,
-    stderr: "",
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      === file.txt (target -> source) ===
-      --- ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
-      +++ ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
+      target -> source: 0
+      failed:           1
     `,
     stderr: "",
   });
@@ -56,21 +37,22 @@ Deno.test("target-perms-changed-copy-to-source", async (t) => {
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      copied target -> file.txt
-
       source -> target: 0
-      target -> source: 1
+      target -> source: 0
       deleted target:   0
       deleted source:   0
+      permission skips: 1
     `,
-    stderr: "",
+    stderr: deindent`
+      Warning: skipping 'file.txt': target file 'file.txt' has permissions 600, must be 644 or 755 when no file_perms is configured
+    `,
   });
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
-    "user:user | 600 | 0 | source/file.txt | hello",
+    "user:user | 644 | 0 | source/file.txt | hello",
     "user:user | 755 | 0 | target/",
     "user:user | 600 | 0 | target/file.txt | hello",
   ]);
