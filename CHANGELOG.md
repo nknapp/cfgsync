@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.6.10](https://github.com/nknapp/cfgsync/compare/v0.6.9...9a425358e70966953a9a7975c7e94875eb8afd3b) (2026-07-29)
+## [v0.6.11](https://github.com/nknapp/cfgsync/compare/v0.6.10...24428cf68e4a232f4028e8444fe541031d391407) (2026-07-29)
 
 ### Fixes
+
+* use configured owner/perms for source in no-state-file classification
+([16c1e42](https://github.com/nknapp/cfgsync/commit/16c1e42285351f550fa349b2250718e0e0bcfc49))
+
+### [v0.6.10](https://github.com/nknapp/cfgsync/compare/v0.6.9...v0.6.10) (2026-07-29)
+
+#### Fixes
 
 * enforce copy-to-source validation per updated algorithm
 ([ab56342](https://github.com/nknapp/cfgsync/commit/ab563428774f718c8092107b2af25278df79aff3))
