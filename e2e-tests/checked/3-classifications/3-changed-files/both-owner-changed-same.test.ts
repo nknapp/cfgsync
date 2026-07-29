@@ -8,7 +8,7 @@ import {
 } from "@/lib/index.ts";
 
 Deno.test({
-  name: "file-owner-change-detected",
+  name: "both-owner-changed-same-update-state",
   ignore: runningOutsideDocker,
 }, async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -26,9 +26,10 @@ Deno.test({
       "user:user | 755 | 0 | target/",
       "user:user | 644 | 0 | target/file.txt | hello",
     ],
-    faketime: "2010-01-01T10:00:00Z",
+    faketime: "2020-01-01T00:00:00Z",
   });
 
+  testbed.advance("1 sec");
   await testbed.chown("source/file.txt", rootOwner);
   await testbed.chown("target/file.txt", rootOwner);
 

@@ -1,6 +1,6 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
-Deno.test("target-perms-change-detected", async (t) => {
+Deno.test("both-perms-changed-same-update-state", async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
@@ -16,9 +16,11 @@ Deno.test("target-perms-change-detected", async (t) => {
       "user:user | 755 | 0 | target/",
       "user:user | 644 | 0 | target/file.txt | hello",
     ],
-    faketime: "2010-01-01T10:00:00Z",
+    faketime: "2020-01-01T00:00:00Z",
   });
 
+  testbed.advance("1 sec");
+  await testbed.chmod("source/file.txt", 0o600);
   await testbed.chmod("target/file.txt", 0o600);
 
   await testbed.run({ args: ["--config", "config.toml", "status"] });
@@ -26,7 +28,8 @@ Deno.test("target-perms-change-detected", async (t) => {
     code: 0,
     stdout: deindent`
       source -> target: 0
-      target -> source: 1
+      target -> source: 0
+      state update:     1
     `,
     stderr: "",
   });
@@ -35,8 +38,15 @@ Deno.test("target-perms-change-detected", async (t) => {
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      1←
+      ↺1
     `,
+    stderr: "",
+  });
+
+  await testbed.run({ args: ["--config", "config.toml", "diff"] });
+  testbed.assertOutput({
+    code: 0,
+    stdout: "",
     stderr: "",
   });
 
@@ -44,10 +54,8 @@ Deno.test("target-perms-change-detected", async (t) => {
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      copied target -> file.txt
-
       source -> target: 0
-      target -> source: 1
+      target -> source: 0
       deleted target:   0
       deleted source:   0
     `,
