@@ -2,7 +2,7 @@ import { CONFIG_TOML, deindent, rootOwner, TestBed } from "@/lib/index.ts";
 
 // One file in source and in target, no state file, both files have equal content but different permissions
 // (after applying configured owner)
-Deno.test("conflict-no-state different permissions", async (t) => {
+Deno.test("conflict-no-state different owner", async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
@@ -50,8 +50,8 @@ Deno.test("conflict-no-state different permissions", async (t) => {
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
-    "user:user | 644 | 0 | source/file.conf | v1\n",
+    "user:user | 644 | 0 | source/file.conf | v1",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.conf | v1\n",
+    "user:user | 644 | 0 | target/file.conf | v1",
   ]);
 });
