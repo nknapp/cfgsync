@@ -36,7 +36,9 @@ Deno.test("multi-group-independent", async (t) => {
     `,
   });
 
-  await testbed.testDiff("config.toml", deindent`
+  await testbed.testDiff(
+    "config.toml",
+    deindent`
     === file.txt (source -> target) ===
     --- ${testDir}/source-a/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
     +++ ${testDir}/target-a/file.txt${"\t"}

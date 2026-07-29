@@ -1,7 +1,7 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("hooks-working-directory-is-config-dir", async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -16,7 +16,30 @@ Deno.test("hooks-working-directory-is-config-dir", async (t) => {
       "user:user | 644 | 0 | subdir/source/file.txt | file content",
       "user:user | 755 | 0 | subdir/target/",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
+
+  await testbed.testStatus("subdir/config.toml", {
+    short: deindent`
+      1→
+    `,
+    normal: deindent`
+      source -> target: 1
+      target -> source: 0
+    `,
+  });
+
+  await testbed.testDiff(
+    "subdir/config.toml",
+    `=== file.txt (source -> target) ===\n` +
+      `--- ${testDir}/subdir/source/file.txt\t2020-01-01 00:00:00.000000000 +0000\n` +
+      `+++ ${testDir}/subdir/target/file.txt\n` +
+      `@@ -1 +1 @@\n` +
+      `-file content\n` +
+      `\\ No newline at end of file\n` +
+      `+(file missing)\n` +
+      `\\ No newline at end of file`,
+  );
 
   await testbed.testSync("subdir/config.toml", {
     code: 0,

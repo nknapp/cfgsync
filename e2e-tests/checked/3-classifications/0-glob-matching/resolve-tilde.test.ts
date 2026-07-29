@@ -49,7 +49,9 @@ Deno.test({ name: "resolve tilde in target path", ignore: runningOutsideDocker }
   });
 
   // Diff with tilde-expanded target paths
-  await testbed.testDiff("config.toml", deindent`
+  await testbed.testDiff(
+    "config.toml",
+    deindent`
     === cfgsync-test-subdir/data-source.txt (source -> target) ===
     --- ${testDir}/source/cfgsync-test-subdir/data-source.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
     +++ /home/user/cfgsync-test-subdir/data-source.txt
@@ -66,7 +68,8 @@ Deno.test({ name: "resolve tilde in target path", ignore: runningOutsideDocker }
     \ No newline at end of file
     +(file missing)
     \ No newline at end of file
-  `);
+  `,
+  );
 
   await testbed.testSync("config.toml", {
     code: 0,

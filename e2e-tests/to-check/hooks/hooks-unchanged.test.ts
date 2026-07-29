@@ -14,7 +14,21 @@ Deno.test("hooks-not-run-on-unchanged", async (t) => {
       "user:user | 755 | 0 | source/",
       "user:user | 755 | 0 | target/",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
+
+  await testbed.testStatus("config.toml", {
+    short: deindent`
+      ✓
+    `,
+    normal: deindent`
+      source -> target: 0
+      target -> source: 0
+      all clean
+    `,
+  });
+
+  await testbed.testDiff("config.toml", "");
 
   await testbed.testSync("config.toml", {
     code: 0,

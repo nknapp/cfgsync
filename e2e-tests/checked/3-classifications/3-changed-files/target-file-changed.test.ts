@@ -32,7 +32,9 @@ Deno.test("both-exist-copy-to-source", async (t) => {
     `,
   });
 
-  await testbed.testDiff("config.toml", deindent`
+  await testbed.testDiff(
+    "config.toml",
+    deindent`
     === file.txt (target -> source) ===
     --- ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
     +++ ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
@@ -41,7 +43,8 @@ Deno.test("both-exist-copy-to-source", async (t) => {
     \ No newline at end of file
     +v1
     \ No newline at end of file
-  `);
+  `,
+  );
 
   await testbed.testSync("config.toml", {
     code: 0,
