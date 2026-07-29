@@ -459,8 +459,7 @@ fn is_changed(file: &DiscoveredFile, abs_path: &Path, state_entry: &FileEntry) -
 
     let state_mtime = parse_mtime_to_i64(&state_entry.mtime).unwrap_or(0);
     if file.mtime == state_mtime {
-        return perms_differ_from_state(abs_path, state_entry)
-            || owner_differs_from_state(abs_path, state_entry);
+        return false;
     }
 
     let file_hash = compute_file_hash(abs_path, file.is_symlink, file.symlink_target.as_deref());
