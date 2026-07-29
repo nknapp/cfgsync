@@ -85,6 +85,12 @@ schema_doc.toml  LLM-readable config reference, embedded via include_str!.
 
 ### Key types
 
+**`docs/algorithm/` is the specification, not documentation.** The algorithm documents define intended
+behavior. When the implementation differs from the algorithm, the implementation is wrong — fix the
+code, never update the algorithm to match it.
+
+If you find the algorithm internally inconsistent or ambiguous, ask for clarification before proceeding.
+
 See [docs/algorithm/index.md](docs/algorithm/index.md) for the full algorithm specification, change classification
 logic, and state file format.
 

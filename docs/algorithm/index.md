@@ -35,7 +35,7 @@ each sync group defines
         * optional file owner for files and directories in the target directory
         * optional file permissions for files in the target directory
         * optional directory permissions for directories in the target directory
-* a list of deviating directories when looking at owner
+* a list of deviating directories concerning the owner
     * path (no glob)
     * optional expected permission
     * optional expected owner
@@ -67,13 +67,16 @@ Then it has a table of files containing the following data.
 
 * `group` - the target directory of the group this file belongs to (in order to identify the group)
 * `path` - the relative path of the file within the group's base directory
-* `hash` - the XXH3_128 hash of the file contents at the time of the last sync (or the path of the link-target if it is a symlink)
+* `hash` - the XXH3_128 hash of the file contents at the time of the last sync (or the path of the link-target if it is
+  a symlink)
 * `perms` - the applied permissions of the target file at the time of the last sync, which is the same as the
   permissions of the source file after applying the [configured mapping rules](./permissions-and-owner.md#permissions)
 * `owner` - the applied owner of the target file at the time of the last sync which is the same as
   the [configured owner](./permissions-and-owner.md#owner) for the source file.
 * `mtime` - The mtime of the file at the time of the last sync (in iso-format, rounded to milliseconds)
-* `file_type` - The type of the file, either `"file"` or `"symlink"`. This distinguishes symlinks from regular files even when their hashes would collide (e.g., a symlink pointing to `"./file.txt"` vs a regular file whose content is `"./file.txt"`).
+* `file_type` - The type of the file, either `"file"` or `"symlink"`. This distinguishes symlinks from regular files
+  even when their hashes would collide (e.g., a symlink pointing to `"./file.txt"` vs a regular file whose content is
+  `"./file.txt"`).
 
 For the following config file
 
@@ -101,38 +104,41 @@ file_type = "file"
 
 # 3. Find and classify files
 
-* This step first scans the files matching the globs in the source and target directory of each sync group. 
+## 3.0 Scan and metadata collection
+
+* This step first scans the files matching the globs in the source and target directory of each sync group.
   It uses an efficient glob filtering method that only dives in a directory if there is a chance of it
-  having files matching the glob. 
+  having files matching the glob.
 * Verify that every source and target file was found by no more than one sync group. If a file is in multiple
   sync groups, write an error message and exit immediately.
-* The files are paired up by their relative path, so we get the following information on every entry (note that
-  not all information must be read upfront. It can also be read when needed)
-    * source file/dir (if it exists)
+* The files are paired up by their relative path, so we get the following information on every entry:
+    * `source`: information about the source file (if it exists)
         * mtime
-        * hash, computed from contents (or target path, if the file is actually a symlink)
-        * perms from config (after applying mapping)
         * type (file, symlink)
-        * owner from config (after applying defaults)
-    * target file/dir (if it exists) 
-        * mtime
         * hash, computed from contents (or target path, if the file is actually a symlink)
+        * perms from config (after applying the [permission mapping](./permissions-and-owner.md#permissions))
+        * type (file, symlink)
+        * owner from config (after applying [owner defaults](./permissions-and-owner.md#owner))
+    * `target`: information about the source file (if it exists)
+        * mtime
+        * type (file, symlink)
+        * hash, computed from contents (or target path, if the file is actually a symlink)
+        * perms
+        * owner
+    * `state`: entry for this file in the state-file (if it exists). This represents the values of the target file
+       at the time of the last successful sync (which is the same as the values for `source` at that time. 
+        * mtime
+        * hash
         * type (file, symlink)
         * perms
         * owner
-    * state-file entry for this file (if it exists)
-        * mtime at time of last sync
-        * hash at time of last sync
-        * type at time of last sync
-        * perms at time of last sync
-        * owner at time of last sync
 
 ## 3.1 For each file, determine the action
 
 We assume having the following helpers (`file` is either `source` or `target`)
 
-* `a equals b` means that `a.hash == b.hash && a.perms == b.perms && a.owner == b.owner & a.type == b.type`)
-* `is_changed(file)` is an abbreviation for `file.mtime != state.mtime && not file equals state`
+* `is_equal(a,b)` means that `a.hash == b.hash and a.perms == b.perms and a.owner == b.owner and a.type == b.type`)
+* `is_changed(file)` is an abbreviation for `file.mtime != state.mtime and not is_equal(file, state)`
 
 > Note: This implementation means that files with a fabricated mtime may lead to falsely skipped files.
 > However, we do not assume bad intentions here. The major goal is to avoid unnecessary reads of the content
@@ -176,7 +182,7 @@ else:
             return "CopyToTarget"
         elif is_changed(target) and not is_changed(source):
             return "CopyToSource"
-        elif is_equal(source, target) :
+        elif is_equal(source, target):
             # Both sides made the same change. Adjust state to avoid having to compare the hash on the next run. 
             return "UpdateState"
         else:
