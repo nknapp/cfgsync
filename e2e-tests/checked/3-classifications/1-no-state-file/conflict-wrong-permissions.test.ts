@@ -23,6 +23,17 @@ Deno.test("conflict-no-state different permissions", async (t) => {
 
   testbed.advance("1 sec");
 
+  await testbed.testStatus("config.toml", {
+    short: deindent`
+      1↯
+    `,
+    normal: deindent`
+      source -> target: 0
+      target -> source: 0
+      conflict:         1
+    `,
+  });
+
   // sync (no -i): aborts with conflict error
   await testbed.run({ args: ["--config", "config.toml", "sync"] });
   testbed.assertOutput({
@@ -30,7 +41,7 @@ Deno.test("conflict-no-state different permissions", async (t) => {
     stdout: "",
     stderr: deindent`
       Conflicts detected (1 files):
-        file.txt
+        file.conf
       Error: Aborting due to 1 conflict(s). Use -i/--interactive to resolve.
     `,
   });
@@ -39,8 +50,8 @@ Deno.test("conflict-no-state different permissions", async (t) => {
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
-    "user:user | 644 | 0 | source/file.txt | source version\n",
+    "user:user | 644 | 0 | source/file.conf | v1\n",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.txt | target version\n",
+    "user:user | 644 | 0 | target/file.conf | v1\n",
   ]);
 });
