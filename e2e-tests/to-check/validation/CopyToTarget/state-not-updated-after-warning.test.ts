@@ -1,4 +1,11 @@
-import { CONFIG_TOML, deindent, rootOwner, runningOutsideDocker, STATE_FILE, TestBed } from "@/lib/index.ts";
+import {
+  CONFIG_TOML,
+  deindent,
+  rootOwner,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
 Deno.test({
   name: "state-should-not-be-updated-after-warning",

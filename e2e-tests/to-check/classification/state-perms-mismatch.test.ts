@@ -1,7 +1,7 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
-Deno.test("state-perms-mismatch-detected-as-changed", async (t) => {
-  const { testbed, testDir } = await TestBed.create(t, {
+Deno.test("target-perms-change-detected", async (t) => {
+  const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -19,21 +19,14 @@ Deno.test("state-perms-mismatch-detected-as-changed", async (t) => {
     faketime: "2010-01-01T10:00:00Z",
   });
 
-  const statePath = `${testDir}/config.cfgsync.state`;
-  const stateContent = await testbed.readTextFile("config.cfgsync.state");
-  const modified = stateContent.replace(
-    /perms = "644"/g,
-    'perms = "600"',
-  );
-  await Deno.writeTextFile(statePath, modified);
+  await testbed.chmod("target/file.txt", 0o600);
 
   await testbed.run({ args: ["--config", "config.toml", "status"] });
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
       source -> target: 0
-      target -> source: 0
-      state update:     1
+      target -> source: 1
     `,
     stderr: "",
   });
@@ -42,7 +35,7 @@ Deno.test("state-perms-mismatch-detected-as-changed", async (t) => {
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
-      ↺1
+      1←
     `,
     stderr: "",
   });
@@ -51,8 +44,10 @@ Deno.test("state-perms-mismatch-detected-as-changed", async (t) => {
   testbed.assertOutput({
     code: 0,
     stdout: deindent`
+      copied target -> file.txt
+
       source -> target: 0
-      target -> source: 0
+      target -> source: 1
       deleted target:   0
       deleted source:   0
     `,
@@ -63,8 +58,8 @@ Deno.test("state-perms-mismatch-detected-as-changed", async (t) => {
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
     "user:user | 755 | 0 | source/",
-    "user:user | 644 | 0 | source/file.txt | hello",
+    "user:user | 600 | 0 | source/file.txt | hello",
     "user:user | 755 | 0 | target/",
-    "user:user | 644 | 0 | target/file.txt | hello",
+    "user:user | 600 | 0 | target/file.txt | hello",
   ]);
 });

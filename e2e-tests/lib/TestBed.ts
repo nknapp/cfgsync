@@ -86,6 +86,38 @@ export class TestBed {
     await Deno.utime(path, this.mtime(), this.mtime());
   }
 
+  async chmod(relativePath: string, mode: number) {
+    const path = new URL(relativePath, this.testDir);
+    await Deno.chmod(path, mode);
+    await Deno.utime(path, this.mtime(), this.mtime());
+  }
+
+  async chown(relativePath: string, owner: string) {
+    const path = new URL(relativePath, this.testDir);
+    const [user, group] = owner.split(":");
+    const chown = new Deno.Command("sudo", {
+      args: ["chown", `${user}:${group}`, path.pathname],
+    });
+    const chownOut = await chown.output();
+    if (!chownOut.success) {
+      throw new Error(
+        `sudo chown failed: ${new TextDecoder().decode(chownOut.stderr)}`,
+      );
+    }
+    const touch = new Deno.Command("sudo", {
+      args: ["touch", "-d", this.mtime().toISOString(), path.pathname],
+    });
+    await touch.output();
+  }
+
+  async symlink(relativePath: string, target: string) {
+    const path = new URL(relativePath, this.testDir);
+    await Deno.symlink(target, path);
+    await (new Deno.Command("touch", {
+      args: ["-h", "-d", this.mtime().toISOString(), path.pathname],
+    })).output();
+  }
+
   private mtime(): Date {
     return this.faketime?.now ?? new Date();
   }
