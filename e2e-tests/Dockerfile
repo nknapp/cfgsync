@@ -17,6 +17,5 @@ USER user
 WORKDIR /home/user
 
 COPY --chown=user:user deno.json deno.lock /tmp/deno-cache/
-RUN echo 'import { assertEquals } from "@std/assert";' > /tmp/deno-cache/dummy.ts && \
-    deno cache --config /tmp/deno-cache/deno.json /tmp/deno-cache/dummy.ts && \
+RUN deno install --config /tmp/deno-cache/deno.json && \
     rm -rf /tmp/deno-cache
