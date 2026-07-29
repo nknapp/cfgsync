@@ -1,7 +1,7 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
 
 Deno.test("nonroot-permission-warning", async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -15,7 +15,30 @@ Deno.test("nonroot-permission-warning", async (t) => {
       "user:user | 644 | 0 | source/file.conf | my config",
       "user:user | 755 | 0 | target/",
     ],
+    faketime: "2020-01-01T00:00:00Z",
   });
+
+  await testbed.testStatus("config.toml", {
+    short: deindent`
+      1→
+    `,
+    normal: deindent`
+      source -> target: 1
+      target -> source: 0
+    `,
+  });
+
+  await testbed.testDiff(
+    "config.toml",
+    `=== file.conf (source -> target) ===\n` +
+      `--- ${testDir}/source/file.conf\t2020-01-01 00:00:00.000000000 +0000\n` +
+      `+++ ${testDir}/target/file.conf\n` +
+      `@@ -1 +1 @@\n` +
+      `-my config\n` +
+      `\\ No newline at end of file\n` +
+      `+(file missing)\n` +
+      `\\ No newline at end of file`,
+  );
 
   await testbed.testSync("config.toml", {
     code: 0,

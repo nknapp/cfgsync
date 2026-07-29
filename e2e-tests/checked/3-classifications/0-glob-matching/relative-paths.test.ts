@@ -31,7 +31,9 @@ Deno.test("relative-paths", async (t) => {
 
   // Diff shows pending change with relative paths resolved absolutely.
   // The target file doesn't exist yet, so its mtime is empty (trailing tab).
-  await testbed.testDiff("subdir/config.toml", deindent`
+  await testbed.testDiff(
+    "subdir/config.toml",
+    deindent`
       === same.txt (source -> target) ===
       --- ${testDir}/subdir/source/same.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
       +++ ${testDir}/target/same.txt
@@ -40,7 +42,8 @@ Deno.test("relative-paths", async (t) => {
       \ No newline at end of file
       +(file missing)
       \ No newline at end of file
-    `);
+    `,
+  );
 
   // Sync copies the file
   await testbed.testSync("subdir/config.toml", {

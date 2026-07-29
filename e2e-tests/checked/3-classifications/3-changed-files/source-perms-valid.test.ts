@@ -32,11 +32,14 @@ Deno.test("source-perms-valid-copy-to-target", async (t) => {
     `,
   });
 
-  await testbed.testDiff("config.toml", deindent`
+  await testbed.testDiff(
+    "config.toml",
+    deindent`
     === file.txt (source -> target) ===
     --- ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
     +++ ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
-  `);
+  `,
+  );
 
   await testbed.testSync("config.toml", {
     code: 0,
