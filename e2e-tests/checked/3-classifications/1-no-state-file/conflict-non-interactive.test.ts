@@ -26,8 +26,8 @@ Deno.test("new-file-conflict", async (t) => {
       source -> target: 0
       target -> source: 0
       conflict:         1
-    `
-  })
+    `,
+  });
 
   // diff: shows unified diff comparing source vs target
   await testbed.run({ args: ["--config", "config.toml", "diff"] });
