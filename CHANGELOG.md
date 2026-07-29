@@ -1,8 +1,21 @@
 # Changelog
 
-## [v0.6.9](https://github.com/nknapp/cfgsync/compare/v0.6.8...569974b639c82b7ba507b3840e6222c2dacd0169) (2026-07-29)
+## [v0.6.10](https://github.com/nknapp/cfgsync/compare/v0.6.9...9a425358e70966953a9a7975c7e94875eb8afd3b) (2026-07-29)
 
 ### Fixes
+
+* enforce copy-to-source validation per updated algorithm
+([ab56342](https://github.com/nknapp/cfgsync/commit/ab563428774f718c8092107b2af25278df79aff3))
+* use testbed methods instead of state file manipulation in e2e tests
+([26172e8](https://github.com/nknapp/cfgsync/commit/26172e8d95e4481c3d128e08d04ca1209ee4095a))
+* skip state-not-updated-after-warning test outside docker
+([322b07d](https://github.com/nknapp/cfgsync/commit/322b07d72c537e81589172bc46f9207aa5328235))
+* track owner and perms changes in file classification
+([27805f5](https://github.com/nknapp/cfgsync/commit/27805f53d2b4a278b7467d83c3668909f5a5bad9))
+
+### [v0.6.9](https://github.com/nknapp/cfgsync/compare/v0.6.8...v0.6.9) (2026-07-28)
+
+#### Fixes
 
 * apply target file permissions after copy, address review comments
 ([28e3277](https://github.com/nknapp/cfgsync/commit/28e3277d84e9895b12bd1171f02ac0c3b3e65104))
