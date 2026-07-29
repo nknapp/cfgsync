@@ -33,28 +33,18 @@ Deno.test({
   await testbed.chown("source/file.txt", rootOwner);
   await testbed.chown("target/file.txt", rootOwner);
 
-  await testbed.run({ args: ["--config", "config.toml", "status"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+  await testbed.testStatus("config.toml", {
+    short: deindent`
+      ↺1
+    `,
+    normal: deindent`
       source -> target: 0
       target -> source: 0
       state update:     1
     `,
-    stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      ↺1
-    `,
-    stderr: "",
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       source -> target: 0

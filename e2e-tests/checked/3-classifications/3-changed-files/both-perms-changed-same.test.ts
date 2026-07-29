@@ -23,35 +23,20 @@ Deno.test("both-perms-changed-same-update-state", async (t) => {
   await testbed.chmod("source/file.txt", 0o600);
   await testbed.chmod("target/file.txt", 0o600);
 
-  await testbed.run({ args: ["--config", "config.toml", "status"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+  await testbed.testStatus("config.toml", {
+    short: deindent`
+      ↺1
+    `,
+    normal: deindent`
       source -> target: 0
       target -> source: 0
       state update:     1
     `,
-    stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      ↺1
-    `,
-    stderr: "",
-  });
+  await testbed.testDiff("config.toml", "");
 
-  await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: "",
-    stderr: "",
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       source -> target: 0

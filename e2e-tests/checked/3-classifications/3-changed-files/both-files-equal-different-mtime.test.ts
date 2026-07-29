@@ -25,38 +25,22 @@ Deno.test("both-exist-same-content-different-mtime", async (t) => {
   await testbed.writeTextFile("target/file.txt", "bye");
 
   // Test status
-  await testbed.run({ args: ["--config", "config.toml", "status"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+  await testbed.testStatus("config.toml", {
+    short: deindent`
+      ↺1
+    `,
+    normal: deindent`
       source -> target: 0
       target -> source: 0
       state update:     1
     `,
-    stderr: "",
-  });
-
-  // Test short status
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      ↺1
-    `,
-    stderr: "",
   });
 
   // Test diff (no changes = empty output)
-  await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: "",
-    stderr: "",
-  });
+  await testbed.testDiff("config.toml", "");
 
   // Test sync
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       source -> target: 0

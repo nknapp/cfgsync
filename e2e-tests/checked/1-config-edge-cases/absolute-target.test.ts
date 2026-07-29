@@ -18,7 +18,18 @@ Deno.test("copy data to absolute target path", async (t) => {
     ],
   }));
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
+  await testbed.testSync("config.toml", {
+    code: 0,
+    stdout: deindent`
+      copied .subdir/subsub/new.txt -> target
+
+      source -> target: 1
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+    `,
+    stderr: "",
+  });
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
@@ -32,16 +43,4 @@ Deno.test("copy data to absolute target path", async (t) => {
     "user:user | 755 | 0 | target/.subdir/subsub/",
     "user:user | 644 | 0 | target/.subdir/subsub/new.txt | newfile",
   ]);
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      copied .subdir/subsub/new.txt -> target
-
-      source -> target: 1
-      target -> source: 0
-      deleted target:   0
-      deleted source:   0
-    `,
-    stderr: "",
-  });
 });

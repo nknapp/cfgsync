@@ -16,8 +16,7 @@ Deno.test("sync-symlink-forward", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied link.txt -> target

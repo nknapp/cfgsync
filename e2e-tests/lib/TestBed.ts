@@ -172,6 +172,23 @@ export class TestBed {
     return this.lastRun.code;
   }
 
+  async testSync(configPath: string, expectedOutput: ExecReturn) {
+    await this.run({ args: ["--config", configPath, "sync"] });
+    this.assertOutput(expectedOutput);
+  }
+
+  async testStatus(configPath: string, expectedOutput: { short: string; normal: string }) {
+    await this.run({ args: ["--config", configPath, "status", "--short"] });
+    this.assertOutput({ code: 0, stdout: expectedOutput.short, stderr: "" });
+    await this.run({ args: ["--config", configPath, "status"] });
+    this.assertOutput({ code: 0, stdout: expectedOutput.normal, stderr: "" });
+  }
+
+  async testDiff(configPath: string, expectedOutput: string) {
+    await this.run({ args: ["--config", configPath, "diff"] });
+    this.assertOutput({ code: 0, stdout: expectedOutput, stderr: "" });
+  }
+
   assertOutput(expectedOutput: ExecReturn) {
     if (this.lastRun == null) {
       throw new Error("Call 'run' before checking output");

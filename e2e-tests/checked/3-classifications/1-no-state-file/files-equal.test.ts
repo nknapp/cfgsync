@@ -18,40 +18,24 @@ Deno.test("new-file-update-state", async (t) => {
   });
 
   // Test short status
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+  await testbed.testStatus("config.toml", {
+    short: deindent`
       ↺1
     `,
-    stderr: "",
-  });
-
-  // status: both sides have same content and no state entry → UpdateState
-  await testbed.run({ args: ["--config", "config.toml", "status"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+    normal: deindent`
       source -> target: 0
       target -> source: 0
       state update:     1
     `,
-    stderr: "",
   });
 
   // TODO: Test short status (new icon to show that everything is fine, but sync should be run anyway)
 
   // diff: UpdateState produces no output
-  await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: "",
-    stderr: "",
-  });
+  await testbed.testDiff("config.toml", "");
 
   // sync: no files copied, state file created with hash for tracking
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       source -> target: 0

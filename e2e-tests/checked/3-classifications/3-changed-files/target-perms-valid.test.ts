@@ -22,38 +22,23 @@ Deno.test("target-perms-valid-copy-to-source", async (t) => {
   testbed.advance("1 sec");
   await testbed.chmod("target/file.txt", 0o755);
 
-  await testbed.run({ args: ["--config", "config.toml", "status"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+  await testbed.testStatus("config.toml", {
+    short: deindent`
+      1←
+    `,
+    normal: deindent`
       source -> target: 0
       target -> source: 1
     `,
-    stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      1←
-    `,
-    stderr: "",
-  });
+  await testbed.testDiff("config.toml", deindent`
+    === file.txt (target -> source) ===
+    --- ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
+    +++ ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
+  `);
 
-  await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      === file.txt (target -> source) ===
-      --- ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
-      +++ ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
-    `,
-    stderr: "",
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied target -> file.txt

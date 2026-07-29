@@ -18,19 +18,7 @@ Deno.test("hooks-working-directory-is-config-dir", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["--config", "subdir/config.toml", "sync"] });
-
-  await testbed.assertTestDir([
-    "user:user | 755 | 0 | subdir/",
-    `user:user | 644 | 0 | subdir/config.cfgsync.state | ${STATE_FILE}`,
-    `user:user | 644 | 0 | subdir/config.toml | ${CONFIG_TOML}`,
-    "user:user | 644 | 0 | subdir/hook-marker | ",
-    "user:user | 755 | 0 | subdir/source/",
-    "user:user | 644 | 0 | subdir/source/file.txt | file content",
-    "user:user | 755 | 0 | subdir/target/",
-    "user:user | 644 | 0 | subdir/target/file.txt | file content",
-  ]);
-  testbed.assertOutput({
+  await testbed.testSync("subdir/config.toml", {
     code: 0,
     stdout: deindent`
       copied file.txt -> target
@@ -43,4 +31,15 @@ Deno.test("hooks-working-directory-is-config-dir", async (t) => {
     `,
     stderr: "",
   });
+
+  await testbed.assertTestDir([
+    "user:user | 755 | 0 | subdir/",
+    `user:user | 644 | 0 | subdir/config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | subdir/config.toml | ${CONFIG_TOML}`,
+    "user:user | 644 | 0 | subdir/hook-marker | ",
+    "user:user | 755 | 0 | subdir/source/",
+    "user:user | 644 | 0 | subdir/source/file.txt | file content",
+    "user:user | 755 | 0 | subdir/target/",
+    "user:user | 644 | 0 | subdir/target/file.txt | file content",
+  ]);
 });

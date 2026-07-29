@@ -22,43 +22,28 @@ Deno.test("both-exist-copy-to-target", async (t) => {
   testbed.advance("1 sec");
   await testbed.writeTextFile("source/file.txt", "v2");
 
-  await testbed.run({ args: ["--config", "config.toml", "status"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+  await testbed.testStatus("config.toml", {
+    short: deindent`
+      1→
+    `,
+    normal: deindent`
       source -> target: 1
       target -> source: 0
     `,
-    stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      1→
-    `,
-    stderr: "",
-  });
+  await testbed.testDiff("config.toml", deindent`
+    === file.txt (source -> target) ===
+    --- ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
+    +++ ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
+    @@ -1 +1 @@
+    -v2
+    \ No newline at end of file
+    +v1
+    \ No newline at end of file
+  `);
 
-  await testbed.run({ args: ["--config", "config.toml", "diff"] });
-  testbed.assertOutput({
-    code: 0,
-    stderr: "",
-    stdout: deindent`
-      === file.txt (source -> target) ===
-      --- ${testDir}/source/file.txt${"\t"}2020-01-01 00:00:01.000000000 +0000
-      +++ ${testDir}/target/file.txt${"\t"}2020-01-01 00:00:00.000000000 +0000
-      @@ -1 +1 @@
-      -v2
-      \ No newline at end of file
-      +v1
-      \ No newline at end of file
-    `,
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied file.txt -> target

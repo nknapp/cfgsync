@@ -17,27 +17,17 @@ Deno.test("permission-preset-shared", async (t) => {
     ],
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "status"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
+  await testbed.testStatus("config.toml", {
+    short: deindent`
+      1→
+    `,
+    normal: deindent`
       source -> target: 1
       target -> source: 0
     `,
-    stderr: "",
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "status", "--short"] });
-  testbed.assertOutput({
-    code: 0,
-    stdout: deindent`
-      1→
-    `,
-    stderr: "",
-  });
-
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  testbed.assertOutput({
+  await testbed.testSync("config.toml", {
     code: 0,
     stdout: deindent`
       copied file.txt -> target
