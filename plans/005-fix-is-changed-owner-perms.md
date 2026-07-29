@@ -1,5 +1,10 @@
 # Fix: `is_changed()` and no-state equality — owner/permissions comparison
 
+## Status
+
+closed — implemented. `is_changed()` compares owner+perms against state. No-state equality checks owner.
+8 tests added to `e2e-tests/checked/3-classifications/3-changed-files/`.
+
 ## Summary
 
 The algorithm spec (sec 3.1) defines `is_equal(a, b)` as: `a.hash == b.hash AND a.perms == b.perms
