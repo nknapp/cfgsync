@@ -772,6 +772,11 @@ fn validate_action(change: &mut Change, config: &ResolvedConfig) {
         } => {
             check_state_writable(failed_checks, config);
             let group = &config.sync_groups[*group_index];
+
+            if abs_src.is_symlink() {
+                return;
+            }
+
             if let Some(parent) = abs_tgt.parent()
                 && parent != group.target_dir
                 && parent.exists()
@@ -788,6 +793,10 @@ fn validate_action(change: &mut Change, config: &ResolvedConfig) {
                     rel_path
                 ));
             }
+
+            if let Some(eu) = effective_user(config, *group_index) {
+                check_parent_dirs_creatable(abs_tgt, &group.target_dir, eu, failed_checks);
+            }
         }
         Change::CopyToSource {
             abs_src,
@@ -798,6 +807,12 @@ fn validate_action(change: &mut Change, config: &ResolvedConfig) {
             ..
         } => {
             check_state_writable(failed_checks, config);
+            let group = &config.sync_groups[*group_index];
+
+            if abs_tgt.is_symlink() {
+                return;
+            }
+
             if !abs_tgt.exists() && !abs_tgt.is_symlink() {
                 failed_checks.push(format!(
                     "target file '{}' does not exist for CopyToSource",
@@ -828,15 +843,33 @@ fn validate_action(change: &mut Change, config: &ResolvedConfig) {
                 failed_checks,
             );
             validate_copy_to_source_user(&config.config_path, failed_checks);
+
+            use std::os::unix::fs::MetadataExt;
+            let config_eu = if let Ok(meta) = std::fs::metadata(&config.config_path) {
+                Some((meta.uid(), meta.gid()))
+            } else {
+                None
+            };
+            if let Some(eu) = config_eu {
+                check_parent_dirs_creatable(abs_src, &group.source_dir, eu, failed_checks);
+            }
         }
         Change::DeleteTarget {
             abs_tgt,
             failed_checks,
+            group_index,
             ..
         } => {
             check_state_writable(failed_checks, config);
             if !abs_tgt.exists() {
                 failed_checks.push("target file does not exist (already deleted?)".to_string());
+                return;
+            }
+            if abs_tgt.is_symlink() {
+                return;
+            }
+            if let Some(eu) = effective_user(config, *group_index) {
+                check_delete_feasible(abs_tgt, eu, failed_checks);
             }
         }
         Change::DeleteSource {
@@ -847,16 +880,29 @@ fn validate_action(change: &mut Change, config: &ResolvedConfig) {
             check_state_writable(failed_checks, config);
             if !abs_src.exists() {
                 failed_checks.push("source file does not exist (already deleted?)".to_string());
+                return;
+            }
+            if abs_src.is_symlink() {
+                return;
+            }
+            use std::os::unix::fs::MetadataExt;
+            let config_eu = if let Ok(meta) = std::fs::metadata(&config.config_path) {
+                Some((meta.uid(), meta.gid()))
+            } else {
+                None
+            };
+            if let Some(eu) = config_eu {
+                check_delete_feasible(abs_src, eu, failed_checks);
             }
         }
         Change::DeleteFromState { failed_checks, .. } => {
             check_state_writable(failed_checks, config);
         }
         Change::Conflict {
-            group_index,
             abs_src,
             abs_tgt,
             failed_checks,
+            group_index,
             ..
         } => {
             let group = &config.sync_groups[*group_index];
@@ -882,8 +928,70 @@ fn validate_action(change: &mut Change, config: &ResolvedConfig) {
                     parent.display()
                 ));
             }
+
+            let mut ctt_checks: Vec<String> = Vec::new();
+            let mut cts_checks: Vec<String> = Vec::new();
+
+            let ctt_eu = effective_user(config, *group_index);
+
+            use std::os::unix::fs::MetadataExt;
+            let cts_eu = if let Ok(meta) = std::fs::metadata(&config.config_path) {
+                Some((meta.uid(), meta.gid()))
+            } else {
+                None
+            };
+
+            if let Some(eu) = ctt_eu {
+                check_parent_dirs_creatable(abs_tgt, &group.target_dir, eu, &mut ctt_checks);
+                check_target_writable(abs_tgt, eu, &mut ctt_checks);
+            }
+            if let Some(eu) = cts_eu {
+                check_parent_dirs_creatable(abs_src, &group.source_dir, eu, &mut cts_checks);
+                check_target_writable(abs_src, eu, &mut cts_checks);
+            }
+
+            if !ctt_checks.is_empty() && !cts_checks.is_empty() {
+                failed_checks.push(
+                    "conflict cannot be resolved: neither CopyToTarget nor CopyToSource is feasible"
+                        .to_string(),
+                );
+                failed_checks.push(format!(
+                    "  CopyToTarget failures: {}",
+                    ctt_checks.join(", ")
+                ));
+                failed_checks.push(format!(
+                    "  CopyToSource failures: {}",
+                    cts_checks.join(", ")
+                ));
+            }
         }
         Change::Clean { .. } | Change::Failed { .. } => {}
+    }
+}
+
+fn check_delete_feasible(
+    abs_path: &Path,
+    effective_user: (u32, u32),
+    failed_checks: &mut Vec<String>,
+) {
+    let (eu_uid, eu_gid) = effective_user;
+    if eu_uid == 0 {
+        return;
+    }
+    let Some(parent) = abs_path.parent() else {
+        return;
+    };
+    let Ok(parent_meta) = std::fs::metadata(parent) else {
+        return;
+    };
+    let Ok(file_meta) = std::fs::metadata(abs_path) else {
+        return;
+    };
+    if !can_delete(eu_uid, eu_gid, &parent_meta, &file_meta) {
+        failed_checks.push(format!(
+            "cannot delete '{}' (insufficient permissions on parent directory)",
+            abs_path.display()
+        ));
     }
 }
 
@@ -1001,6 +1109,305 @@ fn validate_copy_to_source_user(config_path: &Path, failed_checks: &mut Vec<Stri
             ));
         }
     }
+}
+
+fn effective_user(config: &ResolvedConfig, group_index: usize) -> Option<(u32, u32)> {
+    use std::os::unix::fs::MetadataExt;
+    let group = &config.sync_groups[group_index];
+    if let Some(owner_spec) = group.globs.iter().find_map(|g| g.owner.clone()) {
+        resolve_owner_spec_to_uid_gid(&owner_spec).ok()
+    } else if let Ok(meta) = std::fs::metadata(&config.config_path) {
+        Some((meta.uid(), meta.gid()))
+    } else {
+        None
+    }
+}
+
+fn resolve_owner_spec_to_uid_gid(owner_spec: &str) -> Result<(u32, u32), String> {
+    let parts: Vec<&str> = owner_spec.split(':').collect();
+    if parts.len() != 2 {
+        return Err(format!(
+            "Invalid owner format '{}' (expected 'user:group')",
+            owner_spec
+        ));
+    }
+    let user_name = parts[0];
+    let group_name = parts[1];
+    let uid = nix::unistd::User::from_name(user_name)
+        .map_err(|e| format!("Cannot look up user '{}': {}", user_name, e))?
+        .map(|u| u.uid.as_raw())
+        .unwrap_or(0);
+    let gid = nix::unistd::Group::from_name(group_name)
+        .map_err(|e| format!("Cannot look up group '{}': {}", group_name, e))?
+        .map(|g| g.gid.as_raw())
+        .unwrap_or(0);
+    Ok((uid, gid))
+}
+
+#[allow(dead_code)]
+fn can_write_impl(user_uid: u32, user_gid: u32, path_uid: u32, path_gid: u32, mode: u32) -> bool {
+    if path_uid == user_uid {
+        (mode & 0o200) != 0
+    } else if path_gid == user_gid {
+        (mode & 0o020) != 0
+    } else {
+        (mode & 0o002) != 0
+    }
+}
+
+fn can_write_execute_dir(user_uid: u32, user_gid: u32, meta: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    if user_uid == 0 {
+        return true;
+    }
+    let path_uid = meta.uid();
+    let path_gid = meta.gid();
+    let mode = meta.permissions().mode();
+    if path_uid == user_uid {
+        (mode & 0o300) == 0o300
+    } else if path_gid == user_gid {
+        (mode & 0o030) == 0o030
+    } else {
+        (mode & 0o003) == 0o003
+    }
+}
+
+fn check_parent_dirs_creatable(
+    abs_path: &Path,
+    root: &Path,
+    effective_user: (u32, u32),
+    failed_checks: &mut Vec<String>,
+) {
+    let (eu_uid, eu_gid) = effective_user;
+
+    let mut current = abs_path.to_path_buf();
+    let mut missing_dirs: Vec<PathBuf> = Vec::new();
+
+    while let Some(parent) = current.parent() {
+        if !parent.starts_with(root) || parent == root {
+            break;
+        }
+        if parent.exists() {
+            if let Some(deepest_missing) = missing_dirs.pop()
+                && let Ok(meta) = std::fs::metadata(parent)
+                && !can_write_execute_dir(eu_uid, eu_gid, &meta)
+            {
+                failed_checks.push(format!(
+                    "cannot create parent directory '{}' (no write+execute permission on '{}')",
+                    deepest_missing.display(),
+                    parent.display()
+                ));
+            }
+            break;
+        }
+        missing_dirs.push(parent.to_path_buf());
+        current = parent.to_path_buf();
+    }
+
+    if let Some(deepest_missing) = missing_dirs.pop()
+        && let Ok(meta) = std::fs::metadata(root)
+        && !can_write_execute_dir(eu_uid, eu_gid, &meta)
+    {
+        failed_checks.push(format!(
+            "cannot create parent directory '{}' (no write+execute permission on '{}')",
+            deepest_missing.display(),
+            root.display()
+        ));
+    }
+}
+
+#[allow(dead_code)]
+fn check_parent_dir_owner_and_perms(
+    abs_path: &Path,
+    group: &crate::config::ResolvedSyncGroup,
+    effective_user: (u32, u32),
+    failed_checks: &mut Vec<String>,
+) {
+    let Some(file_parent) = abs_path.parent() else {
+        return;
+    };
+    let root = group
+        .target_dir
+        .canonicalize()
+        .unwrap_or_else(|_| group.target_dir.clone());
+
+    let (expected_uid, expected_gid) = effective_user;
+
+    let expected_dir_perms = group.globs.iter().find_map(|g| g.dir_perms.clone());
+
+    let mut current = file_parent.to_path_buf();
+
+    while let Ok(current_canon) = current.canonicalize() {
+        if current_canon == root || !current_canon.starts_with(&root) {
+            break;
+        }
+        if !current.exists() {
+            let Some(parent) = current.parent() else {
+                break;
+            };
+            current = parent.to_path_buf();
+            continue;
+        }
+
+        if let Ok(meta) = std::fs::metadata(&current) {
+            if !meta.is_dir() {
+                failed_checks.push(format!(
+                    "parent path '{}' exists but is not a directory",
+                    current.display()
+                ));
+                break;
+            }
+
+            use std::os::unix::fs::MetadataExt;
+            let actual_uid = meta.uid();
+            let actual_gid = meta.gid();
+            if actual_uid != expected_uid || actual_gid != expected_gid {
+                let actual_owner = format_uid_gid(actual_uid, actual_gid);
+                let expected_owner = format_uid_gid(expected_uid, expected_gid);
+                failed_checks.push(format!(
+                    "parent directory '{}' is owned by {}, expected '{}'",
+                    current.display(),
+                    actual_owner,
+                    expected_owner
+                ));
+            }
+
+            if let Some(ref preset) = expected_dir_perms {
+                let actual_mode = meta.permissions().mode() & 0o777;
+                let expected_mode = preset.map_permissions(0o755);
+                if actual_mode != expected_mode {
+                    failed_checks.push(format!(
+                        "parent directory '{}' has permissions {:o}, expected {:o}",
+                        current.display(),
+                        actual_mode,
+                        expected_mode
+                    ));
+                }
+            }
+        }
+
+        let Some(parent) = current.parent() else {
+            break;
+        };
+        current = parent.to_path_buf();
+    }
+}
+
+fn check_target_writable(
+    abs_path: &Path,
+    effective_user: (u32, u32),
+    failed_checks: &mut Vec<String>,
+) {
+    use std::os::unix::fs::MetadataExt;
+    let (eu_uid, eu_gid) = effective_user;
+
+    if eu_uid == 0 {
+        return;
+    }
+
+    if abs_path.exists() || abs_path.is_symlink() {
+        if let Ok(meta) = std::fs::metadata(abs_path)
+            && !can_write_impl(
+                eu_uid,
+                eu_gid,
+                meta.uid(),
+                meta.gid(),
+                meta.permissions().mode(),
+            )
+        {
+            failed_checks.push(format!(
+                "target file '{}' is not writable",
+                abs_path.display()
+            ));
+        }
+    } else if let Some(parent) = abs_path.parent()
+        && parent.exists()
+        && let Ok(meta) = std::fs::metadata(parent)
+        && !can_write_execute_dir(eu_uid, eu_gid, &meta)
+    {
+        failed_checks.push(format!(
+            "cannot create target file '{}' (no write+execute permission on parent '{}')",
+            abs_path.display(),
+            parent.display()
+        ));
+    }
+}
+
+fn can_delete(
+    user_uid: u32,
+    user_gid: u32,
+    parent_meta: &std::fs::Metadata,
+    file_meta: &std::fs::Metadata,
+) -> bool {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+    if !can_write_execute_dir(user_uid, user_gid, parent_meta) {
+        return false;
+    }
+
+    let parent_mode = parent_meta.permissions().mode();
+    if (parent_mode & 0o1000) != 0 {
+        let file_uid = file_meta.uid();
+        if user_uid != 0 && user_uid != file_uid {
+            return false;
+        }
+    }
+
+    true
+}
+
+#[allow(dead_code)]
+fn check_owner_settable(
+    group: &crate::config::ResolvedSyncGroup,
+    rel_path: &str,
+    is_copy_to_source: bool,
+    config: &ResolvedConfig,
+    failed_checks: &mut Vec<String>,
+) {
+    if crate::sync::is_root() {
+        return;
+    }
+
+    use std::os::unix::fs::MetadataExt;
+    let current_uid = nix::unistd::Uid::current().as_raw();
+
+    if is_copy_to_source {
+        if let Ok(meta) = std::fs::metadata(&config.config_path) {
+            let config_uid = meta.uid();
+            if current_uid != config_uid {
+                failed_checks.push(format!(
+                    "cannot set source file owner: must run as root or as config file owner (uid {})",
+                    config_uid
+                ));
+            }
+        }
+    } else {
+        let glob = crate::sync::find_matching_glob(group, rel_path);
+        if let Some(ref owner_spec) = glob.and_then(|g| g.owner.as_ref())
+            && let Ok((configured_uid, _configured_gid)) = resolve_owner_spec_to_uid_gid(owner_spec)
+            && current_uid != configured_uid
+        {
+            failed_checks.push(format!(
+                "cannot set owner '{}' for target file '{}' without root privileges",
+                owner_spec, rel_path
+            ));
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn format_uid_gid(uid: u32, gid: u32) -> String {
+    let user = nix::unistd::User::from_uid(nix::unistd::Uid::from_raw(uid))
+        .ok()
+        .flatten()
+        .map(|u| u.name)
+        .unwrap_or_else(|| uid.to_string());
+    let group = nix::unistd::Group::from_gid(nix::unistd::Gid::from_raw(gid))
+        .ok()
+        .flatten()
+        .map(|g| g.name)
+        .unwrap_or_else(|| gid.to_string());
+    format!("{}:{}", user, group)
 }
 
 pub fn count_changes(changes: &[Change]) -> ChangeCounts {
