@@ -1,7 +1,8 @@
-import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import { assertEquals } from "@/lib/assert.ts";
 
 Deno.test("source-parent-dir-not-creatable", async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -28,4 +29,22 @@ Deno.test("source-parent-dir-not-creatable", async (t) => {
       failed:           1
     `,
   });
+
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
+  assertEquals(testbed.getExitCode(), 0);
+  assertEquals(
+    testbed.getStderr(),
+    deindent`
+      Warning: skipping 'subdir/file.txt': cannot create parent directory '${testDir}/source/subdir' (no write+execute permission on '${testDir}/source')
+    `,
+  );
+
+  await testbed.assertTestDir([
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+    "root:root | 555 | 0 | source/",
+    "user:user | 755 | 0 | target/",
+    "user:user | 755 | 0 | target/subdir/",
+    "user:user | 644 | 0 | target/subdir/file.txt | hello",
+  ]);
 });

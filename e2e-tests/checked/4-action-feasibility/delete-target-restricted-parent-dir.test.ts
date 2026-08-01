@@ -6,12 +6,13 @@ import {
   STATE_FILE,
   TestBed,
 } from "@/lib/index.ts";
+import { assertEquals } from "@/lib/assert.ts";
 
 Deno.test({
   name: "delete-target-restricted-parent-dir",
   ignore: runningOutsideDocker,
 }, async (t) => {
-  const { testbed } = await TestBed.create(t, {
+  const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
       source = "./source"
@@ -42,4 +43,22 @@ Deno.test({
       failed:           1
     `,
   });
+
+  await testbed.run({ args: ["--config", "config.toml", "sync"] });
+  assertEquals(testbed.getExitCode(), 0);
+  assertEquals(
+    testbed.getStderr(),
+    deindent`
+      Warning: skipping 'file.txt': cannot delete '${testDir}/target/file.txt' (insufficient permissions on parent directory)
+    `,
+  );
+
+  await testbed.assertTestDir([
+    `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
+    `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
+    "user:user | 755 | 0 | source/",
+    // @ts-expect-error rootOwner union type not assignable to literal TestEntry
+    `${rootOwner} | 755 | 0 | target/`,
+    "user:user | 644 | 0 | target/file.txt | hello",
+  ]);
 });
