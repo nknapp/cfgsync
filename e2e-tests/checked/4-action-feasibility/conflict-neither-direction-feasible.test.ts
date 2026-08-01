@@ -1,6 +1,9 @@
-import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, runningOutsideDocker, TestBed } from "@/lib/index.ts";
 
-Deno.test("conflict-neither-direction-feasible", async (t) => {
+Deno.test({
+  name: "conflict-neither-direction-feasible",
+  ignore: runningOutsideDocker,
+}, async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]

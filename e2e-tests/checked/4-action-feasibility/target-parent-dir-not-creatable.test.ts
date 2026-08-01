@@ -1,6 +1,9 @@
-import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import { CONFIG_TOML, deindent, runningOutsideDocker, STATE_FILE, TestBed } from "@/lib/index.ts";
 
-Deno.test("target-parent-dir-not-creatable", async (t) => {
+Deno.test({
+  name: "target-parent-dir-not-creatable",
+  ignore: runningOutsideDocker,
+}, async (t) => {
   const { testbed, testDir } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]

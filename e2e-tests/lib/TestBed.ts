@@ -177,6 +177,11 @@ export class TestBed {
     this.assertOutput(expectedOutput);
   }
 
+  async testSudoSync(configPath: string, expectedOutput: ExecReturn) {
+    await this.run({ args: ["--config", configPath, "sync"], sudo: true });
+    this.assertOutput(expectedOutput);
+  }
+
   async testStatus(configPath: string, expectedOutput: { short: string; normal: string }) {
     await this.run({ args: ["--config", configPath, "status", "--short"] });
     this.assertOutput({ code: 0, stdout: expectedOutput.short, stderr: "" });

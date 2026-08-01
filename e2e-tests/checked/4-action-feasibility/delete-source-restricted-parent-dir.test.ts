@@ -43,7 +43,7 @@ Deno.test({
     `,
   });
 
-  await testbed.testSync("config.toml", {
+  await testbed.testSudoSync("config.toml", {
     code: 0,
     stdout: deindent`
 
