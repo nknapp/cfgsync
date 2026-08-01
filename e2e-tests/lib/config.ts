@@ -4,7 +4,7 @@ export type TestPath = string;
 export type TestContents = string;
 export type TestUser = keyof typeof userIdMap;
 export type TestGroup = keyof typeof groupIdMap;
-export type TestOwner = `${"user" | "root"}:${"user" | "root"}` | "root:wheel";
+export type TestOwner = `${"user" | "root"}:${"user" | "root"}` | "root:wheel" | "nobody:daemon";
 export type TestPerms = `${number | ""}${number}${number}${number}`;
 export type TestMtime = string;
 

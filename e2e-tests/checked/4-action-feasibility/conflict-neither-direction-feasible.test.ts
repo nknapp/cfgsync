@@ -1,5 +1,4 @@
 import { CONFIG_TOML, deindent, TestBed } from "@/lib/index.ts";
-import { assertEquals } from "@/lib/assert.ts";
 
 Deno.test("conflict-neither-direction-feasible", async (t) => {
   const { testbed } = await TestBed.create(t, {
@@ -30,16 +29,15 @@ Deno.test("conflict-neither-direction-feasible", async (t) => {
     `,
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  assertEquals(testbed.getExitCode(), 1);
-  assertEquals(
-    testbed.getStderr(),
-    deindent`
+  await testbed.testSync("config.toml", {
+    code: 1,
+    stdout: "",
+    stderr: deindent`
       Conflicts detected (1 files):
         file.txt
       Error: Aborting due to 1 conflict(s). Use -i/--interactive to resolve.
     `,
-  );
+  });
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.toml | ${CONFIG_TOML}`,
