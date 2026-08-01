@@ -1,8 +1,28 @@
 # Changelog
 
-## [v0.6.12](https://github.com/nknapp/cfgsync/compare/v0.6.11...835ac0ed58f57ca94a35ba260c68a2d0d5fde804) (2026-07-29)
+## [v0.6.13](https://github.com/nknapp/cfgsync/compare/v0.6.12...d5b51ca559da4db778d921be4d070e5974e492fd) (2026-08-02)
+
+### Features
+
+* add step-4 action feasibility validation checks
+([4d5f4e7](https://github.com/nknapp/cfgsync/commit/4d5f4e7909cc32c64bb03eb3a206959ac58b207d))
 
 ### Fixes
+
+* use testSudoSync for delete tests, mark all feasibility tests dockerOnly
+([5fa5832](https://github.com/nknapp/cfgsync/commit/5fa58322c56c925085ebc2f40bdc735fef38c983))
+* add nobodyOwner to TestOwner, use testSync for conflict test
+([9fe9663](https://github.com/nknapp/cfgsync/commit/9fe966362c1325e61a0aaf040d969b9d9dcf35c1))
+* use testSync, extend TestOwner type, remove @ts-expect-error
+([8c5ef4f](https://github.com/nknapp/cfgsync/commit/8c5ef4f92d425ae45fc5981c64920ce091bd215e))
+* add sync+stderr verification to feasibility e2e tests
+([25f4cdc](https://github.com/nknapp/cfgsync/commit/25f4cdc2e9761a4f5c698c33ed2e4686776129d6))
+* delete wrong test dir, use rootOwner and dockerOnly for chown tests
+([16d6e62](https://github.com/nknapp/cfgsync/commit/16d6e6244237b526b3f572a45e4ef771e6ce5a8b))
+
+### [v0.6.12](https://github.com/nknapp/cfgsync/compare/v0.6.11...v0.6.12) (2026-07-29)
+
+#### Fixes
 
 * skip perms/owner check in is_changed when mtime matches state
 ([9cb1906](https://github.com/nknapp/cfgsync/commit/9cb19069dc185a5d6fffc4ebf15e1621196e1ba0))
