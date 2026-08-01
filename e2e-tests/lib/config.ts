@@ -4,7 +4,7 @@ export type TestPath = string;
 export type TestContents = string;
 export type TestUser = keyof typeof userIdMap;
 export type TestGroup = keyof typeof groupIdMap;
-export type TestOwner = `${"user" | "root"}:${"user" | "root"}`;
+export type TestOwner = `${"user" | "root"}:${"user" | "root"}` | "root:wheel";
 export type TestPerms = `${number | ""}${number}${number}${number}`;
 export type TestMtime = string;
 
@@ -52,6 +52,6 @@ export function groupToId(group: TestGroup): number {
 
 const isMacos = Deno.build.os === "darwin";
 
-export const rootOwner = isMacos ? "root:wheel" : "root:root";
+export const rootOwner: "root:wheel" | "root:root" = isMacos ? "root:wheel" : "root:root";
 
 export const nobodyOwner = "nobody:daemon";

@@ -1,5 +1,4 @@
 import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
-import { assertEquals } from "@/lib/assert.ts";
 
 Deno.test("target-parent-dir-not-creatable", async (t) => {
   const { testbed, testDir } = await TestBed.create(t, {
@@ -30,14 +29,20 @@ Deno.test("target-parent-dir-not-creatable", async (t) => {
     `,
   });
 
-  await testbed.run({ args: ["--config", "config.toml", "sync"] });
-  assertEquals(testbed.getExitCode(), 0);
-  assertEquals(
-    testbed.getStderr(),
-    deindent`
+  await testbed.testSync("config.toml", {
+    code: 0,
+    stdout: deindent`
+
+      source -> target: 0
+      target -> source: 0
+      deleted target:   0
+      deleted source:   0
+      permission skips: 1
+    `,
+    stderr: deindent`
       Warning: skipping 'subdir/file.txt': cannot create parent directory '${testDir}/target/subdir' (no write+execute permission on '${testDir}/target')
     `,
-  );
+  });
 
   await testbed.assertTestDir([
     `user:user | 644 | 0 | config.cfgsync.state | ${STATE_FILE}`,
