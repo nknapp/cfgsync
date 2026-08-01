@@ -1,6 +1,16 @@
-import { CONFIG_TOML, deindent, STATE_FILE, TestBed } from "@/lib/index.ts";
+import {
+  CONFIG_TOML,
+  deindent,
+  rootOwner,
+  runningOutsideDocker,
+  STATE_FILE,
+  TestBed,
+} from "@/lib/index.ts";
 
-Deno.test("delete-source-restricted-parent-dir", async (t) => {
+Deno.test({
+  name: "delete-source-restricted-parent-dir",
+  ignore: runningOutsideDocker,
+}, async (t) => {
   const { testbed } = await TestBed.create(t, {
     configToml: deindent`
       [[sync]]
@@ -19,7 +29,7 @@ Deno.test("delete-source-restricted-parent-dir", async (t) => {
     faketime: "2020-01-01T00:00:00Z",
   });
 
-  await testbed.chown("source", "root:root");
+  await testbed.chown("source", rootOwner);
   await testbed.deleteFile("target/file.txt");
 
   await testbed.testStatus("config.toml", {
